@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FollowUpQuote
 
-## Getting Started
+Estimate follow-up automation for local service businesses. Track sent estimates, get nudged on which ones need a follow-up, review AI-free drafted follow-up messages, and see at-risk revenue at a glance.
 
-First, run the development server:
+This is **not** a CRM, a website builder, or an email sender (yet) — see [CLAUDE.md](./CLAUDE.md) for scope and architecture rules, and [ui-ux-pro-max.md](./ui-ux-pro-max.md) for the design system this project follows.
+
+## Stack
+
+Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Airtable (data store) · Vercel-ready
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in your Airtable credentials
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Without Airtable configured, every data page shows a friendly "not connected" state instead of crashing.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Airtable setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a base with two tables:
 
-## Learn More
+**Estimates**
+`customerName`, `customerEmail`, `businessName`, `serviceType`, `estimateValue` (number), `dateSent` (date), `status` (single select: Sent, Follow-up 1, Follow-up 2, Booked, Lost), `nextFollowUpDate` (date), `lastContactDate` (date), `notes` (long text)
 
-To learn more about Next.js, take a look at the following resources:
+**FollowUps**
+`estimateId` (text — Airtable record ID of the linked estimate), `message` (long text), `status` (single select: Pending, Sent, Approved, Rejected), `scheduledDate` (date)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Generate a Personal Access Token at [airtable.com/create/tokens](https://airtable.com/create/tokens) with `data.records:read` and `data.records:write` scopes on that base, then set:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+AIRTABLE_API_KEY=pat...
+AIRTABLE_BASE_ID=app...
+```
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `npm run dev` — start the dev server
+- `npm run build` — production build
+- `npm run lint` — ESLint
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## How the follow-up engine works
+
+`services/followupEngine.ts` finds open estimates whose `nextFollowUpDate` has arrived, drafts a message based on the follow-up stage, and writes a `Pending` record to FollowUps — it never sends anything. Trigger it manually from the Follow-up Queue page, or hit `GET /api/follow-ups/generate` (wired up for a future Vercel Cron Job). Approving a follow-up in the queue marks it `Approved` ("ready to send") — actual sending arrives with the Gmail API integration in a later phase.
