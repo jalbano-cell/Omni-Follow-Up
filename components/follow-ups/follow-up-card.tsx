@@ -3,13 +3,15 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Pencil, X, Send, RotateCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import {
   approveFollowUpAction,
   editFollowUpMessageAction,
+  sendFollowUpAction,
   skipFollowUpAction,
 } from "@/app/follow-ups/actions";
 import { formatCurrency } from "@/lib/date";
@@ -42,6 +44,20 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
     });
   }
 
+  function send() {
+    startTransition(async () => {
+      const result = await sendFollowUpAction(item.id);
+      if (result.ok) {
+        toast.success("Email sent");
+      } else {
+        toast.error(`Send failed: ${result.error}`);
+      }
+    });
+  }
+
+  const isApproved = item.status === "Approved";
+  const isFailed = item.status === "Failed";
+
   return (
     <Card className="py-4">
       <CardContent className="px-5">
@@ -52,10 +68,19 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
               <span className="ml-1.5 text-sm font-normal text-muted-foreground">· {item.businessName}</span>
             )}
           </Link>
-          <span className="text-xs text-muted-foreground">
-            {formatCurrency(item.estimateValue)} · {item.daysSinceSent} days since sent
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {formatCurrency(item.estimateValue)} · {item.daysSinceSent} days since sent
+            </span>
+            <FollowUpStatusBadge status={item.status} />
+          </div>
         </div>
+
+        {isFailed && (
+          <p className="mt-2 text-xs text-destructive">
+            Sending failed after a retry. Edit the message if needed, then try again.
+          </p>
+        )}
 
         {isEditing ? (
           <Textarea
@@ -86,6 +111,21 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
                 disabled={isPending}
               >
                 Cancel
+              </Button>
+            </>
+          ) : isApproved || isFailed ? (
+            <>
+              <Button size="sm" onClick={send} disabled={isPending}>
+                {isFailed ? <RotateCw className="size-3.5" /> : <Send className="size-3.5" />}
+                {isFailed ? "Retry Send" : "Send Email"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsEditing(true)} disabled={isPending}>
+                <Pencil className="size-3.5" />
+                Edit
+              </Button>
+              <Button size="sm" variant="ghost" onClick={skip} disabled={isPending}>
+                <X className="size-3.5" />
+                Skip
               </Button>
             </>
           ) : (
