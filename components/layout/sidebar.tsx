@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Clock, Settings, Zap } from "lucide-react";
+import { LayoutDashboard, FileText, Clock, Settings, Zap, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logoutAction } from "@/app/login/actions";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -48,10 +49,16 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border px-6 py-4">
-        <p className="text-xs text-sidebar-foreground/50">
-          Estimate follow-ups, automated.
-        </p>
+      <div className="border-t border-sidebar-border px-3 py-3">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          >
+            <LogOut className="size-4" strokeWidth={2} />
+            Log out
+          </button>
+        </form>
       </div>
     </aside>
   );

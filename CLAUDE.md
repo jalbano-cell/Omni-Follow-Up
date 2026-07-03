@@ -29,12 +29,13 @@ Every screen must pass the Quality Bar and Component Checklist sections of `ui-u
 - `/services` — all external I/O and business logic (Airtable client, follow-up generation engine, Gmail client, the approval→send orchestrator). Pages and API routes call services; services never import from `/app` or `/components`. Keep `services/gmail.ts` a pure transport (send one email, know nothing about Airtable/approval state) — orchestration (retry, Airtable sync, stage advancement) belongs in `services/followupSender.ts`, not in `gmail.ts`.
 - `/types` — shared TypeScript types/interfaces (`Estimate`, `FollowUp`, status enums).
 - `/config` — constants (status lists, follow-up cadence rules, Airtable table/field names).
-- `/lib` — small framework-agnostic helpers (`cn`, formatting, date math). No shadcn re-generation beyond `lib/utils.ts`.
+- `/lib` — small framework-agnostic helpers (`cn`, formatting, date math, `auth.ts`'s session-token hashing). No shadcn re-generation beyond `lib/utils.ts`.
+- `middleware.ts` (project root) — the single shared-password gate. It excludes `/login` and `/api/follow-ups/generate` only; everything else, including server actions (which POST to their originating page's route), requires a valid session cookie. Don't add new always-public routes here without a real reason — this app has no per-user auth, so "logged in" means "knows the one password," full stop.
 
 Keep TypeScript strict. No `any`. Handle Airtable/env errors at the service boundary with clear thrown errors — don't swallow them silently, and don't add defensive checks for cases that can't happen.
 
 ## Non-goals for now
 
-- No multi-tenant auth/teams — single business per deployment for the MVP.
+- No multi-tenant auth/teams — single business per deployment for the MVP, and the login is a single shared password (`APP_PASSWORD`), not per-user accounts.
 - No CRM-style contact management beyond what's on an Estimate record.
 - No email *receiving*/reply detection — threading only makes outbound follow-ups land in the right Gmail thread; the app doesn't read replies or know if a customer responded.

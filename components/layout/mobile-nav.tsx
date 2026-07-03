@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Clock, Settings, Zap } from "lucide-react";
+import { LayoutDashboard, FileText, Clock, Settings, Zap, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logoutAction } from "@/app/login/actions";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -45,6 +46,17 @@ export function MobileNav({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </nav>
+      <div className="border-t border-border px-3 py-3">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-accent/60 hover:text-foreground"
+          >
+            <LogOut className="size-4" strokeWidth={2} />
+            Log out
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

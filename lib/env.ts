@@ -30,4 +30,10 @@ export const env = {
   get gmailUserEmail() {
     return requireEnv("GMAIL_USER_EMAIL");
   },
+  get appPassword() {
+    return requireEnv("APP_PASSWORD");
+  },
+  get authSecret() {
+    return requireEnv("AUTH_SECRET");
+  },
 };
