@@ -1,5 +1,6 @@
 import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/airtable";
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
+import { writeDailyRunLog, type DailyRunLog } from "@/lib/logger";
 import type { Estimate, FollowUp, FollowUpQueueItem } from "@/types";
 
 /**
@@ -24,32 +25,81 @@ export function draftFollowUpMessage(estimate: Estimate): string {
 }
 
 /**
- * Finds every estimate due for a follow-up today (or overdue) and creates
- * a Pending FollowUps record with a suggested draft message.
- * Does not send anything and does not mutate the Estimate record.
- * Skips estimates that already have a Pending follow-up queued.
+ * Finds every open estimate due for a follow-up (nextFollowUpDate <= today,
+ * across the Sent / Follow-up 1 / Follow-up 2 stages) and drafts a message
+ * for any that don't already have one queued. Never sends anything, never
+ * mutates the Estimate record, and never duplicates a Pending draft.
+ * Per-estimate failures are collected rather than aborting the whole run.
  */
-export async function generateDueFollowUps(): Promise<FollowUp[]> {
+async function generateFollowUpDrafts(): Promise<{
+  estimatesChecked: number;
+  created: FollowUp[];
+  errors: string[];
+}> {
   const [dueEstimates, existingFollowUps] = await Promise.all([getDueFollowUps(), getFollowUps()]);
 
   const estimateIdsWithPending = new Set(
     existingFollowUps.filter((f) => f.status === "Pending").map((f) => f.estimateId)
   );
-
   const estimatesNeedingDraft = dueEstimates.filter((e) => !estimateIdsWithPending.has(e.id));
 
-  const created = await Promise.all(
-    estimatesNeedingDraft.map((estimate) =>
-      createFollowUp({
+  const created: FollowUp[] = [];
+  const errors: string[] = [];
+
+  for (const estimate of estimatesNeedingDraft) {
+    try {
+      const followUp = await createFollowUp({
         estimateId: estimate.id,
         message: draftFollowUpMessage(estimate),
         status: "Pending",
         scheduledDate: todayIso(),
-      })
-    )
-  );
+      });
+      created.push(followUp);
+    } catch (error) {
+      errors.push(`estimate ${estimate.id}: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
 
+  return { estimatesChecked: dueEstimates.length, created, errors };
+}
+
+/** Manual trigger (e.g. the "Check for due follow-ups" button) — returns the drafts created. */
+export async function generateDueFollowUps(): Promise<FollowUp[]> {
+  const { created } = await generateFollowUpDrafts();
   return created;
+}
+
+/**
+ * The daily automation entry point (called by the Vercel Cron job). Runs the
+ * same detection + drafting logic as the manual trigger, but always produces
+ * a DailyRunLog — checked/created/errors — logged to console and, best
+ * effort, to /logs/daily-run/<date>.json.
+ */
+export async function runDailyFollowUpJob(): Promise<DailyRunLog> {
+  const timestamp = new Date().toISOString();
+
+  let result: { estimatesChecked: number; created: FollowUp[]; errors: string[] };
+  try {
+    result = await generateFollowUpDrafts();
+  } catch (error) {
+    const log: DailyRunLog = {
+      timestamp,
+      estimatesChecked: 0,
+      followUpsCreated: 0,
+      errors: [error instanceof Error ? error.message : "unknown error"],
+    };
+    await writeDailyRunLog(log);
+    return log;
+  }
+
+  const log: DailyRunLog = {
+    timestamp,
+    estimatesChecked: result.estimatesChecked,
+    followUpsCreated: result.created.length,
+    errors: result.errors,
+  };
+  await writeDailyRunLog(log);
+  return log;
 }
 
 /** Pending follow-ups joined with their parent estimate, for the queue UI. */

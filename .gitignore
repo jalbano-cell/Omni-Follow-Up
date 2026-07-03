@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# daily-run logs are local dev artifacts — the durable record on Vercel is the function's console log
+/logs/daily-run/*.json
+!/logs/daily-run/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

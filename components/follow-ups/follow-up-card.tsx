@@ -48,6 +48,9 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link href={`/estimates/${item.estimateId}`} className="hover:underline">
             <span className="text-sm font-semibold text-foreground">{item.customerName}</span>
+            {item.businessName && (
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">· {item.businessName}</span>
+            )}
           </Link>
           <span className="text-xs text-muted-foreground">
             {formatCurrency(item.estimateValue)} · {item.daysSinceSent} days since sent

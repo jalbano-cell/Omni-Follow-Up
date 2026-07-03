@@ -43,4 +43,16 @@ AIRTABLE_BASE_ID=app...
 
 ## How the follow-up engine works
 
-`services/followupEngine.ts` finds open estimates whose `nextFollowUpDate` has arrived, drafts a message based on the follow-up stage, and writes a `Pending` record to FollowUps — it never sends anything. Trigger it manually from the Follow-up Queue page, or hit `GET /api/follow-ups/generate` (wired up for a future Vercel Cron Job). Approving a follow-up in the queue marks it `Approved` ("ready to send") — actual sending arrives with the Gmail API integration in a later phase.
+`services/followupEngine.ts` finds open estimates (`Sent`, `Follow-up 1`, `Follow-up 2`) whose `nextFollowUpDate` has arrived, drafts a message based on the follow-up stage, and writes a `Pending` record to FollowUps — it never sends anything, never duplicates a draft for an estimate that already has one Pending, and never touches the Estimate record itself. Approving a follow-up in the queue marks it `Approved` ("ready to send") — actual sending arrives with the Gmail API integration in a later phase.
+
+**At-Risk Revenue** on the dashboard is the sum (and count) of open estimates that are currently overdue for a follow-up — i.e. exactly the set the engine would draft for right now. It's a live "what needs attention" number, not total open pipeline.
+
+### Daily automation (Vercel Cron)
+
+`vercel.json` schedules `GET /api/follow-ups/generate` once a day at **08:00 UTC** — Vercel Cron schedules are always UTC, so adjust the hour in `vercel.json` to land on 8am in your local timezone (e.g. 12:00 UTC for 8am Eastern during EDT). Cron only runs once a project is deployed to Vercel; it does nothing in local dev.
+
+Each run — whether from cron or the "Check for due follow-ups" button in the queue UI — produces a `DailyRunLog` (estimates checked, follow-ups created, errors) that's always printed to the console (the durable record in Vercel's function logs) and, best-effort, written to `/logs/daily-run/<date>.json` for local inspection. That directory write is skipped silently in production, where Vercel's filesystem is read-only outside `/tmp`.
+
+To restrict who can trigger the cron endpoint, set `CRON_SECRET` as a project environment variable — Vercel automatically sends it as a bearer token on its own cron requests.
+
+Manual approve/edit/skip actions and estimate status changes are also logged to the console via `lib/logger.ts`'s `logAction`, giving a lightweight audit trail without adding new Airtable tables.

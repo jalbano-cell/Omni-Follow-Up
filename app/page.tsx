@@ -7,20 +7,21 @@ import { StatusBadge } from "@/components/estimates/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getDashboardStats } from "@/services/analytics";
-import { getDueFollowUps, getEstimates } from "@/services/airtable";
-import { formatCurrency, formatDate, daysSince } from "@/lib/date";
+import { getFollowUpQueue } from "@/services/followupEngine";
+import { getEstimates } from "@/services/airtable";
+import { formatCurrency, formatDate } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   let stats;
-  let dueEstimates;
+  let followUpQueue;
   let recentEstimates;
 
   try {
-    [stats, dueEstimates, recentEstimates] = await Promise.all([
+    [stats, followUpQueue, recentEstimates] = await Promise.all([
       getDashboardStats(),
-      getDueFollowUps(),
+      getFollowUpQueue(),
       getEstimates().then((estimates) => estimates.slice(0, 5)),
     ]);
   } catch (error) {
@@ -49,7 +50,7 @@ export default async function DashboardPage() {
           value={formatCurrency(stats.atRiskRevenue)}
           icon={TrendingDown}
           tone="warning"
-          hint="Open estimates not yet booked"
+          hint={`${stats.atRiskCount} estimate${stats.atRiskCount === 1 ? "" : "s"} overdue for follow-up`}
         />
         <StatCard
           label="Booked Jobs"
@@ -63,29 +64,34 @@ export default async function DashboardPage() {
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="py-5">
           <CardHeader className="flex flex-row items-center justify-between px-5">
-            <CardTitle className="text-base">Due for follow-up</CardTitle>
+            <CardTitle className="text-base">Follow-ups waiting</CardTitle>
             <Button variant="ghost" size="sm" render={<Link href="/follow-ups" />}>
-              View queue <ArrowRight className="size-3.5" />
+              Review queue <ArrowRight className="size-3.5" />
             </Button>
           </CardHeader>
           <CardContent className="px-5">
-            {dueEstimates.length === 0 ? (
+            {followUpQueue.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                Nothing due right now — you&apos;re all caught up.
+                Nothing waiting on you — you&apos;re all caught up.
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {dueEstimates.slice(0, 5).map((estimate) => (
-                  <li key={estimate.id} className="flex items-center justify-between py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {estimate.customerName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {daysSince(estimate.dateSent)} days since sent · {formatCurrency(estimate.estimateValue)}
-                      </p>
+                {followUpQueue.slice(0, 5).map((item) => (
+                  <li key={item.id} className="py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {item.customerName}
+                          {item.businessName && (
+                            <span className="font-normal text-muted-foreground"> · {item.businessName}</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.daysSinceSent} days since sent · {formatCurrency(item.estimateValue)}
+                        </p>
+                      </div>
                     </div>
-                    <StatusBadge status={estimate.status} />
+                    <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground/80">{item.message}</p>
                   </li>
                 ))}
               </ul>
