@@ -17,10 +17,34 @@ export const OPEN_ESTIMATE_STATUSES: EstimateStatus[] = [
 
 export const FOLLOW_UP_STATUSES: FollowUpStatus[] = [
   "Pending",
-  "Sent",
   "Approved",
+  "Sent",
   "Rejected",
+  "Failed",
 ];
+
+/** Statuses still actionable from the Follow-up Queue (excludes terminal Sent/Rejected). */
+export const ACTIONABLE_FOLLOWUP_STATUSES: FollowUpStatus[] = ["Pending", "Approved", "Failed"];
+
+/** Display label per spec's "Draft / Approved / Sent / Failed" vocabulary — "Pending" reads as "Draft" in the UI. */
+export const FOLLOWUP_STATUS_LABEL: Record<FollowUpStatus, string> = {
+  Pending: "Draft",
+  Approved: "Approved",
+  Sent: "Sent",
+  Rejected: "Skipped",
+  Failed: "Failed",
+};
+
+export const FOLLOWUP_STATUS_BADGE_VARIANT: Record<
+  FollowUpStatus,
+  "default" | "secondary" | "success" | "warning" | "destructive"
+> = {
+  Pending: "secondary",
+  Approved: "warning",
+  Sent: "success",
+  Rejected: "secondary",
+  Failed: "destructive",
+};
 
 /** Days after the previous touch before each follow-up stage is due. */
 export const FOLLOW_UP_CADENCE_DAYS: Record<"Sent" | "Follow-up 1" | "Follow-up 2", number> = {

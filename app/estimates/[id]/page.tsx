@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { StatusActions } from "@/components/estimates/status-actions";
+import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEstimate, getFollowUpsForEstimate } from "@/services/airtable";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
@@ -102,9 +103,9 @@ export default async function EstimateDetailPage({
                 <li key={followUp.id} className="py-3">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-xs font-medium text-muted-foreground">
-                      {formatDate(followUp.scheduledDate)}
+                      {followUp.sentAt ? `Sent ${formatDate(followUp.sentAt)}` : formatDate(followUp.scheduledDate)}
                     </span>
-                    <span className="text-xs text-muted-foreground">{followUp.status}</span>
+                    <FollowUpStatusBadge status={followUp.status} />
                   </div>
                   <p className="mt-1 text-sm text-foreground">{followUp.message}</p>
                 </li>

@@ -1,7 +1,9 @@
 import { getDueFollowUps, getEstimates, getFollowUps } from "@/services/airtable";
+import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
 
 export interface DashboardStats {
   totalEstimates: number;
+  /** Count of follow-ups awaiting attention in the queue (Draft, Approved, or Failed). */
   pendingFollowUps: number;
   /** Sum of estimateValue across open estimates whose follow-up is overdue. */
   atRiskRevenue: number;
@@ -22,7 +24,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   return {
     totalEstimates: estimates.length,
-    pendingFollowUps: followUps.filter((f) => f.status === "Pending").length,
+    pendingFollowUps: followUps.filter((f) => ACTIONABLE_FOLLOWUP_STATUSES.includes(f.status)).length,
     atRiskRevenue: atRiskEstimates.reduce((sum, e) => sum + e.estimateValue, 0),
     atRiskCount: atRiskEstimates.length,
     bookedJobs: bookedEstimates.length,

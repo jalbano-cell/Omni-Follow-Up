@@ -15,6 +15,8 @@ export const ESTIMATE_FIELDS = {
   nextFollowUpDate: "nextFollowUpDate",
   lastContactDate: "lastContactDate",
   notes: "notes",
+  gmailThreadId: "gmailThreadId",
+  gmailLastMessageId: "gmailLastMessageId",
 } as const;
 
 /** Airtable field names for the FollowUps table. */
@@ -23,4 +25,5 @@ export const FOLLOWUP_FIELDS = {
   message: "message",
   status: "status",
   scheduledDate: "scheduledDate",
+  sentAt: "sentAt",
 } as const;

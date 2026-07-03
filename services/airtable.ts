@@ -31,6 +31,8 @@ function toEstimate(record: AirtableRecord<FieldSet>): Estimate {
     nextFollowUpDate: (record.get(ESTIMATE_FIELDS.nextFollowUpDate) as string) ?? null,
     lastContactDate: (record.get(ESTIMATE_FIELDS.lastContactDate) as string) ?? null,
     notes: (record.get(ESTIMATE_FIELDS.notes) as string) ?? "",
+    gmailThreadId: (record.get(ESTIMATE_FIELDS.gmailThreadId) as string) ?? null,
+    gmailLastMessageId: (record.get(ESTIMATE_FIELDS.gmailLastMessageId) as string) ?? null,
   };
 }
 
@@ -41,6 +43,7 @@ function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
     message: (record.get(FOLLOWUP_FIELDS.message) as string) ?? "",
     status: ((record.get(FOLLOWUP_FIELDS.status) as FollowUpStatus) ?? "Pending"),
     scheduledDate: (record.get(FOLLOWUP_FIELDS.scheduledDate) as string) ?? "",
+    sentAt: (record.get(FOLLOWUP_FIELDS.sentAt) as string) ?? null,
   };
 }
 
@@ -88,6 +91,8 @@ export async function updateEstimate(id: string, input: UpdateEstimateInput): Pr
   if (input.nextFollowUpDate !== undefined) fields[ESTIMATE_FIELDS.nextFollowUpDate] = input.nextFollowUpDate ?? undefined;
   if (input.lastContactDate !== undefined) fields[ESTIMATE_FIELDS.lastContactDate] = input.lastContactDate ?? undefined;
   if (input.notes !== undefined) fields[ESTIMATE_FIELDS.notes] = input.notes;
+  if (input.gmailThreadId !== undefined) fields[ESTIMATE_FIELDS.gmailThreadId] = input.gmailThreadId ?? undefined;
+  if (input.gmailLastMessageId !== undefined) fields[ESTIMATE_FIELDS.gmailLastMessageId] = input.gmailLastMessageId ?? undefined;
 
   const record = await getBase()(AIRTABLE_TABLES.estimates).update(id, fields);
   return toEstimate(record);
@@ -117,6 +122,15 @@ export async function getFollowUpsForEstimate(estimateId: string): Promise<Follo
   return followUps.filter((f) => f.estimateId === estimateId);
 }
 
+export async function getFollowUp(id: string): Promise<FollowUp | null> {
+  try {
+    const record = await getBase()(AIRTABLE_TABLES.followUps).find(id);
+    return toFollowUp(record);
+  } catch {
+    return null;
+  }
+}
+
 export async function createFollowUp(input: NewFollowUpInput): Promise<FollowUp> {
   const record = await getBase()(AIRTABLE_TABLES.followUps).create({
     [FOLLOWUP_FIELDS.estimateId]: input.estimateId,
@@ -132,7 +146,10 @@ export async function updateFollowUp(id: string, input: UpdateFollowUpInput): Pr
   if (input.message !== undefined) fields[FOLLOWUP_FIELDS.message] = input.message;
   if (input.status !== undefined) fields[FOLLOWUP_FIELDS.status] = input.status;
   if (input.scheduledDate !== undefined) fields[FOLLOWUP_FIELDS.scheduledDate] = input.scheduledDate;
+  if (input.sentAt !== undefined) fields[FOLLOWUP_FIELDS.sentAt] = input.sentAt ?? undefined;
 
-  const record = await getBase()(AIRTABLE_TABLES.followUps).update(id, fields);
+  // typecast lets Airtable add "Failed" as a select option the first time it's written,
+  // since the choices list can only be extended this way (not via the schema/meta API).
+  const record = await getBase()(AIRTABLE_TABLES.followUps).update(id, fields, { typecast: true });
   return toFollowUp(record);
 }

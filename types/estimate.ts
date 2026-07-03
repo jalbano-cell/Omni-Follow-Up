@@ -17,6 +17,10 @@ export interface Estimate {
   nextFollowUpDate: string | null;
   lastContactDate: string | null;
   notes: string;
+  /** Gmail thread ID for the conversation with this customer, set after the first send. */
+  gmailThreadId: string | null;
+  /** RFC 822 Message-ID header of the most recently sent email, used for In-Reply-To threading. */
+  gmailLastMessageId: string | null;
 }
 
 export type NewEstimateInput = Pick<

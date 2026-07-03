@@ -1,6 +1,7 @@
 import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/airtable";
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
 import { writeDailyRunLog, type DailyRunLog } from "@/lib/logger";
+import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
 import type { Estimate, FollowUp, FollowUpQueueItem } from "@/types";
 
 /**
@@ -38,10 +39,14 @@ async function generateFollowUpDrafts(): Promise<{
 }> {
   const [dueEstimates, existingFollowUps] = await Promise.all([getDueFollowUps(), getFollowUps()]);
 
-  const estimateIdsWithPending = new Set(
-    existingFollowUps.filter((f) => f.status === "Pending").map((f) => f.estimateId)
+  // Skip estimates that already have an unresolved follow-up (drafted, approved, or
+  // awaiting retry) — the queue only ever holds one live item per estimate at a time.
+  const estimateIdsWithActiveFollowUp = new Set(
+    existingFollowUps
+      .filter((f) => ACTIONABLE_FOLLOWUP_STATUSES.includes(f.status))
+      .map((f) => f.estimateId)
   );
-  const estimatesNeedingDraft = dueEstimates.filter((e) => !estimateIdsWithPending.has(e.id));
+  const estimatesNeedingDraft = dueEstimates.filter((e) => !estimateIdsWithActiveFollowUp.has(e.id));
 
   const created: FollowUp[] = [];
   const errors: string[] = [];
@@ -102,13 +107,13 @@ export async function runDailyFollowUpJob(): Promise<DailyRunLog> {
   return log;
 }
 
-/** Pending follow-ups joined with their parent estimate, for the queue UI. */
+/** Actionable follow-ups (Draft/Pending, Approved, Failed) joined with their parent estimate, for the queue UI. */
 export async function getFollowUpQueue(): Promise<FollowUpQueueItem[]> {
   const [followUps, estimates] = await Promise.all([getFollowUps(), getEstimates()]);
   const estimateById = new Map(estimates.map((e) => [e.id, e]));
 
   return followUps
-    .filter((f) => f.status === "Pending")
+    .filter((f) => ACTIONABLE_FOLLOWUP_STATUSES.includes(f.status))
     .map((followUp) => {
       const estimate = estimateById.get(followUp.estimateId);
       return {
