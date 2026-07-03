@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createEstimate, updateEstimate } from "@/services/airtable";
 import { addDays } from "@/lib/date";
 import { FOLLOW_UP_CADENCE_DAYS } from "@/config/constants";
+import { logAction } from "@/lib/logger";
 import type { EstimateStatus } from "@/types";
 
 export async function createEstimateAction(formData: FormData) {
@@ -19,7 +20,7 @@ export async function createEstimateAction(formData: FormData) {
     throw new Error("Missing required estimate fields.");
   }
 
-  await createEstimate({
+  const estimate = await createEstimate({
     customerName,
     customerEmail,
     serviceType,
@@ -28,6 +29,7 @@ export async function createEstimateAction(formData: FormData) {
     notes,
     nextFollowUpDate: addDays(dateSent, FOLLOW_UP_CADENCE_DAYS.Sent),
   });
+  logAction("estimate.create", { estimateId: estimate.id, customerName, estimateValue });
 
   revalidatePath("/");
   revalidatePath("/estimates");
@@ -36,6 +38,7 @@ export async function createEstimateAction(formData: FormData) {
 
 export async function updateEstimateStatusAction(id: string, status: EstimateStatus) {
   await updateEstimate(id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
+  logAction("estimate.status-update", { estimateId: id, status });
   revalidatePath("/");
   revalidatePath("/estimates");
   revalidatePath(`/estimates/${id}`);
