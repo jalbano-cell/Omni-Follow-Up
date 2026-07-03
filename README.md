@@ -2,7 +2,7 @@
 
 Estimate follow-up automation for local service businesses. Track sent estimates, get nudged on which ones need a follow-up, review AI-free drafted follow-up messages, and see at-risk revenue at a glance.
 
-This is **not** a CRM or a website builder — see [CLAUDE.md](./CLAUDE.md) for scope and architecture rules, and [ui-ux-pro-max.md](./ui-ux-pro-max.md) for the design system this project follows. Email sending is live, but strictly manual: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
+This is **not** a CRM or a website builder — see [CLAUDE.md](./CLAUDE.md) for scope and architecture rules, and [ui-ux-pro-max.md](./ui-ux-pro-max.md) for the design system this project follows. Email sending is live, but strictly manual: nothing goes out until a human clicks Approve *and then* Send Email in the queue. The whole app sits behind a single shared-password login.
 
 ## Stack
 
@@ -12,11 +12,22 @@ Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Airtabl
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in your Airtable credentials
+cp .env.example .env.local   # fill in your Airtable/Gmail/auth credentials
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Without Airtable configured, every data page shows a friendly "not connected" state instead of crashing.
+Open [http://localhost:3000](http://localhost:3000) — you'll land on `/login` first. Without Airtable configured, every data page shows a friendly "not connected" state instead of crashing.
+
+### Login
+
+There's no user database — just one shared password gating the whole app, enforced by `middleware.ts` on every route except `/login` itself and the cron endpoint (which has its own `CRON_SECRET` auth). Set:
+
+```
+APP_PASSWORD=whatever-you-want
+AUTH_SECRET=<openssl rand -hex 32>
+```
+
+`AUTH_SECRET` isn't the password — it's mixed in when hashing the session cookie's value (`lib/auth.ts`), so the cookie itself never contains or reveals the password. Log in at `/login` (password field has a show/hide toggle); the sidebar's "Log out" clears the session cookie.
 
 ### Airtable setup
 
@@ -77,7 +88,7 @@ The queue (`/follow-ups`) is the only path to sending an email — the daily cro
 
 ### Daily automation (Vercel Cron)
 
-`vercel.json` schedules `GET /api/follow-ups/generate` once a day at **08:00 UTC** — Vercel Cron schedules are always UTC, so adjust the hour in `vercel.json` to land on 8am in your local timezone (e.g. 12:00 UTC for 8am Eastern during EDT). Cron only runs once a project is deployed to Vercel; it does nothing in local dev.
+Vercel Cron schedules are always UTC, but the target is 8am **America/Toronto**, which shifts between EDT (UTC-4) and EST (UTC-5) across the year. Rather than needing a manual schedule edit twice a year, `vercel.json` fires the endpoint at both **12:00 and 13:00 UTC**, and the route itself (`app/api/follow-ups/generate/route.ts`) checks the actual current hour in `America/Toronto` and no-ops unless it's 8am there — so exactly one of the two invocations does anything on any given day, year-round. Cron only runs once a project is deployed to Vercel; it does nothing in local dev.
 
 Each run — whether from cron or the "Check for due follow-ups" button in the queue UI — produces a `DailyRunLog` (estimates checked, follow-ups created, errors) that's always printed to the console (the durable record in Vercel's function logs) and, best-effort, written to `/logs/daily-run/<date>.json` for local inspection. That directory write is skipped silently in production, where Vercel's filesystem is read-only outside `/tmp`.
 
