@@ -9,6 +9,7 @@ import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-ba
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEstimate, getFollowUpsForEstimate } from "@/services/airtable";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
+import { getCurrentBusinessId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +19,13 @@ export default async function EstimateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const businessId = await getCurrentBusinessId();
 
   let estimate;
   let followUps;
   try {
-    estimate = await getEstimate(id);
-    followUps = estimate ? await getFollowUpsForEstimate(id) : [];
+    estimate = await getEstimate(businessId, id);
+    followUps = estimate ? await getFollowUpsForEstimate(businessId, id) : [];
   } catch (error) {
     return <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
   }

@@ -3,12 +3,15 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createEstimate, updateEstimate } from "@/services/airtable";
+import { getBusinessById, getEffectiveCadenceDays } from "@/services/business";
 import { addDays } from "@/lib/date";
-import { FOLLOW_UP_CADENCE_DAYS } from "@/config/constants";
+import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import type { EstimateStatus } from "@/types";
 
 export async function createEstimateAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerEmail = String(formData.get("customerEmail") ?? "").trim();
   const serviceType = String(formData.get("serviceType") ?? "").trim();
@@ -20,14 +23,19 @@ export async function createEstimateAction(formData: FormData) {
     throw new Error("Missing required estimate fields.");
   }
 
-  const estimate = await createEstimate({
+  const business = await getBusinessById(businessId);
+  const cadence = getEffectiveCadenceDays(
+    business ?? { followUpCadenceSentDays: null, followUpCadenceFollowUp1Days: null, followUpCadenceFollowUp2Days: null }
+  );
+
+  const estimate = await createEstimate(businessId, {
     customerName,
     customerEmail,
     serviceType,
     estimateValue,
     dateSent,
     notes,
-    nextFollowUpDate: addDays(dateSent, FOLLOW_UP_CADENCE_DAYS.Sent),
+    nextFollowUpDate: addDays(dateSent, cadence.Sent),
   });
   logAction("estimate.create", { estimateId: estimate.id, customerName, estimateValue });
 
@@ -37,7 +45,8 @@ export async function createEstimateAction(formData: FormData) {
 }
 
 export async function updateEstimateStatusAction(id: string, status: EstimateStatus) {
-  await updateEstimate(id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
+  const businessId = await getCurrentBusinessId();
+  await updateEstimate(businessId, id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
   logAction("estimate.status-update", { estimateId: id, status });
   revalidatePath("/");
   revalidatePath("/estimates");

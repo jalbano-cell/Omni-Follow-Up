@@ -7,6 +7,7 @@ export type EstimateStatus =
 
 export interface Estimate {
   id: string;
+  businessId: string;
   customerName: string;
   customerEmail: string;
   businessName: string;
@@ -29,4 +30,4 @@ export type NewEstimateInput = Pick<
 > &
   Partial<Pick<Estimate, "businessName" | "status" | "nextFollowUpDate" | "lastContactDate" | "notes">>;
 
-export type UpdateEstimateInput = Partial<Omit<Estimate, "id">>;
+export type UpdateEstimateInput = Partial<Omit<Estimate, "id" | "businessId">>;

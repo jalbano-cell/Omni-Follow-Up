@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME, isValidSessionToken } from "@/lib/auth";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 
 // The cron endpoint has its own CRON_SECRET bearer-token auth and is called
 // by Vercel with no cookies — it must stay reachable without a session.
-const PUBLIC_PATHS = ["/login", "/api/follow-ups/generate"];
+const PUBLIC_PATHS = ["/login", "/signup", "/api/follow-ups/generate"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,7 +13,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (await isValidSessionToken(sessionCookie)) {
+  const session = await verifySessionToken(sessionCookie);
+  if (session) {
     return NextResponse.next();
   }
 

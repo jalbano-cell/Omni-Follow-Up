@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,11 @@ export function LoginForm({ hasError, redirectTo }: { hasError: boolean; redirec
           <input type="hidden" name="from" value={redirectTo} />
 
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" required autoFocus aria-invalid={hasError} />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Input
@@ -25,7 +31,6 @@ export function LoginForm({ hasError, redirectTo }: { hasError: boolean; redirec
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                autoFocus
                 aria-invalid={hasError}
                 className="pr-9"
               />
@@ -38,11 +43,18 @@ export function LoginForm({ hasError, redirectTo }: { hasError: boolean; redirec
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
-            {hasError && <p className="text-xs text-destructive">Incorrect password.</p>}
+            {hasError && <p className="text-xs text-destructive">Incorrect email or password.</p>}
           </div>
 
           <SubmitButton>Sign in</SubmitButton>
         </form>
+
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

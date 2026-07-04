@@ -2,6 +2,7 @@ export type FollowUpStatus = "Pending" | "Sent" | "Approved" | "Rejected" | "Fai
 
 export interface FollowUp {
   id: string;
+  businessId: string;
   estimateId: string;
   message: string;
   status: FollowUpStatus;
@@ -13,7 +14,7 @@ export interface FollowUp {
 export type NewFollowUpInput = Pick<FollowUp, "estimateId" | "message" | "scheduledDate"> &
   Partial<Pick<FollowUp, "status">>;
 
-export type UpdateFollowUpInput = Partial<Omit<FollowUp, "id" | "estimateId">>;
+export type UpdateFollowUpInput = Partial<Omit<FollowUp, "id" | "businessId" | "estimateId">>;
 
 /** A follow-up joined with its parent estimate, for queue UI rendering. */
 export interface FollowUpQueueItem extends FollowUp {

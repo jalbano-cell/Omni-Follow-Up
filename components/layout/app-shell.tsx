@@ -13,9 +13,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // The login screen renders its own full-page layout — no sidebar/nav chrome
-  // that would just redirect back to /login anyway.
-  if (pathname === "/login") {
+  // The login/signup screens render their own full-page layout — no
+  // sidebar/nav chrome that would just redirect back to /login anyway.
+  if (pathname === "/login" || pathname === "/signup") {
     return <>{children}</>;
   }
 

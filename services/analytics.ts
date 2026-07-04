@@ -13,11 +13,11 @@ export interface DashboardStats {
   bookedRevenue: number;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(businessId: string): Promise<DashboardStats> {
   const [estimates, followUps, atRiskEstimates] = await Promise.all([
-    getEstimates(),
-    getFollowUps(),
-    getDueFollowUps(),
+    getEstimates(businessId),
+    getFollowUps(businessId),
+    getDueFollowUps(businessId),
   ]);
 
   const bookedEstimates = estimates.filter((e) => e.status === "Booked");
