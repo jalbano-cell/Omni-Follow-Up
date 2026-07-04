@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { runDailyFollowUpJob } from "@/services/followupEngine";
+import { runDailyReplySyncJob } from "@/services/replyMatcher";
+import { getAllActiveBusinesses } from "@/services/business";
 import { APP_TIMEZONE } from "@/config/constants";
 
 const TARGET_LOCAL_HOUR = 8;
@@ -23,7 +25,11 @@ function isTargetLocalHour(): boolean {
 /**
  * Called by the Vercel Cron Job configured in vercel.json. Detects due
  * follow-ups, drafts messages, and queues them as Pending — never sends
- * anything. Every run is logged (see services/followupEngine.ts).
+ * anything. Also syncs incoming Gmail replies for every connected business
+ * (see services/replyMatcher.ts) — piggybacked onto this same daily
+ * invocation rather than its own cron schedule, since Vercel's Hobby plan
+ * caps how many/how-often cron jobs can run; the "Check for new replies"
+ * button covers anything more immediate. Every run is logged.
  *
  * If CRON_SECRET is set, requests must carry `Authorization: Bearer <CRON_SECRET>`,
  * which Vercel automatically attaches to its own cron invocations.
@@ -42,8 +48,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const logs = await runDailyFollowUpJob();
-    return NextResponse.json(logs);
+    const [followUpLogs, businesses] = await Promise.all([runDailyFollowUpJob(), getAllActiveBusinesses()]);
+    const replySyncLogs = await runDailyReplySyncJob(businesses);
+    return NextResponse.json({ followUps: followUpLogs, replySync: replySyncLogs });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

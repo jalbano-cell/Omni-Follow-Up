@@ -4,11 +4,11 @@ Multi-tenant estimate follow-up automation SaaS for local service businesses. Ea
 
 This is **not** a CRM or a website builder — see [CLAUDE.md](./CLAUDE.md) for scope and architecture rules, and [ui-ux-pro-max.md](./ui-ux-pro-max.md) for the design system this project follows.
 
-**Status:** the multi-tenant foundation, onboarding/self-serve Gmail connection, and Calendar reminders are all live. A new business signs up, connects its own Google account (Gmail send/read + Calendar scopes, granted together in one consent), sets its follow-up cadence, and lands on its dashboard — all in one guided flow. Every drafted follow-up gets a short Calendar reminder nudging the owner to review it, cleared automatically once sent or skipped. A reply inbox and an expanded analytics page are the next phases (see `/Users/john/.claude/plans/eager-riding-volcano.md`). No feature ever auto-sends: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
+**Status:** the multi-tenant foundation, onboarding/self-serve Gmail connection, Calendar reminders, and the reply inbox are all live. A new business signs up, connects its own Google account (Gmail send/read + Calendar scopes, granted together in one consent), sets its follow-up cadence, and lands on its dashboard — all in one guided flow. Every drafted follow-up gets a short Calendar reminder nudging the owner to review it, cleared automatically once sent or skipped. Customer replies on a follow-up thread show up in the Reply Inbox and on the estimate's own page. An expanded analytics page is the next phase (see `/Users/john/.claude/plans/eager-riding-volcano.md`). No feature ever auto-sends: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
 
 ## Stack
 
-Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Airtable (data store) · Gmail API (outbound email) · Google Calendar API (reminders) · Google OAuth (self-serve per-tenant connection) · Vercel-ready
+Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Airtable (data store) · Gmail API (outbound email + reply reading) · Google Calendar API (reminders) · Google OAuth (self-serve per-tenant connection) · Vercel-ready
 
 ## Getting started
 
@@ -43,7 +43,7 @@ Everything set during onboarding can be changed later in Settings.
 
 ### Airtable setup
 
-Create a base with three tables:
+Create a base with four tables:
 
 **Businesses** (the tenant root — one record per signed-up business)
 `businessName`, `ownerName`, `ownerEmail`, `passwordHash` (long text), `followUpCadenceSentDays`/`followUpCadenceFollowUp1Days`/`followUpCadenceFollowUp2Days` (number, optional per-business cadence override), `onboardingStep` (number), `onboardingCompletedAt` (date w/ time), `googleRefreshTokenEnc` (long text — AES-256-GCM encrypted, never plaintext), `googleConnectedEmail` (text), `googleScopes` (long text), `googleConnectedAt` (date w/ time), `calendarId` (text, optional — defaults to `"primary"` when blank), `createdAt` (date w/ time)
@@ -54,7 +54,10 @@ Create a base with three tables:
 **FollowUps**
 `businessId` (text), `estimateId` (text — Airtable record ID of the linked estimate), `message` (long text), `status` (single select: Pending, Approved, Sent, Rejected, Failed), `scheduledDate` (date), `sentAt` (date with time), `calendarEventId` (text — the reminder event's Google Calendar ID, cleared once sent/skipped)
 
-`businessId` on Estimates/FollowUps is a plain text field, not a linked-record field — matching the existing precedent that `estimateId` on FollowUps is already a plain string. Every tenant-scoped read/write in `services/airtable.ts` takes `businessId` as an explicit parameter and filters by it; direct-id lookups additionally verify the fetched record's `businessId` matches before returning it.
+**Replies**
+`businessId` (text), `estimateId` (text), `gmailMessageId` (text), `gmailThreadId` (text), `fromEmail` (text), `subject` (text), `snippet` (long text), `bodyText` (long text), `receivedAt` (date w/ time), `isRead` (checkbox)
+
+`businessId` on Estimates/FollowUps/Replies is a plain text field, not a linked-record field — matching the existing precedent that `estimateId` on FollowUps is already a plain string. Every tenant-scoped read/write in `services/airtable.ts` takes `businessId` as an explicit parameter and filters by it; direct-id lookups additionally verify the fetched record's `businessId` matches before returning it.
 
 Generate a Personal Access Token at [airtable.com/create/tokens](https://airtable.com/create/tokens) with `data.records:read`, `data.records:write`, and `schema.bases:write` scopes on that base, then set:
 
@@ -85,6 +88,14 @@ A business clicks "Connect Google Account" (in onboarding or Settings) → `/api
 
 `services/calendarReminders.ts` creates a 15-minute Calendar event (9am `APP_TIMEZONE` on the follow-up's `scheduledDate`, on the business's `calendarId` — "primary" unless overridden) the moment a follow-up is drafted, nudging the owner to go review it in the Follow-up Queue. It's deleted once the follow-up sends or is skipped. This is purely an internal reminder — it never reads the connected calendar's existing events/availability and never creates anything customer-facing. Every call is wrapped so a Calendar API failure is logged and swallowed, never blocking the drafting/sending/skipping action it's attached to.
 
+### Reply inbox
+
+`services/gmailInbox.ts` (pure transport, read-only — deliberately a separate file from `services/gmail.ts`, which only sends) fetches a Gmail thread's full messages via `threads.get`. `services/replyMatcher.ts` (orchestration) matches messages to an estimate purely by `gmailThreadId` + the estimate's `customerEmail` — a message on the thread from any other address isn't treated as a reply. New messages become `Replies` records; nothing about the Estimate or FollowUp changes automatically. Surfaced in two places: the standalone `/replies` inbox (all replies across every estimate, unread first) and inline on each estimate's own detail page.
+
+Sync runs once a day (piggybacked onto the same cron invocation as follow-up drafting — see below) plus on demand via the "Check for new replies" button on `/replies`. There's no real-time push; a 15-minute-or-faster sync would need its own Vercel Cron schedule, which risks exceeding Hobby-plan cron limits, so this stays request-driven for anything more immediate than once a day.
+
+**Known limitation:** a customer reply from a different email address, or one deep in an old part of a long thread, won't be matched — this is a deliberate v1 simplicity tradeoff (loosening the match would risk pulling in messages that aren't actually replies to that estimate), not a bug.
+
 ## Scripts
 
 - `npm run dev` — start the dev server
@@ -111,7 +122,7 @@ The queue (`/follow-ups`) is the only path to sending an email — the daily cro
 
 Vercel Cron schedules are always UTC, but the target is 8am **America/Toronto**, which shifts between EDT (UTC-4) and EST (UTC-5) across the year. Rather than needing a manual schedule edit twice a year, `vercel.json` fires the endpoint at both **12:00 and 13:00 UTC**, and the route itself (`app/api/follow-ups/generate/route.ts`) checks the actual current hour in `America/Toronto` and no-ops unless it's 8am there — so exactly one of the two invocations does anything on any given day, year-round. Cron only runs once a project is deployed to Vercel; it does nothing in local dev.
 
-Each run loops over every business — one tenant's Airtable error is caught and logged without aborting the run for everyone else — and produces one `DailyRunLog` per business (estimates checked, follow-ups created, errors) that's always printed to the console (the durable record in Vercel's function logs) and, best-effort, written to `/logs/daily-run/<date>-<businessId>.json` for local inspection. That directory write is skipped silently in production, where Vercel's filesystem is read-only outside `/tmp`.
+Each run loops over every business — one tenant's Airtable error is caught and logged without aborting the run for everyone else — and produces one `DailyRunLog` per business (estimates checked, follow-ups created, errors) that's always printed to the console (the durable record in Vercel's function logs) and, best-effort, written to `/logs/daily-run/<date>-<businessId>.json` for local inspection. That directory write is skipped silently in production, where Vercel's filesystem is read-only outside `/tmp`. The same invocation also runs `services/replyMatcher.ts`'s `runDailyReplySyncJob` for every business, so the response includes both `followUps` and `replySync` logs.
 
 To restrict who can trigger the cron endpoint, set `CRON_SECRET` as a project environment variable — Vercel automatically sends it as a bearer token on its own cron requests.
 
