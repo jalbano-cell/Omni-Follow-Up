@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Zap } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { Logo } from "@/components/layout/logo";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -37,11 +38,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <MobileNav onNavigate={() => setOpen(false)} />
             </SheetContent>
           </Sheet>
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Zap className="size-3.5" strokeWidth={2.5} />
-            </div>
-            <span className="text-sm font-semibold tracking-tight">FollowUpQuote</span>
+          <Link href="/">
+            <Logo />
           </Link>
         </header>
 

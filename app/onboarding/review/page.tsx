@@ -32,7 +32,7 @@ export default async function OnboardingReviewPage() {
               <CheckCircle2 className="size-6" strokeWidth={2} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">Review your setup</h2>
+              <h2 className="font-heading text-base font-semibold text-foreground">Review your setup</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 Everything here can be changed later in Settings.
               </p>

@@ -27,9 +27,9 @@ export default async function OnboardingGmailPage({
             <Mail className="size-6" strokeWidth={2} />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-foreground">Connect your Gmail</h2>
+            <h2 className="font-heading text-base font-semibold text-foreground">Connect your Gmail</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              FollowUpQuote sends approved follow-ups from your own Gmail address and can later show
+              OmniFollowUp sends approved follow-ups from your own Gmail address and can later show
               customer replies in the same thread. Nothing sends automatically — you approve every email
               before it goes out.
             </p>

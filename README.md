@@ -1,4 +1,4 @@
-# FollowUpQuote
+# OmniFollowUp
 
 Multi-tenant estimate follow-up automation SaaS for local service businesses. Each business signs up, connects its own Gmail account, tracks its own sent estimates, gets nudged on which ones need a follow-up, reviews AI-free drafted follow-up messages, and sees at-risk revenue at a glance.
 

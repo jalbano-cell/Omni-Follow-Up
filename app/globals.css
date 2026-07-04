@@ -8,8 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -80,7 +79,7 @@
   --chart-3: oklch(0.75 0.16 75);
   --chart-4: oklch(0.577 0.245 27.325);
   --chart-5: oklch(0.556 0 0);
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.99 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.47 0.19 264);
@@ -92,41 +91,44 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.7 0.16 264);
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.28 0.06 264);
-  --accent-foreground: oklch(0.85 0.1 264);
+  /* OmniGrid Digital brand tokens: navy surfaces + electric-blue primary (oklch hue 250). */
+  --background: oklch(0.13 0.03 250);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.16 0.03 250);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.16 0.03 250);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.55 0.2 250);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.22 0.03 250);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.22 0.03 250);
+  --muted-foreground: oklch(0.63 0.04 250);
+  /* Kept as a muted tint (not full-strength primary) — shadcn's hover/menu states in this
+     codebase rely on --accent being subtle, unlike OmniGridDigital's bespoke CTA markup. */
+  --accent: oklch(0.26 0.05 250);
+  --accent-foreground: oklch(0.85 0.12 250);
   --destructive: oklch(0.704 0.191 22.216);
   --success: oklch(0.7 0.16 155);
   --success-foreground: oklch(0.145 0 0);
   --warning: oklch(0.8 0.15 80);
   --warning-foreground: oklch(0.145 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.7 0.16 264);
-  --chart-1: oklch(0.7 0.16 264);
+  --border: oklch(0.28 0.04 250);
+  --input: oklch(0.28 0.04 250);
+  --ring: oklch(0.55 0.2 250);
+  --chart-1: oklch(0.55 0.2 250);
   --chart-2: oklch(0.7 0.16 155);
   --chart-3: oklch(0.8 0.15 80);
   --chart-4: oklch(0.704 0.191 22.216);
   --chart-5: oklch(0.708 0 0);
-  --sidebar: oklch(0.18 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.7 0.16 264);
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.28 0.06 264);
-  --sidebar-accent-foreground: oklch(0.85 0.1 264);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.7 0.16 264);
+  --sidebar: oklch(0.16 0.03 250);
+  --sidebar-foreground: oklch(0.97 0 0);
+  --sidebar-primary: oklch(0.55 0.2 250);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.26 0.05 250);
+  --sidebar-accent-foreground: oklch(0.85 0.12 250);
+  --sidebar-border: oklch(0.28 0.04 250);
+  --sidebar-ring: oklch(0.55 0.2 250);
 }
 
 @layer base {
