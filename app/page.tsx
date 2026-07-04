@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Clock, TrendingDown, CheckCircle2, ArrowRight } from "lucide-react";
+import { FileText, Clock, TrendingDown, CheckCircle2, ArrowRight, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -38,7 +38,16 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard" description="Your estimate follow-up overview." />
+      <PageHeader
+        title="Dashboard"
+        description="Your estimate follow-up overview."
+        action={
+          <Button variant="outline" render={<Link href="/analytics" />}>
+            <BarChart3 className="size-4" />
+            View analytics
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Estimates" value={String(stats.totalEstimates)} icon={FileText} />

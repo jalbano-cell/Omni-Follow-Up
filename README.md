@@ -4,11 +4,11 @@ Multi-tenant estimate follow-up automation SaaS for local service businesses. Ea
 
 This is **not** a CRM or a website builder — see [CLAUDE.md](./CLAUDE.md) for scope and architecture rules, and [ui-ux-pro-max.md](./ui-ux-pro-max.md) for the design system this project follows.
 
-**Status:** the multi-tenant foundation, onboarding/self-serve Gmail connection, Calendar reminders, and the reply inbox are all live. A new business signs up, connects its own Google account (Gmail send/read + Calendar scopes, granted together in one consent), sets its follow-up cadence, and lands on its dashboard — all in one guided flow. Every drafted follow-up gets a short Calendar reminder nudging the owner to review it, cleared automatically once sent or skipped. Customer replies on a follow-up thread show up in the Reply Inbox and on the estimate's own page. An expanded analytics page is the next phase (see `/Users/john/.claude/plans/eager-riding-volcano.md`). No feature ever auto-sends: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
+**Status:** the full phased migration is complete — multi-tenant foundation, onboarding/self-serve Gmail connection, Calendar reminders, the reply inbox, and the analytics dashboard are all live (see `/Users/john/.claude/plans/eager-riding-volcano.md`). A new business signs up, connects its own Google account (Gmail send/read + Calendar scopes, granted together in one consent), sets its follow-up cadence, and lands on its dashboard — all in one guided flow. Every drafted follow-up gets a short Calendar reminder nudging the owner to review it, cleared automatically once sent or skipped. Customer replies on a follow-up thread show up in the Reply Inbox and on the estimate's own page. Analytics shows a revenue trend, pipeline funnel, and reply engagement rate. No feature ever auto-sends: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
 
 ## Stack
 
-Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Airtable (data store) · Gmail API (outbound email + reply reading) · Google Calendar API (reminders) · Google OAuth (self-serve per-tenant connection) · Vercel-ready
+Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Recharts (revenue trend) · Airtable (data store) · Gmail API (outbound email + reply reading) · Google Calendar API (reminders) · Google OAuth (self-serve per-tenant connection) · Vercel-ready
 
 ## Getting started
 
@@ -95,6 +95,14 @@ A business clicks "Connect Google Account" (in onboarding or Settings) → `/api
 Sync runs once a day (piggybacked onto the same cron invocation as follow-up drafting — see below) plus on demand via the "Check for new replies" button on `/replies`. There's no real-time push; a 15-minute-or-faster sync would need its own Vercel Cron schedule, which risks exceeding Hobby-plan cron limits, so this stays request-driven for anything more immediate than once a day.
 
 **Known limitation:** a customer reply from a different email address, or one deep in an old part of a long thread, won't be matched — this is a deliberate v1 simplicity tradeoff (loosening the match would risk pulling in messages that aren't actually replies to that estimate), not a bug.
+
+### Analytics (`/analytics`)
+
+`services/analytics.ts` computes everything live from `Estimates`/`FollowUps`/`Replies` on every page load — no snapshot table, no pre-aggregation:
+
+- **Revenue trend** — booked revenue by month (last 6 months), using `lastContactDate` as a proxy for "when it was booked" (there's no dedicated `bookedAt` field; marking an estimate Booked always updates `lastContactDate`). Rendered with `recharts`, the only charting dependency in the project.
+- **Pipeline funnel** — estimate count/value per stage (Sent → Follow-up 1 → Follow-up 2 → Booked/Lost), plain CSS proportional bars (no chart library needed for this one).
+- **Reply engagement** — reply rate (percentage of estimates with at least one sent email that got a reply) and average days to first reply, inheriting the reply inbox's thread-based matching limitations.
 
 ## Scripts
 
