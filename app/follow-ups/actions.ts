@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateFollowUp } from "@/services/airtable";
+import { getFollowUp, updateFollowUp } from "@/services/airtable";
+import { getBusinessById } from "@/services/business";
+import { clearReminder } from "@/services/calendarReminders";
 import { generateDueFollowUps } from "@/services/followupEngine";
 import { sendApprovedFollowUp, type SendFollowUpResult } from "@/services/followupSender";
 import { getCurrentBusinessId } from "@/lib/session";
@@ -17,8 +19,15 @@ export async function approveFollowUpAction(id: string) {
 
 export async function skipFollowUpAction(id: string) {
   const businessId = await getCurrentBusinessId();
+  const followUp = await getFollowUp(businessId, id);
   await updateFollowUp(businessId, id, { status: "Rejected" });
   logAction("follow-up.skip", { followUpId: id });
+
+  if (followUp?.calendarEventId) {
+    const business = await getBusinessById(businessId);
+    if (business) await clearReminder(business, followUp);
+  }
+
   revalidatePath("/follow-ups");
   revalidatePath("/");
 }

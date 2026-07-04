@@ -36,3 +36,34 @@ export async function verifySessionToken(token: string | null | undefined): Prom
     return null;
   }
 }
+
+export interface OAuthStatePayload {
+  businessId: string;
+  /** Where to send the business back to once the Google OAuth callback completes. */
+  returnTo: string;
+}
+
+/**
+ * Signed, stateless CSRF token for the Google OAuth redirect round-trip —
+ * no server-side state store needed, since the JWT itself carries and
+ * verifies the businessId/returnTo it was issued for. Short-lived since the
+ * whole redirect-to-Google-and-back only takes a couple of minutes.
+ */
+export async function createOAuthStateToken(payload: OAuthStatePayload): Promise<string> {
+  return new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("10m")
+    .sign(getSecretKey());
+}
+
+export async function verifyOAuthStateToken(token: string | null | undefined): Promise<OAuthStatePayload | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, getSecretKey());
+    if (typeof payload.businessId !== "string" || typeof payload.returnTo !== "string") return null;
+    return { businessId: payload.businessId, returnTo: payload.returnTo };
+  } catch {
+    return null;
+  }
+}

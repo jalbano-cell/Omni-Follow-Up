@@ -18,20 +18,19 @@ export const env = {
   get defaultBusinessName() {
     return process.env.DEFAULT_BUSINESS_NAME ?? "Your Business";
   },
-  get gmailClientId() {
-    return requireEnv("GMAIL_CLIENT_ID");
-  },
-  get gmailClientSecret() {
-    return requireEnv("GMAIL_CLIENT_SECRET");
-  },
-  get gmailRefreshToken() {
-    return requireEnv("GMAIL_REFRESH_TOKEN");
-  },
-  get gmailUserEmail() {
-    return requireEnv("GMAIL_USER_EMAIL");
-  },
   /** Signs/verifies session JWTs — not a password itself. Rotating it logs out every business. */
   get authSecret() {
     return requireEnv("AUTH_SECRET");
+  },
+  /** One Google Cloud OAuth client shared by every tenant's consent flow (not a per-tenant credential). */
+  get googleClientId() {
+    return requireEnv("GOOGLE_CLIENT_ID");
+  },
+  get googleClientSecret() {
+    return requireEnv("GOOGLE_CLIENT_SECRET");
+  },
+  /** Encrypts OAuth refresh tokens at rest before writing them to Airtable. */
+  get tokenEncryptionKey() {
+    return requireEnv("TOKEN_ENCRYPTION_KEY");
   },
 };

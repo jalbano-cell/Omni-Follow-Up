@@ -1,5 +1,12 @@
 import type { EstimateStatus, FollowUpStatus } from "@/types";
 
+/** Single deployment-wide timezone — used for the cron's local-hour check and Calendar reminder times. */
+export const APP_TIMEZONE = "America/Toronto";
+
+/** Local hour (in APP_TIMEZONE) a follow-up's Calendar reminder is scheduled at. */
+export const CALENDAR_REMINDER_HOUR = 9;
+export const CALENDAR_REMINDER_DURATION_MINUTES = 15;
+
 export const ESTIMATE_STATUSES: EstimateStatus[] = [
   "Sent",
   "Follow-up 1",

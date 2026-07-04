@@ -9,7 +9,7 @@ import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-ba
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEstimate, getFollowUpsForEstimate } from "@/services/airtable";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function EstimateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const businessId = await getCurrentBusinessId();
+  const { id: businessId } = await requireOnboardedBusiness();
 
   let estimate;
   let followUps;

@@ -1,5 +1,6 @@
 import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/airtable";
-import { getAllActiveBusinesses } from "@/services/business";
+import { getAllActiveBusinesses, getBusinessById } from "@/services/business";
+import { ensureReminderForDraft } from "@/services/calendarReminders";
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
 import { writeDailyRunLog, type DailyRunLog } from "@/lib/logger";
 import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
@@ -55,6 +56,7 @@ async function generateFollowUpDrafts(businessId: string): Promise<{
 
   const created: FollowUp[] = [];
   const errors: string[] = [];
+  const business = estimatesNeedingDraft.length > 0 ? await getBusinessById(businessId) : null;
 
   for (const estimate of estimatesNeedingDraft) {
     try {
@@ -65,6 +67,9 @@ async function generateFollowUpDrafts(businessId: string): Promise<{
         scheduledDate: todayIso(),
       });
       created.push(followUp);
+      if (business) {
+        await ensureReminderForDraft(business, followUp, estimate);
+      }
     } catch (error) {
       errors.push(`estimate ${estimate.id}: ${error instanceof Error ? error.message : "unknown error"}`);
     }

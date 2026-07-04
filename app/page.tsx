@@ -10,12 +10,12 @@ import { getDashboardStats } from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
 import { getEstimates } from "@/services/airtable";
 import { formatCurrency, formatDate } from "@/lib/date";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const businessId = await getCurrentBusinessId();
+  const { id: businessId } = await requireOnboardedBusiness();
 
   let stats;
   let followUpQueue;

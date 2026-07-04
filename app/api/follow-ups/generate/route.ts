@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { runDailyFollowUpJob } from "@/services/followupEngine";
+import { APP_TIMEZONE } from "@/config/constants";
 
 const TARGET_LOCAL_HOUR = 8;
-const TARGET_TIMEZONE = "America/Toronto";
 
 /**
  * Vercel Cron schedules are always UTC, but Toronto shifts between EDT/EST
@@ -13,7 +13,7 @@ const TARGET_TIMEZONE = "America/Toronto";
  */
 function isTargetLocalHour(): boolean {
   const hour = new Intl.DateTimeFormat("en-US", {
-    timeZone: TARGET_TIMEZONE,
+    timeZone: APP_TIMEZONE,
     hour: "numeric",
     hour12: false,
   }).format(new Date());

@@ -13,7 +13,13 @@ export const BUSINESS_FIELDS = {
   followUpCadenceSentDays: "followUpCadenceSentDays",
   followUpCadenceFollowUp1Days: "followUpCadenceFollowUp1Days",
   followUpCadenceFollowUp2Days: "followUpCadenceFollowUp2Days",
+  onboardingStep: "onboardingStep",
   onboardingCompletedAt: "onboardingCompletedAt",
+  googleRefreshTokenEnc: "googleRefreshTokenEnc",
+  googleConnectedEmail: "googleConnectedEmail",
+  googleScopes: "googleScopes",
+  googleConnectedAt: "googleConnectedAt",
+  calendarId: "calendarId",
   createdAt: "createdAt",
 } as const;
 
@@ -42,4 +48,5 @@ export const FOLLOWUP_FIELDS = {
   status: "status",
   scheduledDate: "scheduledDate",
   sentAt: "sentAt",
+  calendarEventId: "calendarEventId",
 } as const;
