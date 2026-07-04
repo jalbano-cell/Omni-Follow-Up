@@ -1,26 +1,38 @@
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
 import { env } from "@/lib/env";
+import type { SessionPayload } from "@/types";
 
 export const SESSION_COOKIE_NAME = "fq_session";
 
+const SESSION_DURATION = "30d";
+
+function getSecretKey(): Uint8Array {
+  return new TextEncoder().encode(env.authSecret);
+}
+
 /**
- * Single shared-password gate for this internal tool — no per-user accounts.
- * Uses Web Crypto (not Node's `crypto` module) so it works in both the
- * middleware's Edge runtime and regular Node route/action execution.
+ * Signs a tamper-evident session token carrying the business's identity.
+ * Uses `jose` (Web Crypto under the hood) so it runs identically in the
+ * Edge runtime (middleware.ts) and in Node (Server Actions) — hand-rolling
+ * this would mean reimplementing HMAC signing and expiry checking.
  */
-async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+export async function createSessionToken(payload: SessionPayload): Promise<string> {
+  return new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(SESSION_DURATION)
+    .sign(getSecretKey());
 }
 
-/** The cookie value a logged-in session should hold — derived, never the raw password. */
-export async function getExpectedSessionToken(): Promise<string> {
-  return sha256Hex(`${env.appPassword}:${env.authSecret}`);
-}
-
-export async function isValidSessionToken(value: string | null | undefined): Promise<boolean> {
-  if (!value) return false;
-  return value === (await getExpectedSessionToken());
+/** Verifies and decodes a session token, returning null if invalid, tampered, or expired. */
+export async function verifySessionToken(token: string | null | undefined): Promise<SessionPayload | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, getSecretKey());
+    if (typeof payload.businessId !== "string" || typeof payload.email !== "string") return null;
+    return { businessId: payload.businessId, email: payload.email };
+  } catch {
+    return null;
+  }
 }

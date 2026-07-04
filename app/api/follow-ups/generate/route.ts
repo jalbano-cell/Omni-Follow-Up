@@ -42,8 +42,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const log = await runDailyFollowUpJob();
-    return NextResponse.json(log);
+    const logs = await runDailyFollowUpJob();
+    return NextResponse.json(logs);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

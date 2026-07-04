@@ -10,19 +10,22 @@ import { getDashboardStats } from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
 import { getEstimates } from "@/services/airtable";
 import { formatCurrency, formatDate } from "@/lib/date";
+import { getCurrentBusinessId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const businessId = await getCurrentBusinessId();
+
   let stats;
   let followUpQueue;
   let recentEstimates;
 
   try {
     [stats, followUpQueue, recentEstimates] = await Promise.all([
-      getDashboardStats(),
-      getFollowUpQueue(),
-      getEstimates().then((estimates) => estimates.slice(0, 5)),
+      getDashboardStats(businessId),
+      getFollowUpQueue(businessId),
+      getEstimates(businessId).then((estimates) => estimates.slice(0, 5)),
     ]);
   } catch (error) {
     return (

@@ -18,9 +18,19 @@ function getBase() {
   return new Airtable({ apiKey: env.airtableApiKey }).base(env.airtableBaseId);
 }
 
+/** Escapes single quotes for safe interpolation into an Airtable filterByFormula string. */
+function escapeFormulaValue(value: string): string {
+  return value.replace(/'/g, "\\'");
+}
+
+function scopedToBusiness(businessId: string): string {
+  return `{${ESTIMATE_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`;
+}
+
 function toEstimate(record: AirtableRecord<FieldSet>): Estimate {
   return {
     id: record.id,
+    businessId: (record.get(ESTIMATE_FIELDS.businessId) as string) ?? "",
     customerName: (record.get(ESTIMATE_FIELDS.customerName) as string) ?? "",
     customerEmail: (record.get(ESTIMATE_FIELDS.customerEmail) as string) ?? "",
     businessName: (record.get(ESTIMATE_FIELDS.businessName) as string) ?? "",
@@ -39,6 +49,7 @@ function toEstimate(record: AirtableRecord<FieldSet>): Estimate {
 function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
   return {
     id: record.id,
+    businessId: (record.get(FOLLOWUP_FIELDS.businessId) as string) ?? "",
     estimateId: (record.get(FOLLOWUP_FIELDS.estimateId) as string) ?? "",
     message: (record.get(FOLLOWUP_FIELDS.message) as string) ?? "",
     status: ((record.get(FOLLOWUP_FIELDS.status) as FollowUpStatus) ?? "Pending"),
@@ -47,24 +58,34 @@ function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
   };
 }
 
-export async function getEstimates(): Promise<Estimate[]> {
+export async function getEstimates(businessId: string): Promise<Estimate[]> {
   const records = await getBase()(AIRTABLE_TABLES.estimates)
-    .select({ sort: [{ field: ESTIMATE_FIELDS.dateSent, direction: "desc" }] })
+    .select({
+      filterByFormula: scopedToBusiness(businessId),
+      sort: [{ field: ESTIMATE_FIELDS.dateSent, direction: "desc" }],
+    })
     .all();
   return records.map(toEstimate);
 }
 
-export async function getEstimate(id: string): Promise<Estimate | null> {
+/**
+ * Direct-id lookup — filterByFormula alone doesn't apply here, so ownership
+ * is verified explicitly against the fetched record. A guessed/leaked
+ * Airtable record ID from another business must never resolve.
+ */
+export async function getEstimate(businessId: string, id: string): Promise<Estimate | null> {
   try {
     const record = await getBase()(AIRTABLE_TABLES.estimates).find(id);
-    return toEstimate(record);
+    const estimate = toEstimate(record);
+    return estimate.businessId === businessId ? estimate : null;
   } catch {
     return null;
   }
 }
 
-export async function createEstimate(input: NewEstimateInput): Promise<Estimate> {
+export async function createEstimate(businessId: string, input: NewEstimateInput): Promise<Estimate> {
   const record = await getBase()(AIRTABLE_TABLES.estimates).create({
+    [ESTIMATE_FIELDS.businessId]: businessId,
     [ESTIMATE_FIELDS.customerName]: input.customerName,
     [ESTIMATE_FIELDS.customerEmail]: input.customerEmail,
     [ESTIMATE_FIELDS.businessName]: input.businessName ?? env.defaultBusinessName,
@@ -79,7 +100,16 @@ export async function createEstimate(input: NewEstimateInput): Promise<Estimate>
   return toEstimate(record);
 }
 
-export async function updateEstimate(id: string, input: UpdateEstimateInput): Promise<Estimate> {
+export async function updateEstimate(
+  businessId: string,
+  id: string,
+  input: UpdateEstimateInput
+): Promise<Estimate> {
+  const existing = await getEstimate(businessId, id);
+  if (!existing) {
+    throw new Error("Estimate not found for this business.");
+  }
+
   const fields: FieldSet = {};
   if (input.customerName !== undefined) fields[ESTIMATE_FIELDS.customerName] = input.customerName;
   if (input.customerEmail !== undefined) fields[ESTIMATE_FIELDS.customerEmail] = input.customerEmail;
@@ -98,9 +128,9 @@ export async function updateEstimate(id: string, input: UpdateEstimateInput): Pr
   return toEstimate(record);
 }
 
-/** Open estimates whose nextFollowUpDate has arrived (or passed). */
-export async function getDueFollowUps(): Promise<Estimate[]> {
-  const estimates = await getEstimates();
+/** Open estimates whose nextFollowUpDate has arrived (or passed), scoped to one business. */
+export async function getDueFollowUps(businessId: string): Promise<Estimate[]> {
+  const estimates = await getEstimates(businessId);
   const today = todayIso();
   return estimates.filter(
     (estimate) =>
@@ -110,29 +140,35 @@ export async function getDueFollowUps(): Promise<Estimate[]> {
   );
 }
 
-export async function getFollowUps(): Promise<FollowUp[]> {
+export async function getFollowUps(businessId: string): Promise<FollowUp[]> {
   const records = await getBase()(AIRTABLE_TABLES.followUps)
-    .select({ sort: [{ field: FOLLOWUP_FIELDS.scheduledDate, direction: "desc" }] })
+    .select({
+      filterByFormula: `{${FOLLOWUP_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
+      sort: [{ field: FOLLOWUP_FIELDS.scheduledDate, direction: "desc" }],
+    })
     .all();
   return records.map(toFollowUp);
 }
 
-export async function getFollowUpsForEstimate(estimateId: string): Promise<FollowUp[]> {
-  const followUps = await getFollowUps();
+export async function getFollowUpsForEstimate(businessId: string, estimateId: string): Promise<FollowUp[]> {
+  const followUps = await getFollowUps(businessId);
   return followUps.filter((f) => f.estimateId === estimateId);
 }
 
-export async function getFollowUp(id: string): Promise<FollowUp | null> {
+/** Direct-id lookup — ownership verified against the fetched record, same rationale as getEstimate. */
+export async function getFollowUp(businessId: string, id: string): Promise<FollowUp | null> {
   try {
     const record = await getBase()(AIRTABLE_TABLES.followUps).find(id);
-    return toFollowUp(record);
+    const followUp = toFollowUp(record);
+    return followUp.businessId === businessId ? followUp : null;
   } catch {
     return null;
   }
 }
 
-export async function createFollowUp(input: NewFollowUpInput): Promise<FollowUp> {
+export async function createFollowUp(businessId: string, input: NewFollowUpInput): Promise<FollowUp> {
   const record = await getBase()(AIRTABLE_TABLES.followUps).create({
+    [FOLLOWUP_FIELDS.businessId]: businessId,
     [FOLLOWUP_FIELDS.estimateId]: input.estimateId,
     [FOLLOWUP_FIELDS.message]: input.message,
     [FOLLOWUP_FIELDS.status]: input.status ?? "Pending",
@@ -141,7 +177,16 @@ export async function createFollowUp(input: NewFollowUpInput): Promise<FollowUp>
   return toFollowUp(record);
 }
 
-export async function updateFollowUp(id: string, input: UpdateFollowUpInput): Promise<FollowUp> {
+export async function updateFollowUp(
+  businessId: string,
+  id: string,
+  input: UpdateFollowUpInput
+): Promise<FollowUp> {
+  const existing = await getFollowUp(businessId, id);
+  if (!existing) {
+    throw new Error("Follow-up not found for this business.");
+  }
+
   const fields: FieldSet = {};
   if (input.message !== undefined) fields[FOLLOWUP_FIELDS.message] = input.message;
   if (input.status !== undefined) fields[FOLLOWUP_FIELDS.status] = input.status;

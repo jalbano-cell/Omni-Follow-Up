@@ -30,9 +30,7 @@ export const env = {
   get gmailUserEmail() {
     return requireEnv("GMAIL_USER_EMAIL");
   },
-  get appPassword() {
-    return requireEnv("APP_PASSWORD");
-  },
+  /** Signs/verifies session JWTs — not a password itself. Rotating it logs out every business. */
   get authSecret() {
     return requireEnv("AUTH_SECRET");
   },

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Check, Pencil, X, Send, RotateCw } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,6 @@ import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-ba
 import {
   approveFollowUpAction,
   editFollowUpMessageAction,
-  sendFollowUpAction,
   skipFollowUpAction,
 } from "@/app/follow-ups/actions";
 import { formatCurrency } from "@/lib/date";
@@ -25,7 +24,7 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
   function approve() {
     startTransition(async () => {
       await approveFollowUpAction(item.id);
-      toast.success("Approved — ready to send");
+      toast.success("Approved — will send once Gmail is connected");
     });
   }
 
@@ -41,17 +40,6 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
       await editFollowUpMessageAction(item.id, message);
       setIsEditing(false);
       toast.success("Message updated");
-    });
-  }
-
-  function send() {
-    startTransition(async () => {
-      const result = await sendFollowUpAction(item.id);
-      if (result.ok) {
-        toast.success("Email sent");
-      } else {
-        toast.error(`Send failed: ${result.error}`);
-      }
     });
   }
 
@@ -76,9 +64,9 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
           </div>
         </div>
 
-        {isFailed && (
-          <p className="mt-2 text-xs text-destructive">
-            Sending failed after a retry. Edit the message if needed, then try again.
+        {(isApproved || isFailed) && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Ready to send once Gmail is connected — see Settings.
           </p>
         )}
 
@@ -115,10 +103,6 @@ export function FollowUpCard({ item }: { item: FollowUpQueueItem }) {
             </>
           ) : isApproved || isFailed ? (
             <>
-              <Button size="sm" onClick={send} disabled={isPending}>
-                {isFailed ? <RotateCw className="size-3.5" /> : <Send className="size-3.5" />}
-                {isFailed ? "Retry Send" : "Send Email"}
-              </Button>
               <Button size="sm" variant="outline" onClick={() => setIsEditing(true)} disabled={isPending}>
                 <Pencil className="size-3.5" />
                 Edit

@@ -3,13 +3,16 @@ import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { FollowUpQueue } from "@/components/follow-ups/follow-up-queue";
 import { GenerateFollowUpsButton } from "@/components/follow-ups/generate-follow-ups-button";
 import { getFollowUpQueue } from "@/services/followupEngine";
+import { getCurrentBusinessId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function FollowUpsPage() {
+  const businessId = await getCurrentBusinessId();
+
   let queue;
   try {
-    queue = await getFollowUpQueue();
+    queue = await getFollowUpQueue(businessId);
   } catch (error) {
     return (
       <>

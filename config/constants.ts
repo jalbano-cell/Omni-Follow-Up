@@ -46,8 +46,8 @@ export const FOLLOWUP_STATUS_BADGE_VARIANT: Record<
   Failed: "destructive",
 };
 
-/** Days after the previous touch before each follow-up stage is due. */
-export const FOLLOW_UP_CADENCE_DAYS: Record<"Sent" | "Follow-up 1" | "Follow-up 2", number> = {
+/** Days after the previous touch before each follow-up stage is due, when a business hasn't set its own cadence. */
+export const DEFAULT_FOLLOW_UP_CADENCE_DAYS: Record<"Sent" | "Follow-up 1" | "Follow-up 2", number> = {
   Sent: 3,
   "Follow-up 1": 5,
   "Follow-up 2": 7,

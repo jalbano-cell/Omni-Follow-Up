@@ -5,6 +5,8 @@ const DAILY_RUN_LOG_DIR = path.join(process.cwd(), "logs", "daily-run");
 
 export interface DailyRunLog {
   timestamp: string;
+  /** Present when the run is scoped to one business (the per-tenant cron loop). */
+  businessId?: string;
   estimatesChecked: number;
   followUpsCreated: number;
   errors: string[];
@@ -17,13 +19,14 @@ export interface DailyRunLog {
  */
 export async function writeDailyRunLog(log: DailyRunLog): Promise<void> {
   console.log(
-    `[daily-run] ${log.timestamp} checked=${log.estimatesChecked} created=${log.followUpsCreated} errors=${log.errors.length}`,
+    `[daily-run] ${log.timestamp}${log.businessId ? ` business=${log.businessId}` : ""} checked=${log.estimatesChecked} created=${log.followUpsCreated} errors=${log.errors.length}`,
     log.errors.length ? log.errors : ""
   );
 
   try {
     await fs.mkdir(DAILY_RUN_LOG_DIR, { recursive: true });
-    const filename = `${log.timestamp.slice(0, 10)}.json`;
+    const suffix = log.businessId ? `-${log.businessId}` : "";
+    const filename = `${log.timestamp.slice(0, 10)}${suffix}.json`;
     await fs.writeFile(path.join(DAILY_RUN_LOG_DIR, filename), JSON.stringify(log, null, 2));
   } catch {
     // Production filesystems (e.g. Vercel) are read-only outside /tmp — the console line above is the record there.
