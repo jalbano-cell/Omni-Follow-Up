@@ -1,5 +1,5 @@
 import Airtable, { type FieldSet, type Record as AirtableRecord } from "airtable";
-import { AIRTABLE_TABLES, ESTIMATE_FIELDS, FOLLOWUP_FIELDS } from "@/config/airtable";
+import { AIRTABLE_TABLES, ESTIMATE_FIELDS, FOLLOWUP_FIELDS, REPLY_FIELDS } from "@/config/airtable";
 import { OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { env } from "@/lib/env";
 import { todayIso } from "@/lib/date";
@@ -10,6 +10,8 @@ import type {
   FollowUpStatus,
   NewEstimateInput,
   NewFollowUpInput,
+  NewReplyInput,
+  Reply,
   UpdateEstimateInput,
   UpdateFollowUpInput,
 } from "@/types";
@@ -56,6 +58,22 @@ function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
     scheduledDate: (record.get(FOLLOWUP_FIELDS.scheduledDate) as string) ?? "",
     sentAt: (record.get(FOLLOWUP_FIELDS.sentAt) as string) ?? null,
     calendarEventId: (record.get(FOLLOWUP_FIELDS.calendarEventId) as string) ?? null,
+  };
+}
+
+function toReply(record: AirtableRecord<FieldSet>): Reply {
+  return {
+    id: record.id,
+    businessId: (record.get(REPLY_FIELDS.businessId) as string) ?? "",
+    estimateId: (record.get(REPLY_FIELDS.estimateId) as string) ?? "",
+    gmailMessageId: (record.get(REPLY_FIELDS.gmailMessageId) as string) ?? "",
+    gmailThreadId: (record.get(REPLY_FIELDS.gmailThreadId) as string) ?? "",
+    fromEmail: (record.get(REPLY_FIELDS.fromEmail) as string) ?? "",
+    subject: (record.get(REPLY_FIELDS.subject) as string) ?? "",
+    snippet: (record.get(REPLY_FIELDS.snippet) as string) ?? "",
+    bodyText: (record.get(REPLY_FIELDS.bodyText) as string) ?? "",
+    receivedAt: (record.get(REPLY_FIELDS.receivedAt) as string) ?? "",
+    isRead: (record.get(REPLY_FIELDS.isRead) as boolean) ?? false,
   };
 }
 
@@ -200,4 +218,44 @@ export async function updateFollowUp(
   // since the choices list can only be extended this way (not via the schema/meta API).
   const record = await getBase()(AIRTABLE_TABLES.followUps).update(id, fields, { typecast: true });
   return toFollowUp(record);
+}
+
+export async function getReplies(businessId: string): Promise<Reply[]> {
+  const records = await getBase()(AIRTABLE_TABLES.replies)
+    .select({
+      filterByFormula: `{${REPLY_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
+      sort: [{ field: REPLY_FIELDS.receivedAt, direction: "desc" }],
+    })
+    .all();
+  return records.map(toReply);
+}
+
+export async function getRepliesForEstimate(businessId: string, estimateId: string): Promise<Reply[]> {
+  const replies = await getReplies(businessId);
+  return replies.filter((r) => r.estimateId === estimateId);
+}
+
+export async function createReply(businessId: string, input: NewReplyInput): Promise<Reply> {
+  const record = await getBase()(AIRTABLE_TABLES.replies).create({
+    [REPLY_FIELDS.businessId]: businessId,
+    [REPLY_FIELDS.estimateId]: input.estimateId,
+    [REPLY_FIELDS.gmailMessageId]: input.gmailMessageId,
+    [REPLY_FIELDS.gmailThreadId]: input.gmailThreadId,
+    [REPLY_FIELDS.fromEmail]: input.fromEmail,
+    [REPLY_FIELDS.subject]: input.subject,
+    [REPLY_FIELDS.snippet]: input.snippet,
+    [REPLY_FIELDS.bodyText]: input.bodyText,
+    [REPLY_FIELDS.receivedAt]: input.receivedAt,
+    [REPLY_FIELDS.isRead]: false,
+  });
+  return toReply(record);
+}
+
+export async function markReplyRead(businessId: string, id: string): Promise<Reply> {
+  const replies = await getReplies(businessId);
+  if (!replies.some((r) => r.id === id)) {
+    throw new Error("Reply not found for this business.");
+  }
+  const record = await getBase()(AIRTABLE_TABLES.replies).update(id, { [REPLY_FIELDS.isRead]: true });
+  return toReply(record);
 }

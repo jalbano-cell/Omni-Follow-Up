@@ -6,8 +6,9 @@ import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { StatusActions } from "@/components/estimates/status-actions";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
+import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getEstimate, getFollowUpsForEstimate } from "@/services/airtable";
+import { getEstimate, getFollowUpsForEstimate, getRepliesForEstimate } from "@/services/airtable";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
@@ -23,9 +24,11 @@ export default async function EstimateDetailPage({
 
   let estimate;
   let followUps;
+  let replies;
   try {
     estimate = await getEstimate(businessId, id);
     followUps = estimate ? await getFollowUpsForEstimate(businessId, id) : [];
+    replies = estimate ? await getRepliesForEstimate(businessId, id) : [];
   } catch (error) {
     return <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
   }
@@ -111,6 +114,25 @@ export default async function EstimateDetailPage({
                   </div>
                   <p className="mt-1 text-sm text-foreground">{followUp.message}</p>
                 </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6 py-5">
+        <CardHeader className="px-5">
+          <CardTitle className="text-base">Replies</CardTitle>
+        </CardHeader>
+        <CardContent className="px-5">
+          {replies.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No replies yet on this estimate&apos;s thread.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {replies.map((reply) => (
+                <ReplyHistoryItem key={reply.id} reply={reply} />
               ))}
             </ul>
           )}

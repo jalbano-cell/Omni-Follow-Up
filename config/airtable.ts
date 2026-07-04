@@ -2,6 +2,7 @@ export const AIRTABLE_TABLES = {
   businesses: "Businesses",
   estimates: "Estimates",
   followUps: "FollowUps",
+  replies: "Replies",
 } as const;
 
 /** Airtable field names for the Businesses table (tenant root — one record per business). */
@@ -49,4 +50,18 @@ export const FOLLOWUP_FIELDS = {
   scheduledDate: "scheduledDate",
   sentAt: "sentAt",
   calendarEventId: "calendarEventId",
+} as const;
+
+/** Airtable field names for the Replies table. */
+export const REPLY_FIELDS = {
+  businessId: "businessId",
+  estimateId: "estimateId",
+  gmailMessageId: "gmailMessageId",
+  gmailThreadId: "gmailThreadId",
+  fromEmail: "fromEmail",
+  subject: "subject",
+  snippet: "snippet",
+  bodyText: "bodyText",
+  receivedAt: "receivedAt",
+  isRead: "isRead",
 } as const;
