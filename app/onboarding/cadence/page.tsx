@@ -27,7 +27,7 @@ export default async function OnboardingCadencePage() {
               <Clock className="size-6" strokeWidth={2} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">Follow-up schedule</h2>
+              <h2 className="font-heading text-base font-semibold text-foreground">Follow-up schedule</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 How many days to wait after each stage before the next follow-up is due. You can change this
                 later in Settings.

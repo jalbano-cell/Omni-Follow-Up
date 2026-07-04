@@ -1,8 +1,8 @@
-# CLAUDE.md — FollowUpQuote
+# CLAUDE.md — OmniFollowUp
 
 ## What this is
 
-FollowUpQuote is a multi-tenant estimate follow-up automation SaaS for local service businesses (plumbers, HVAC, contractors, etc). Each business signs up, walks through a short onboarding wizard (business info, connect Google, follow-up schedule, review), then tracks its own sent estimates, gets flagged which ones need a follow-up, drafts the follow-up message, queues it for human approval, and sends it via its own connected Gmail account once approved — plus shows at-risk revenue on a dashboard.
+OmniFollowUp is a multi-tenant estimate follow-up automation SaaS for local service businesses (plumbers, HVAC, contractors, etc). Each business signs up, walks through a short onboarding wizard (business info, connect Google, follow-up schedule, review), then tracks its own sent estimates, gets flagged which ones need a follow-up, drafts the follow-up message, queues it for human approval, and sends it via its own connected Gmail account once approved — plus shows at-risk revenue on a dashboard.
 
 **This is NOT a CRM and NOT a website builder.** Keep scope tight: estimates in, follow-ups suggested, revenue visibility, and approved sends out. Resist adding generic CRM features (pipelines, contacts, deals, tasks) — if a feature doesn't directly serve "get this estimate followed up," it doesn't belong here.
 

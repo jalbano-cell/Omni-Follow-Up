@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Clock, MailOpen, BarChart3, Settings, Zap, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, Clock, MailOpen, BarChart3, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/login/actions";
+import { Logo } from "@/components/layout/logo";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -20,11 +21,8 @@ export function MobileNav({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2 px-6">
-        <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Zap className="size-4" strokeWidth={2.5} />
-        </div>
-        <span className="text-sm font-semibold tracking-tight">FollowUpQuote</span>
+      <div className="flex h-16 items-center px-6">
+        <Logo />
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
         {NAV_ITEMS.map((item) => {
