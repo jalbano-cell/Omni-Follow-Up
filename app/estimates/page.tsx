@@ -5,12 +5,12 @@ import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { Button } from "@/components/ui/button";
 import { EstimatesTable } from "@/components/estimates/estimates-table";
 import { getEstimates } from "@/services/airtable";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function EstimatesPage() {
-  const businessId = await getCurrentBusinessId();
+  const { id: businessId } = await requireOnboardedBusiness();
 
   let estimates;
   try {

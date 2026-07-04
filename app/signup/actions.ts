@@ -42,5 +42,5 @@ export async function signupAction(formData: FormData) {
     maxAge: 60 * 60 * 24 * 30,
   });
 
-  redirect("/");
+  redirect("/onboarding/gmail");
 }

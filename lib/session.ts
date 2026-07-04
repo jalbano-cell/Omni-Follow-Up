@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
-import type { SessionPayload } from "@/types";
+import { getBusinessById } from "@/services/business";
+import type { Business, SessionPayload } from "@/types";
 
 /**
  * Resolves the current business's identity for Server Components/Actions.
@@ -24,4 +25,29 @@ export async function getCurrentSession(): Promise<SessionPayload> {
 export async function getCurrentBusinessId(): Promise<string> {
   const { businessId } = await getCurrentSession();
   return businessId;
+}
+
+/** The onboarding wizard step a business with this onboardingStep value still needs to complete. */
+function onboardingStepPath(step: number): string {
+  if (step >= 2) return "/onboarding/review";
+  if (step >= 1) return "/onboarding/cadence";
+  return "/onboarding/gmail";
+}
+
+/**
+ * Guard for every page/action that assumes onboarding is complete (i.e.
+ * everything except the onboarding wizard itself). Redirects to whichever
+ * step the business hasn't finished yet instead of letting it hit a page
+ * that expects a fully-configured business.
+ */
+export async function requireOnboardedBusiness(): Promise<Business> {
+  const { businessId } = await getCurrentSession();
+  const business = await getBusinessById(businessId);
+  if (!business) {
+    redirect("/login");
+  }
+  if (!business.onboardingCompletedAt) {
+    redirect(onboardingStepPath(business.onboardingStep));
+  }
+  return business;
 }

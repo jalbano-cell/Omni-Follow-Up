@@ -55,6 +55,7 @@ function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
     status: ((record.get(FOLLOWUP_FIELDS.status) as FollowUpStatus) ?? "Pending"),
     scheduledDate: (record.get(FOLLOWUP_FIELDS.scheduledDate) as string) ?? "",
     sentAt: (record.get(FOLLOWUP_FIELDS.sentAt) as string) ?? null,
+    calendarEventId: (record.get(FOLLOWUP_FIELDS.calendarEventId) as string) ?? null,
   };
 }
 
@@ -192,6 +193,8 @@ export async function updateFollowUp(
   if (input.status !== undefined) fields[FOLLOWUP_FIELDS.status] = input.status;
   if (input.scheduledDate !== undefined) fields[FOLLOWUP_FIELDS.scheduledDate] = input.scheduledDate;
   if (input.sentAt !== undefined) fields[FOLLOWUP_FIELDS.sentAt] = input.sentAt ?? undefined;
+  if (input.calendarEventId !== undefined)
+    fields[FOLLOWUP_FIELDS.calendarEventId] = input.calendarEventId ?? "";
 
   // typecast lets Airtable add "Failed" as a select option the first time it's written,
   // since the choices list can only be extended this way (not via the schema/meta API).

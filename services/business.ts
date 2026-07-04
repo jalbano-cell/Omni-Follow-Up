@@ -18,7 +18,13 @@ function toBusiness(record: AirtableRecord<FieldSet>): Business {
     followUpCadenceSentDays: (record.get(BUSINESS_FIELDS.followUpCadenceSentDays) as number) ?? null,
     followUpCadenceFollowUp1Days: (record.get(BUSINESS_FIELDS.followUpCadenceFollowUp1Days) as number) ?? null,
     followUpCadenceFollowUp2Days: (record.get(BUSINESS_FIELDS.followUpCadenceFollowUp2Days) as number) ?? null,
+    onboardingStep: (record.get(BUSINESS_FIELDS.onboardingStep) as number) ?? 0,
     onboardingCompletedAt: (record.get(BUSINESS_FIELDS.onboardingCompletedAt) as string) ?? null,
+    googleRefreshTokenEnc: (record.get(BUSINESS_FIELDS.googleRefreshTokenEnc) as string) ?? null,
+    googleConnectedEmail: (record.get(BUSINESS_FIELDS.googleConnectedEmail) as string) ?? null,
+    googleScopes: (record.get(BUSINESS_FIELDS.googleScopes) as string) ?? null,
+    googleConnectedAt: (record.get(BUSINESS_FIELDS.googleConnectedAt) as string) ?? null,
+    calendarId: (record.get(BUSINESS_FIELDS.calendarId) as string) ?? null,
     createdAt: (record.get(BUSINESS_FIELDS.createdAt) as string) ?? "",
   };
 }
@@ -70,11 +76,51 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
     fields[BUSINESS_FIELDS.followUpCadenceFollowUp1Days] = input.followUpCadenceFollowUp1Days ?? undefined;
   if (input.followUpCadenceFollowUp2Days !== undefined)
     fields[BUSINESS_FIELDS.followUpCadenceFollowUp2Days] = input.followUpCadenceFollowUp2Days ?? undefined;
+  if (input.onboardingStep !== undefined) fields[BUSINESS_FIELDS.onboardingStep] = input.onboardingStep;
   if (input.onboardingCompletedAt !== undefined)
     fields[BUSINESS_FIELDS.onboardingCompletedAt] = input.onboardingCompletedAt ?? undefined;
+  if (input.googleRefreshTokenEnc !== undefined)
+    fields[BUSINESS_FIELDS.googleRefreshTokenEnc] = input.googleRefreshTokenEnc ?? undefined;
+  if (input.googleConnectedEmail !== undefined)
+    fields[BUSINESS_FIELDS.googleConnectedEmail] = input.googleConnectedEmail ?? undefined;
+  if (input.googleScopes !== undefined) fields[BUSINESS_FIELDS.googleScopes] = input.googleScopes ?? undefined;
+  if (input.googleConnectedAt !== undefined)
+    fields[BUSINESS_FIELDS.googleConnectedAt] = input.googleConnectedAt ?? undefined;
+  if (input.calendarId !== undefined) fields[BUSINESS_FIELDS.calendarId] = input.calendarId ?? undefined;
 
   const record = await getBase()(AIRTABLE_TABLES.businesses).update(id, fields);
   return toBusiness(record);
+}
+
+/** Persists a freshly-connected (or reconnected) Google account's tokens/scopes. */
+export async function saveGoogleConnection(
+  id: string,
+  input: { encryptedRefreshToken: string; connectedEmail: string; scopes: string }
+): Promise<Business> {
+  return updateBusiness(id, {
+    googleRefreshTokenEnc: input.encryptedRefreshToken,
+    googleConnectedEmail: input.connectedEmail,
+    googleScopes: input.scopes,
+    googleConnectedAt: new Date().toISOString(),
+  });
+}
+
+/** Clears a Google connection — used when a refresh token is revoked (invalid_grant) and needs reconnecting. */
+export async function clearGoogleConnection(id: string): Promise<Business> {
+  return updateBusiness(id, {
+    googleRefreshTokenEnc: null,
+    googleConnectedEmail: null,
+    googleScopes: null,
+    googleConnectedAt: null,
+  });
+}
+
+export async function markOnboardingStep(id: string, step: number): Promise<Business> {
+  return updateBusiness(id, { onboardingStep: step });
+}
+
+export async function completeOnboarding(id: string): Promise<Business> {
+  return updateBusiness(id, { onboardingCompletedAt: new Date().toISOString() });
 }
 
 /** Every business, for the per-tenant cron loop (follow-up drafting). */
@@ -92,4 +138,9 @@ export function getEffectiveCadenceDays(
     "Follow-up 1": business.followUpCadenceFollowUp1Days ?? DEFAULT_FOLLOW_UP_CADENCE_DAYS["Follow-up 1"],
     "Follow-up 2": business.followUpCadenceFollowUp2Days ?? DEFAULT_FOLLOW_UP_CADENCE_DAYS["Follow-up 2"],
   };
+}
+
+/** Which calendar Calendar reminders get created on — "primary" (the connected account's main calendar) unless overridden. */
+export function getEffectiveCalendarId(business: Pick<Business, "calendarId">): string {
+  return business.calendarId ?? "primary";
 }

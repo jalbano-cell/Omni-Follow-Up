@@ -1,21 +1,30 @@
+import Link from "next/link";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getBusinessById, getEffectiveCadenceDays } from "@/services/business";
-import { getCurrentBusinessId, getCurrentSession } from "@/lib/session";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/estimates/submit-button";
+import { getEffectiveCadenceDays } from "@/services/business";
+import { updateCadenceAction, disconnectGoogleAction } from "@/app/settings/actions";
+import { requireOnboardedBusiness, getCurrentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ googleError?: string }>;
+}) {
+  const { googleError } = await searchParams;
   const { email } = await getCurrentSession();
-  const businessId = await getCurrentBusinessId();
-  const business = await getBusinessById(businessId);
+  const business = await requireOnboardedBusiness();
 
   const airtableConfigured = Boolean(process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID);
-  const cadence = getEffectiveCadenceDays(
-    business ?? { followUpCadenceSentDays: null, followUpCadenceFollowUp1Days: null, followUpCadenceFollowUp2Days: null }
-  );
+  const googleConnected = Boolean(business.googleRefreshTokenEnc);
+  const cadence = getEffectiveCadenceDays(business);
 
   return (
     <>
@@ -28,7 +37,7 @@ export default async function SettingsPage() {
             <CardDescription>Your business and login.</CardDescription>
           </CardHeader>
           <CardContent className="px-5">
-            <p className="text-sm font-medium text-foreground">{business?.businessName ?? "Your Business"}</p>
+            <p className="text-sm font-medium text-foreground">{business.businessName}</p>
             <p className="mt-1 text-xs text-muted-foreground">Signed in as {email}</p>
           </CardContent>
         </Card>
@@ -60,13 +69,6 @@ export default async function SettingsPage() {
                 </>
               )}
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Set <code className="rounded bg-muted px-1 py-0.5">AIRTABLE_API_KEY</code> and{" "}
-              <code className="rounded bg-muted px-1 py-0.5">AIRTABLE_BASE_ID</code> in{" "}
-              <code className="rounded bg-muted px-1 py-0.5">.env.local</code> — see{" "}
-              <code className="rounded bg-muted px-1 py-0.5">.env.example</code> for the template.
-              Restart the dev server after changes.
-            </p>
           </CardContent>
         </Card>
 
@@ -78,17 +80,48 @@ export default async function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-5">
+            {googleError && (
+              <p className="mb-3 text-xs text-destructive">
+                Something went wrong connecting Google. Please try again.
+              </p>
+            )}
             <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
-              <XCircle className="size-4 text-destructive" />
-              <span className="text-sm text-foreground">Not connected</span>
-              <Badge variant="secondary" className="ml-auto">
-                Coming soon
-              </Badge>
+              {googleConnected ? (
+                <>
+                  <CheckCircle2 className="size-4 text-success" />
+                  <span className="text-sm text-foreground">Connected</span>
+                  <Badge variant="success" className="ml-auto">
+                    {business.googleConnectedEmail}
+                  </Badge>
+                </>
+              ) : (
+                <>
+                  <XCircle className="size-4 text-destructive" />
+                  <span className="text-sm text-foreground">Not connected</span>
+                  <Badge variant="destructive" className="ml-auto">
+                    Sending paused
+                  </Badge>
+                </>
+              )}
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Self-serve Gmail connection (per business, via Google OAuth) is landing in the next update.
-              Follow-ups can still be drafted, approved, and edited — sending is paused until this ships.
-            </p>
+            <div className="mt-3 flex gap-2">
+              {googleConnected ? (
+                <>
+                  <Button size="sm" variant="outline" render={<Link href="/api/oauth/google/start?returnTo=/settings" />}>
+                    Reconnect
+                  </Button>
+                  <form action={disconnectGoogleAction}>
+                    <Button size="sm" variant="ghost" type="submit">
+                      Disconnect
+                    </Button>
+                  </form>
+                </>
+              ) : (
+                <Button size="sm" render={<Link href="/api/oauth/google/start?returnTo=/settings" />}>
+                  Connect Google Account
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -98,14 +131,43 @@ export default async function SettingsPage() {
             <CardDescription>Days after each stage before the next follow-up is due.</CardDescription>
           </CardHeader>
           <CardContent className="px-5">
-            <ul className="divide-y divide-border">
-              {Object.entries(cadence).map(([stage, days]) => (
-                <li key={stage} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="text-foreground">{stage}</span>
-                  <span className="text-muted-foreground">{days} days</span>
-                </li>
-              ))}
-            </ul>
+            <form action={updateCadenceAction} className="flex flex-col gap-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="sentDays" className="text-xs">
+                    Sent → 1st follow-up
+                  </Label>
+                  <Input id="sentDays" name="sentDays" type="number" min={1} defaultValue={cadence.Sent} required />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="followUp1Days" className="text-xs">
+                    → 2nd follow-up
+                  </Label>
+                  <Input
+                    id="followUp1Days"
+                    name="followUp1Days"
+                    type="number"
+                    min={1}
+                    defaultValue={cadence["Follow-up 1"]}
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="followUp2Days" className="text-xs">
+                    → 3rd follow-up
+                  </Label>
+                  <Input
+                    id="followUp2Days"
+                    name="followUp2Days"
+                    type="number"
+                    min={1}
+                    defaultValue={cadence["Follow-up 2"]}
+                    required
+                  />
+                </div>
+              </div>
+              <SubmitButton>Save cadence</SubmitButton>
+            </form>
           </CardContent>
         </Card>
 
