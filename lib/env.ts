@@ -37,4 +37,15 @@ export const env = {
   get geminiApiKey() {
     return process.env.GEMINI_API_KEY;
   },
+  /** Supabase migration (in progress) — see lib/supabase.ts and CLAUDE.md's "Supabase migration" section. */
+  get supabaseUrl() {
+    return requireEnv("NEXT_PUBLIC_SUPABASE_URL");
+  },
+  get supabaseAnonKey() {
+    return requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  },
+  /** Server-only — bypasses Row Level Security. Never send this to the client. */
+  get supabaseServiceRoleKey() {
+    return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  },
 };
