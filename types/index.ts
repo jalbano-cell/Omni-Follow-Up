@@ -8,3 +8,4 @@ export * from "./activity";
 export * from "./notification";
 export * from "./emailTemplate";
 export * from "./estimateAttachment";
+export * from "./subscription";

@@ -436,6 +436,36 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          created_at: string
+          features: Json
+          id: string
+          max_leads_per_month: number | null
+          max_users: number
+          name: string
+          price_cents: number
+        }
+        Insert: {
+          created_at?: string
+          features?: Json
+          id: string
+          max_leads_per_month?: number | null
+          max_users?: number
+          name: string
+          price_cents?: number
+        }
+        Update: {
+          created_at?: string
+          features?: Json
+          id?: string
+          max_leads_per_month?: number | null
+          max_users?: number
+          name?: string
+          price_cents?: number
+        }
+        Relationships: []
+      }
       replies: {
         Row: {
           body_text: string
@@ -489,6 +519,57 @@ export type Database = {
           },
           {
             foreignKeyName: "replies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          id: string
+          plan_id: string
+          status: string
+          billing_customer_id: string | null
+          billing_subscription_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan_id: string
+          status?: string
+          billing_customer_id?: string | null
+          billing_subscription_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          plan_id?: string
+          status?: string
+          billing_customer_id?: string | null
+          billing_subscription_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

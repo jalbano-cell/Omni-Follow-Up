@@ -28,6 +28,7 @@ import {
   getEffectiveNotifyOnReply,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
+import { getEffectivePlan } from "@/services/subscriptionService";
 import {
   updateCadenceAction,
   disconnectGoogleAction,
@@ -71,6 +72,7 @@ export default async function SettingsPage({
   const notifyOnNewLead = getEffectiveNotifyOnNewLead(business);
   const notifyOnReply = getEffectiveNotifyOnReply(business);
   const emailTemplates = await listEmailTemplates(business.id);
+  const plan = await getEffectivePlan(business.id);
 
   return (
     <>
@@ -112,6 +114,21 @@ export default async function SettingsPage({
               </div>
               <SubmitButton>Save profile</SubmitButton>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Plan</CardTitle>
+            <CardDescription>Every business is on the Free plan for now — paid plans aren&apos;t live yet.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
+              <span className="text-sm font-medium text-foreground">{plan.name}</span>
+              <Badge variant="secondary" className="ml-auto">
+                {plan.maxLeadsPerMonth ? `${plan.maxLeadsPerMonth} leads/mo` : "Unlimited leads"}
+              </Badge>
+            </div>
           </CardContent>
         </Card>
 
