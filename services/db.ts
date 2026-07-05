@@ -120,6 +120,8 @@ function toLead(row: LeadRow): Lead {
     aiResponseUrgencyReason: row.ai_response_urgency_reason,
     aiGeneratedAt: row.ai_generated_at,
     aiStatus: row.ai_status as Lead["aiStatus"],
+    pendingAppointmentDateTime: row.pending_appointment_date_time,
+    pendingAppointmentDurationMinutes: row.pending_appointment_duration_minutes,
   };
 }
 
@@ -412,6 +414,9 @@ export async function updateLead(businessId: string, id: string, input: UpdateLe
   if (input.aiResponseUrgencyReason !== undefined) fields.ai_response_urgency_reason = input.aiResponseUrgencyReason;
   if (input.aiGeneratedAt !== undefined) fields.ai_generated_at = input.aiGeneratedAt;
   if (input.aiStatus !== undefined) fields.ai_status = input.aiStatus;
+  if (input.pendingAppointmentDateTime !== undefined) fields.pending_appointment_date_time = input.pendingAppointmentDateTime;
+  if (input.pendingAppointmentDurationMinutes !== undefined)
+    fields.pending_appointment_duration_minutes = input.pendingAppointmentDurationMinutes;
 
   const row = await updateRow("leads", id, fields);
   return toLead(row);

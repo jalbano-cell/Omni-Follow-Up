@@ -295,6 +295,8 @@ export type Database = {
           lead_id: string
           message: string
           name: string
+          pending_appointment_date_time: string | null
+          pending_appointment_duration_minutes: number | null
           phone: string
           service: string
           source: string
@@ -327,6 +329,8 @@ export type Database = {
           lead_id: string
           message: string
           name: string
+          pending_appointment_date_time?: string | null
+          pending_appointment_duration_minutes?: number | null
           phone?: string
           service?: string
           source?: string
@@ -359,6 +363,8 @@ export type Database = {
           lead_id?: string
           message?: string
           name?: string
+          pending_appointment_date_time?: string | null
+          pending_appointment_duration_minutes?: number | null
           phone?: string
           service?: string
           source?: string
@@ -524,6 +530,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          auto_book_appointments: boolean | null
           business_name: string
           calendar_id: string | null
           created_at: string
@@ -549,6 +556,7 @@ export type Database = {
           working_hours_start: number | null
         }
         Insert: {
+          auto_book_appointments?: boolean | null
           business_name: string
           calendar_id?: string | null
           created_at?: string
@@ -574,6 +582,7 @@ export type Database = {
           working_hours_start?: number | null
         }
         Update: {
+          auto_book_appointments?: boolean | null
           business_name?: string
           calendar_id?: string | null
           created_at?: string

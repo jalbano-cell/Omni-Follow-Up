@@ -1,6 +1,11 @@
 import { listBusyIntervals, createEvent } from "@/services/calendar";
 import { refreshAccessToken } from "@/services/googleOAuth";
-import { getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
+import {
+  getEffectiveCalendarId,
+  getEffectiveTimezone,
+  getEffectiveWorkingHours,
+  getEffectiveAutoBooking,
+} from "@/services/business";
 import { parseRequestedAppointment } from "@/services/automation/appointmentParser";
 import { decrypt } from "@/lib/crypto";
 import { zonedDateTimeToUtc, formatZonedDateTime } from "@/lib/date";
@@ -8,12 +13,15 @@ import { logAction } from "@/lib/logger";
 import type { Business, Lead } from "@/types";
 
 /**
- * Real, automatic (no human approval) appointment booking for a lead that
- * requests a specific date/time — a deliberate, narrow exception alongside
- * the automatic acknowledgment email (see CLAUDE.md). Reuses the same
- * Google OAuth connection as Gmail/reminders; unlike
+ * Appointment booking for a lead that requests a specific date/time — a
+ * deliberate, narrow exception alongside the automatic acknowledgment email
+ * (see CLAUDE.md), but no longer unconditionally automatic. Whether an open
+ * requested slot actually gets booked (vs. only recommended for the owner
+ * to approve) is gated by getEffectiveAutoBooking, default OFF. Reuses the
+ * same Google OAuth connection as Gmail/reminders; unlike
  * services/calendarReminders.ts (strictly output-only), this DOES read
- * availability and DOES book a real event with the customer invited.
+ * availability and, when the setting is on, DOES book a real event with the
+ * customer invited.
  */
 
 const MAX_ALTERNATES = 2;
@@ -23,6 +31,7 @@ const SLOT_STEP_MINUTES = 30;
 export type AppointmentBookingResult =
   | { type: "none" }
   | { type: "booked"; label: string; eventId: string }
+  | { type: "recommended"; label: string; dateTime: string; durationMinutes: number }
   | { type: "alternates"; labels: string[] };
 
 function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
@@ -109,6 +118,12 @@ export async function resolveAppointmentBooking(business: Business, lead: Lead):
     const isFuture = requestedStartUtc.getTime() > now.getTime();
 
     if (isFuture && withinBusinessHours && isFree(requestedStartUtc)) {
+      const label = formatZonedDateTime(requestedStartUtc, timezone);
+
+      if (!getEffectiveAutoBooking(business)) {
+        return { type: "recommended", label, dateTime: requested.dateTime, durationMinutes: requested.durationMinutes };
+      }
+
       const eventId = await createEvent({
         accessToken,
         calendarId,
@@ -122,7 +137,7 @@ export async function resolveAppointmentBooking(business: Business, lead: Lead):
         attendeeEmails: [lead.email],
         notifyAttendees: true,
       });
-      return { type: "booked", label: formatZonedDateTime(requestedStartUtc, timezone), eventId };
+      return { type: "booked", label, eventId };
     }
 
     const alternates: Date[] = [];
@@ -144,5 +159,52 @@ export async function resolveAppointmentBooking(business: Business, lead: Lead):
       error: error instanceof Error ? error.message : "unknown error",
     });
     return { type: "none" };
+  }
+}
+
+export type ApproveBookingResult = { ok: true; label: string; eventId: string } | { ok: false; error: string };
+
+/**
+ * Books the appointment a lead requested after the business owner approves
+ * the recommendation resolveAppointmentBooking produced (services/leadService.ts's
+ * approveRecommendedAppointment calls this, then clears the lead's pending
+ * fields). Known simplification: doesn't re-check the calendar for a new
+ * conflict that may have appeared since the recommendation was made — the
+ * same tradeoff every "book now" action makes without a live hold on the slot.
+ */
+export async function bookRecommendedAppointment(business: Business, lead: Lead): Promise<ApproveBookingResult> {
+  if (!lead.pendingAppointmentDateTime || !lead.pendingAppointmentDurationMinutes) {
+    return { ok: false, error: "No pending appointment recommendation for this lead." };
+  }
+  if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
+    return { ok: false, error: "Google isn't connected for this business." };
+  }
+
+  const timezone = getEffectiveTimezone(business);
+  try {
+    const accessToken = await refreshAccessToken(decrypt(business.googleRefreshTokenEnc));
+    const eventId = await createEvent({
+      accessToken,
+      calendarId: getEffectiveCalendarId(business),
+      summary: `Appointment with ${lead.name}`,
+      description: `Booked from a website inquiry (Lead ${lead.leadId}) after owner approval.${
+        lead.requestedService ? ` Re: ${lead.requestedService}.` : ""
+      } Message: "${lead.message}"`,
+      startDateTime: lead.pendingAppointmentDateTime,
+      endDateTime: addMinutesToLocalDateTime(lead.pendingAppointmentDateTime, lead.pendingAppointmentDurationMinutes),
+      timeZone: timezone,
+      attendeeEmails: [lead.email],
+      notifyAttendees: true,
+    });
+
+    const label = formatZonedDateTime(zonedDateTimeToUtc(lead.pendingAppointmentDateTime, timezone), timezone);
+    return { ok: true, label, eventId };
+  } catch (error) {
+    logAction("lead.appointment-approval-failed", {
+      businessId: business.id,
+      leadId: lead.leadId,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+    return { ok: false, error: "Booking failed — the slot may no longer be available." };
   }
 }

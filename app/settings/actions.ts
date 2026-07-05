@@ -120,3 +120,12 @@ export async function resetEmailTemplateAction(key: EmailTemplateKey) {
   logAction("settings.email-template-reset", { businessId, key });
   revalidatePath("/settings");
 }
+
+export async function updateAppointmentPreferencesAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+  const autoBookAppointments = formData.get("autoBookAppointments") === "on";
+
+  await updateBusiness(businessId, { autoBookAppointments });
+  logAction("settings.appointment-preferences-update", { businessId, autoBookAppointments });
+  revalidatePath("/settings");
+}

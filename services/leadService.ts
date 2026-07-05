@@ -12,7 +12,8 @@ import {
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
 import { analyzeLead } from "@/services/automation/leadClassifier";
 import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/services/emailBuilder";
-import { resolveAppointmentBooking } from "@/services/appointmentBooking";
+import { resolveAppointmentBooking, bookRecommendedAppointment } from "@/services/appointmentBooking";
+import { getBusinessById } from "@/services/business";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -104,6 +105,8 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
   }
 
   const booking = await resolveAppointmentBooking(business, lead);
+  // "recommended" never states a specific time to the customer — nothing is
+  // actually confirmed yet, so the email stays as vague as the "none" case.
   const bookingOutcome: AcknowledgmentBookingOutcome =
     booking.type === "booked"
       ? { type: "booked", dateTimeLabel: booking.label }
@@ -125,6 +128,30 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
       "lead.appointment_alternates_offered",
       `Requested time unavailable — offered alternates: ${booking.labels.join(", ")}.`
     );
+  } else if (booking.type === "recommended") {
+    await updateLead(business.id, lead.id, {
+      pendingAppointmentDateTime: booking.dateTime,
+      pendingAppointmentDurationMinutes: booking.durationMinutes,
+    });
+    await logLeadActivity(
+      business.id,
+      lead.id,
+      "lead.appointment_recommended",
+      `Customer requested an appointment for ${booking.label} — review and approve booking.`
+    );
+    try {
+      await createNotification(business.id, {
+        leadId: lead.id,
+        type: "lead.appointment_recommended",
+        message: `${lead.name} requested an appointment for ${booking.label} — approve to book it.`,
+      });
+    } catch (error) {
+      logAction("lead.appointment-recommend-notify-failed", {
+        businessId: business.id,
+        leadId: lead.leadId,
+        error: error instanceof Error ? error.message : "unknown error",
+      });
+    }
   }
 
   const content = await buildAcknowledgmentEmail(lead, business, bookingOutcome);
@@ -156,6 +183,40 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
       "Automatic acknowledgment email failed to send."
     );
   }
+}
+
+export type ApproveAppointmentResult = { ok: true; label: string } | { ok: false; error: string };
+
+/**
+ * Books the appointment a lead recommended when auto-booking is off (see
+ * services/business.ts's getEffectiveAutoBooking) — the one place a
+ * recommendation actually turns into a real Calendar event, always by an
+ * explicit business-owner action from the Lead Details page.
+ */
+export async function approveRecommendedAppointment(businessId: string, id: string): Promise<ApproveAppointmentResult> {
+  const [business, lead] = await Promise.all([getBusinessById(businessId), getLead(businessId, id)]);
+  if (!business || !lead) {
+    return { ok: false, error: "Lead not found." };
+  }
+  if (!lead.pendingAppointmentDateTime) {
+    return { ok: false, error: "No pending appointment recommendation for this lead." };
+  }
+
+  const result = await bookRecommendedAppointment(business, lead);
+  if (!result.ok) {
+    return result;
+  }
+
+  await updateLead(businessId, id, { pendingAppointmentDateTime: null, pendingAppointmentDurationMinutes: null });
+  await logLeadActivity(businessId, id, "lead.appointment_booked", `Appointment booked for ${result.label} (approved by owner).`);
+  return { ok: true, label: result.label };
+}
+
+/** Clears a pending recommendation without booking it — the owner decided not to (or the customer's timing no longer works). */
+export async function dismissRecommendedAppointment(businessId: string, id: string): Promise<Lead> {
+  const lead = await updateLead(businessId, id, { pendingAppointmentDateTime: null, pendingAppointmentDurationMinutes: null });
+  await logLeadActivity(businessId, id, "lead.appointment_dismissed", "Appointment recommendation dismissed.");
+  return lead;
 }
 
 /**

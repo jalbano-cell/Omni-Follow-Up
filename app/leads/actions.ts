@@ -11,7 +11,10 @@ import {
   updateAiInsights,
   regenerateAiInsights,
   createLeadFromSubmission,
+  approveRecommendedAppointment,
+  dismissRecommendedAppointment,
   type UpdateAiInsightsInput,
+  type ApproveAppointmentResult,
 } from "@/services/leadService";
 import { getBusinessById } from "@/services/business";
 import { parseCsv, csvRowsToLeads } from "@/lib/csv";
@@ -137,4 +140,19 @@ export async function importLeadsCsvAction(csvText: string): Promise<{ imported:
   logAction("lead.csv-import", { businessId, imported, total: candidates.length });
   revalidatePath("/leads");
   return { imported, skipped: candidates.length - imported };
+}
+
+export async function approveRecommendedAppointmentAction(id: string): Promise<ApproveAppointmentResult> {
+  const businessId = await getCurrentBusinessId();
+  const result = await approveRecommendedAppointment(businessId, id);
+  logAction("lead.appointment-approve", { leadId: id, ok: result.ok });
+  revalidatePath(`/leads/${id}`);
+  return result;
+}
+
+export async function dismissRecommendedAppointmentAction(id: string) {
+  const businessId = await getCurrentBusinessId();
+  await dismissRecommendedAppointment(businessId, id);
+  logAction("lead.appointment-dismiss", { leadId: id });
+  revalidatePath(`/leads/${id}`);
 }
