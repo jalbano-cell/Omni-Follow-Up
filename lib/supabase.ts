@@ -51,7 +51,7 @@ function untyped() {
         eq(col: string, val: string): { select(): { single(): Promise<{ data: unknown; error: { message: string } | null }> } };
       };
       select(): {
-        eq(col: string, val: string): { maybeSingle(): Promise<{ data: unknown; error: { message: string } | null }> };
+        eq(col: string, val: string): { maybeSingle(): Promise<{ data: unknown; error: { message: string; code?: string } | null }> };
         match(m: Record<string, unknown>): {
           order(col: string, opts: { ascending: boolean }): Promise<{ data: unknown[] | null; error: { message: string } | null }>;
         } & Promise<{ data: unknown[] | null; error: { message: string } | null }>;
@@ -75,10 +75,23 @@ export async function updateRow<T extends TableName>(table: T, id: string, value
   return data as Row<T>;
 }
 
-/** Fetches one row by id, or null if it doesn't exist. */
+/** Postgres error code for a value that can't parse as the column's type (e.g. a non-UUID string against a uuid primary key). */
+const POSTGRES_INVALID_TEXT_REPRESENTATION = "22P02";
+
+/**
+ * Fetches one row by id, or null if it doesn't exist. A malformed id (e.g. a
+ * stale pre-Supabase-cutover session's Airtable-style record id showing up
+ * as a businessId) can never match a uuid primary key — Postgres rejects it
+ * before it even gets to run the query, so that's treated the same as "no
+ * row found" rather than allowed to throw and crash whatever page expected
+ * a graceful null (see lib/session.ts's requireOnboardedBusiness).
+ */
 export async function selectById<T extends TableName>(table: T, id: string): Promise<Row<T> | null> {
   const { data, error } = await untyped().from(table).select().eq("id", id).maybeSingle();
-  if (error) throw new SupabaseQueryError(table, "select", error.message);
+  if (error) {
+    if (error.code === POSTGRES_INVALID_TEXT_REPRESENTATION) return null;
+    throw new SupabaseQueryError(table, "select", error.message);
+  }
   return data as Row<T> | null;
 }
 
