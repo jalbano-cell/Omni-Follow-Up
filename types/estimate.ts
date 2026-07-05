@@ -10,6 +10,8 @@ export interface Estimate {
   businessId: string;
   /** Human-readable unique ID (e.g. "EST-M3F2K1-A9C") shown in the UI and available as the {{estimate_number}} merge variable — distinct from the database record id. */
   estimateNumber: string;
+  /** The Lead this estimate was converted from, if any — lets estimate-lifecycle events (follow-up sent, booked, etc.) also log to that Lead's Timeline. Null for estimates created without a linked lead. */
+  leadId: string | null;
   customerName: string;
   customerEmail: string;
   businessName: string;
@@ -30,6 +32,6 @@ export type NewEstimateInput = Pick<
   Estimate,
   "customerName" | "customerEmail" | "serviceType" | "estimateValue" | "dateSent"
 > &
-  Partial<Pick<Estimate, "businessName" | "status" | "nextFollowUpDate" | "lastContactDate" | "notes">>;
+  Partial<Pick<Estimate, "businessName" | "status" | "nextFollowUpDate" | "lastContactDate" | "notes" | "leadId">>;
 
 export type UpdateEstimateInput = Partial<Omit<Estimate, "id" | "businessId" | "estimateNumber">>;

@@ -1,6 +1,7 @@
 import { getEstimates, getReplies, createReply } from "@/services/db";
 import { getThreadMessages, extractEmailAddress } from "@/services/gmailInbox";
 import { refreshAccessToken } from "@/services/googleOAuth";
+import { logEstimateActivity } from "@/services/activityService";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
 import type { Business, ReplyInboxItem } from "@/types";
@@ -58,6 +59,7 @@ export async function syncRepliesForBusiness(business: Business): Promise<ReplyS
           bodyText: message.bodyText,
           receivedAt: message.receivedAt,
         });
+        await logEstimateActivity(business.id, estimate.id, "estimate.reply_received", "Customer replied.");
         knownMessageIds.add(message.gmailMessageId);
         created += 1;
       }

@@ -6,13 +6,15 @@ import { getBusinessById } from "@/services/business";
 import { clearReminder } from "@/services/calendarReminders";
 import { generateDueFollowUps } from "@/services/followupEngine";
 import { sendApprovedFollowUp, type SendFollowUpResult } from "@/services/followupSender";
+import { logEstimateActivity } from "@/services/activityService";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 
 export async function approveFollowUpAction(id: string) {
   const businessId = await getCurrentBusinessId();
-  await updateFollowUp(businessId, id, { status: "Approved" });
+  const followUp = await updateFollowUp(businessId, id, { status: "Approved" });
   logAction("follow-up.approve", { followUpId: id });
+  await logEstimateActivity(businessId, followUp.estimateId, "estimate.followup_approved", "Follow-up approved.");
   revalidatePath("/follow-ups");
   revalidatePath("/");
 }
