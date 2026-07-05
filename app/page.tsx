@@ -1,13 +1,26 @@
 import Link from "next/link";
-import { FileText, Clock, TrendingDown, CheckCircle2, ArrowRight, BarChart3 } from "lucide-react";
+import {
+  FileText,
+  Clock,
+  TrendingDown,
+  CheckCircle2,
+  ArrowRight,
+  BarChart3,
+  Inbox,
+  CalendarClock,
+  PieChart,
+  Activity,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/estimates/status-badge";
+import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getDashboardStats } from "@/services/analytics";
+import { getDashboardStats, getUpcomingFollowUps, getRecentActivity, getFollowUpFunnel } from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
+import { getReplyInbox } from "@/services/replyMatcher";
 import { getEstimates } from "@/services/airtable";
 import { formatCurrency, formatDate } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
@@ -20,13 +33,22 @@ export default async function DashboardPage() {
   let stats;
   let followUpQueue;
   let recentEstimates;
+  let unreadReplies;
+  let upcomingFollowUps;
+  let funnel;
+  let recentActivity;
 
   try {
-    [stats, followUpQueue, recentEstimates] = await Promise.all([
-      getDashboardStats(businessId),
-      getFollowUpQueue(businessId),
-      getEstimates(businessId).then((estimates) => estimates.slice(0, 5)),
-    ]);
+    [stats, followUpQueue, recentEstimates, unreadReplies, upcomingFollowUps, funnel, recentActivity] =
+      await Promise.all([
+        getDashboardStats(businessId),
+        getFollowUpQueue(businessId),
+        getEstimates(businessId).then((estimates) => estimates.slice(0, 5)),
+        getReplyInbox(businessId).then((replies) => replies.filter((r) => !r.isRead)),
+        getUpcomingFollowUps(businessId),
+        getFollowUpFunnel(businessId),
+        getRecentActivity(businessId, 8),
+      ]);
   } catch (error) {
     return (
       <>
@@ -140,6 +162,104 @@ export default async function DashboardPage() {
                       </p>
                     </Link>
                     <StatusBadge status={estimate.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="py-5">
+          <CardHeader className="flex flex-row items-center justify-between px-5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Inbox className="size-4 text-muted-foreground" />
+              New replies
+            </CardTitle>
+            <Button variant="ghost" size="sm" render={<Link href="/replies" />}>
+              View inbox <ArrowRight className="size-3.5" />
+            </Button>
+          </CardHeader>
+          <CardContent className="px-5">
+            {unreadReplies.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No unread replies.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {unreadReplies.slice(0, 5).map((reply) => (
+                  <li key={reply.id} className="py-3">
+                    <p className="truncate text-sm font-medium text-foreground">{reply.customerName}</p>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{reply.snippet}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="flex flex-row items-center justify-between px-5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarClock className="size-4 text-muted-foreground" />
+              Upcoming follow-ups
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5">
+            {upcomingFollowUps.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nothing scheduled ahead yet.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {upcomingFollowUps.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{item.customerName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.serviceType} · {formatCurrency(item.estimateValue)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(item.nextFollowUpDate)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PieChart className="size-4 text-muted-foreground" />
+              Estimate pipeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5">
+            <FunnelChart items={funnel} />
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="size-4 text-muted-foreground" />
+              Recent activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5">
+            {recentActivity.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No activity yet.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {recentActivity.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{item.customerName}</p>
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.timestamp)}</span>
                   </li>
                 ))}
               </ul>

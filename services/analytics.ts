@@ -1,5 +1,6 @@
 import { getDueFollowUps, getEstimates, getFollowUps, getReplies } from "@/services/airtable";
-import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES } from "@/config/constants";
+import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES } from "@/config/constants";
+import { todayIso } from "@/lib/date";
 import type { EstimateStatus, Reply } from "@/types";
 
 export interface DashboardStats {
@@ -79,6 +80,93 @@ export async function getRevenueTrend(businessId: string, months = 6): Promise<R
     points.push({ month: monthKey, bookedRevenue });
   }
   return points;
+}
+
+export interface UpcomingFollowUp {
+  id: string;
+  customerName: string;
+  serviceType: string;
+  estimateValue: number;
+  nextFollowUpDate: string;
+}
+
+/**
+ * Open estimates with a future nextFollowUpDate — i.e. not yet due, so they
+ * never appear in getFollowUpQueue (which is due-items only). Gives the
+ * dashboard a look-ahead view alongside the queue's look-behind one.
+ */
+export async function getUpcomingFollowUps(businessId: string): Promise<UpcomingFollowUp[]> {
+  const estimates = await getEstimates(businessId);
+  const today = todayIso();
+
+  return estimates
+    .filter(
+      (e): e is typeof e & { nextFollowUpDate: string } =>
+        OPEN_ESTIMATE_STATUSES.includes(e.status) && !!e.nextFollowUpDate && e.nextFollowUpDate > today
+    )
+    .sort((a, b) => a.nextFollowUpDate.localeCompare(b.nextFollowUpDate))
+    .map((e) => ({
+      id: e.id,
+      customerName: e.customerName,
+      serviceType: e.serviceType,
+      estimateValue: e.estimateValue,
+      nextFollowUpDate: e.nextFollowUpDate,
+    }));
+}
+
+export interface ActivityItem {
+  id: string;
+  type: "estimate" | "followup" | "reply";
+  timestamp: string;
+  customerName: string;
+  description: string;
+}
+
+/**
+ * Merges recent Estimate/FollowUp/Reply timestamps into one feed, newest
+ * first. Purely a read-time composition of existing records — no new table,
+ * consistent with this file's "computed live" approach.
+ */
+export async function getRecentActivity(businessId: string, limit = 8): Promise<ActivityItem[]> {
+  const [estimates, followUps, replies] = await Promise.all([
+    getEstimates(businessId),
+    getFollowUps(businessId),
+    getReplies(businessId),
+  ]);
+  const estimateById = new Map(estimates.map((e) => [e.id, e]));
+
+  const items: ActivityItem[] = [];
+
+  for (const estimate of estimates) {
+    items.push({
+      id: `estimate-${estimate.id}`,
+      type: "estimate",
+      timestamp: estimate.dateSent,
+      customerName: estimate.customerName,
+      description: "Estimate sent",
+    });
+  }
+  for (const followUp of followUps) {
+    if (!followUp.sentAt) continue;
+    items.push({
+      id: `followup-${followUp.id}`,
+      type: "followup",
+      timestamp: followUp.sentAt,
+      customerName: estimateById.get(followUp.estimateId)?.customerName ?? "Unknown customer",
+      description: "Follow-up sent",
+    });
+  }
+  for (const reply of replies) {
+    items.push({
+      id: `reply-${reply.id}`,
+      type: "reply",
+      timestamp: reply.receivedAt,
+      customerName: estimateById.get(reply.estimateId)?.customerName ?? "Unknown customer",
+      description: "Customer replied",
+    });
+  }
+
+  return items.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
 }
 
 export interface ReplyMetrics {
