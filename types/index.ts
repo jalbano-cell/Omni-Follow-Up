@@ -6,3 +6,4 @@ export * from "./reply";
 export * from "./lead";
 export * from "./activity";
 export * from "./notification";
+export * from "./emailTemplate";

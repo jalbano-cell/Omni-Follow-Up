@@ -8,6 +8,8 @@ export type EstimateStatus =
 export interface Estimate {
   id: string;
   businessId: string;
+  /** Human-readable unique ID (e.g. "EST-M3F2K1-A9C") shown in the UI and available as the {{estimate_number}} merge variable — distinct from the database record id. */
+  estimateNumber: string;
   customerName: string;
   customerEmail: string;
   businessName: string;
@@ -30,4 +32,4 @@ export type NewEstimateInput = Pick<
 > &
   Partial<Pick<Estimate, "businessName" | "status" | "nextFollowUpDate" | "lastContactDate" | "notes">>;
 
-export type UpdateEstimateInput = Partial<Omit<Estimate, "id" | "businessId">>;
+export type UpdateEstimateInput = Partial<Omit<Estimate, "id" | "businessId" | "estimateNumber">>;

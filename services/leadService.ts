@@ -118,7 +118,7 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
     );
   }
 
-  const content = buildAcknowledgmentEmail(lead, business.businessName, bookingOutcome);
+  const content = await buildAcknowledgmentEmail(lead, business, bookingOutcome);
 
   try {
     await sendEmail({

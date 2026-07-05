@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey } from "@/services/business";
+import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplateService";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
+import type { EmailTemplateKey } from "@/types";
 
 export async function updateBusinessProfileAction(formData: FormData) {
   const businessId = await getCurrentBusinessId();
@@ -96,5 +98,25 @@ export async function rotateIntakeApiKeyAction() {
   const businessId = await getCurrentBusinessId();
   await rotateIntakeApiKey(businessId);
   logAction("settings.intake-key-rotate", { businessId });
+  revalidatePath("/settings");
+}
+
+export async function updateEmailTemplateAction(key: EmailTemplateKey, subject: string, body: string) {
+  const businessId = await getCurrentBusinessId();
+  const trimmedSubject = subject.trim();
+  const trimmedBody = body.trim();
+  if (!trimmedSubject || !trimmedBody) {
+    throw new Error("Subject and body are required.");
+  }
+
+  await upsertEmailTemplate(businessId, key, { subject: trimmedSubject, body: trimmedBody });
+  logAction("settings.email-template-update", { businessId, key });
+  revalidatePath("/settings");
+}
+
+export async function resetEmailTemplateAction(key: EmailTemplateKey) {
+  const businessId = await getCurrentBusinessId();
+  await resetEmailTemplate(businessId, key);
+  logAction("settings.email-template-reset", { businessId, key });
   revalidatePath("/settings");
 }

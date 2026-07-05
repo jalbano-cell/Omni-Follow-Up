@@ -1,30 +1,32 @@
 import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/db";
 import { getAllActiveBusinesses, getBusinessById } from "@/services/business";
 import { ensureReminderForDraft } from "@/services/calendarReminders";
+import { listEmailTemplates, renderTemplate, templateKeyForEstimateStage } from "@/services/emailTemplateService";
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
 import { writeDailyRunLog, type DailyRunLog } from "@/lib/logger";
 import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
-import type { Estimate, FollowUp, FollowUpQueueItem } from "@/types";
+import type { Estimate, EmailTemplate, FollowUp, FollowUpQueueItem } from "@/types";
+
+/** Merge variables available to the 3 follow-up-stage templates — see services/emailTemplateService.ts. */
+function estimateMergeVars(estimate: Estimate): Record<string, string> {
+  const firstName = estimate.customerName.split(" ")[0] || estimate.customerName;
+  return {
+    customer_name: firstName,
+    service: estimate.serviceType.toLowerCase(),
+    estimate_number: estimate.estimateNumber,
+    estimate_value: formatCurrency(estimate.estimateValue),
+    days_since: String(daysSince(estimate.dateSent)),
+    business_name: estimate.businessName,
+  };
+}
 
 /**
- * Drafts a follow-up message for an estimate based on how long it's been
- * sitting and which follow-up stage it's on. Kept as plain templates —
- * no AI call — so drafts are predictable and free to generate.
+ * Drafts a follow-up message for an estimate from the business's (possibly
+ * customized) template for its current stage. Still a plain template render
+ * — no AI call — so drafts are predictable and free to generate.
  */
-export function draftFollowUpMessage(estimate: Estimate): string {
-  const firstName = estimate.customerName.split(" ")[0] || estimate.customerName;
-  const days = daysSince(estimate.dateSent);
-  const value = formatCurrency(estimate.estimateValue);
-
-  if (estimate.status === "Sent") {
-    return `Hi ${firstName}, just checking in on the ${estimate.serviceType.toLowerCase()} estimate (${value}) we sent ${days} days ago. Happy to answer any questions or adjust the scope — want to get this booked in?`;
-  }
-
-  if (estimate.status === "Follow-up 1") {
-    return `Hi ${firstName}, following up again on your ${estimate.serviceType.toLowerCase()} estimate. We can typically get started within the next week if you're ready to move forward. Let me know if you'd like to schedule it.`;
-  }
-
-  return `Hi ${firstName}, I don't want to keep bothering you, but wanted to check one last time if you're still interested in the ${estimate.serviceType.toLowerCase()} work (${value}). If timing isn't right, no worries — just let me know and I'll close this out.`;
+export function draftFollowUpMessage(estimate: Estimate, template: EmailTemplate): string {
+  return renderTemplate(template, estimateMergeVars(estimate)).body;
 }
 
 /**
@@ -57,12 +59,15 @@ async function generateFollowUpDrafts(businessId: string): Promise<{
   const created: FollowUp[] = [];
   const errors: string[] = [];
   const business = estimatesNeedingDraft.length > 0 ? await getBusinessById(businessId) : null;
+  const templates = estimatesNeedingDraft.length > 0 ? await listEmailTemplates(businessId) : [];
+  const templateByKey = new Map(templates.map((t) => [t.key, t]));
 
   for (const estimate of estimatesNeedingDraft) {
     try {
+      const template = templateByKey.get(templateKeyForEstimateStage(estimate.status))!;
       const followUp = await createFollowUp(businessId, {
         estimateId: estimate.id,
-        message: draftFollowUpMessage(estimate),
+        message: draftFollowUpMessage(estimate, template),
         status: "Pending",
         scheduledDate: todayIso(),
       });
