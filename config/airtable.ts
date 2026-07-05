@@ -97,12 +97,20 @@ export const LEAD_FIELDS = {
   /** Free-text — no team/user roster exists yet, so this isn't a linked-record field. Defaults to the business owner. */
   assignedTo: "assignedTo",
   internalNotes: "internalNotes",
-  // AI placeholder fields (STEP 9) — always null until a real model is wired up. See services/leadService.ts's
-  // getAiInsightsPlaceholder for the stub that will eventually populate these.
+  // AI Lead Intelligence fields — populated by services/aiInsightsService.ts immediately after a lead is
+  // created. Null/empty until analysis completes (or forever, if aiStatus ends up "failed"): never fabricated.
   aiSummary: "aiSummary",
-  priorityScore: "priorityScore",
+  aiCategory: "aiCategory",
+  aiPriority: "aiPriority",
+  aiPriorityReason: "aiPriorityReason",
+  aiOpportunityValueRange: "aiOpportunityValueRange",
+  aiOpportunityConfidence: "aiOpportunityConfidence",
   suggestedNextAction: "suggestedNextAction",
-  suggestedFollowUpTiming: "suggestedFollowUpTiming",
+  aiResponseUrgency: "aiResponseUrgency",
+  aiResponseUrgencyReason: "aiResponseUrgencyReason",
+  aiGeneratedAt: "aiGeneratedAt",
+  /** "pending" | "completed" | "failed" | "dismissed" — see services/aiInsightsService.ts's AiInsightsStatus. */
+  aiStatus: "aiStatus",
 } as const;
 
 /** Airtable field names for the ActivityLog table — a durable per-business/per-lead event trail. */

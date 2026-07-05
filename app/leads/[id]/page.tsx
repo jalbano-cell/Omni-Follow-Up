@@ -175,7 +175,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <CardTitle className="text-base">AI insights</CardTitle>
           </CardHeader>
           <CardContent className="px-5">
-            <AiInsightsCard insights={aiInsights} />
+            <AiInsightsCard leadId={lead.id} insights={aiInsights} />
           </CardContent>
         </Card>
       </div>
