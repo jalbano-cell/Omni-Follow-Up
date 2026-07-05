@@ -42,7 +42,7 @@ export function IntakeKeyCard({ apiKey, endpointUrl }: { apiKey: string | null; 
         <CardTitle className="text-base">Website intake API</CardTitle>
         <CardDescription>
           Point your website&apos;s contact form at this endpoint — every submission appears on{" "}
-          <span className="font-medium text-foreground">New Website Inquiries</span> within seconds.
+          <span className="font-medium text-foreground">Leads</span> within seconds.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-5">

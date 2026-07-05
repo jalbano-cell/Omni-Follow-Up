@@ -1,4 +1,5 @@
-import { getDueFollowUps, getEstimates, getFollowUps, getInquiries, getReplies } from "@/services/airtable";
+import { getDueFollowUps, getEstimates, getFollowUps, getLeads, getReplies } from "@/services/airtable";
+import { getRecentActivityLog } from "@/services/activityService";
 import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { todayIso } from "@/lib/date";
 import type { EstimateStatus, Reply } from "@/types";
@@ -116,25 +117,32 @@ export async function getUpcomingFollowUps(businessId: string): Promise<Upcoming
 
 export interface ActivityItem {
   id: string;
-  type: "estimate" | "followup" | "reply" | "inquiry";
+  type: "estimate" | "followup" | "reply" | "lead";
   timestamp: string;
   customerName: string;
   description: string;
 }
 
 /**
- * Merges recent Estimate/FollowUp/Reply/Inquiry timestamps into one feed,
- * newest first. Purely a read-time composition of existing records — no new
- * table, consistent with this file's "computed live" approach.
+ * Merges recent Estimate/FollowUp/Reply timestamps with the durable
+ * ActivityLog (every lead created/converted/archived/assigned/noted event)
+ * into one feed, newest first. Estimate/FollowUp/Reply stay computed live
+ * (no snapshot table, per this file's usual approach) since there's no
+ * separate log for them yet; lead-related entries now come from
+ * services/activityService.ts's persisted log instead of being synthesized
+ * from the Lead record directly, since that log is richer (more than just
+ * "created").
  */
 export async function getRecentActivity(businessId: string, limit = 8): Promise<ActivityItem[]> {
-  const [estimates, followUps, replies, inquiries] = await Promise.all([
+  const [estimates, followUps, replies, leads, activityLog] = await Promise.all([
     getEstimates(businessId),
     getFollowUps(businessId),
     getReplies(businessId),
-    getInquiries(businessId),
+    getLeads(businessId),
+    getRecentActivityLog(businessId, 50),
   ]);
   const estimateById = new Map(estimates.map((e) => [e.id, e]));
+  const leadById = new Map(leads.map((l) => [l.id, l]));
 
   const items: ActivityItem[] = [];
 
@@ -166,13 +174,13 @@ export async function getRecentActivity(businessId: string, limit = 8): Promise<
       description: "Customer replied",
     });
   }
-  for (const inquiry of inquiries) {
+  for (const entry of activityLog) {
     items.push({
-      id: `inquiry-${inquiry.id}`,
-      type: "inquiry",
-      timestamp: inquiry.submittedAt,
-      customerName: inquiry.name,
-      description: "Website inquiry received",
+      id: `activity-${entry.id}`,
+      type: "lead",
+      timestamp: entry.createdAt,
+      customerName: leadById.get(entry.leadId)?.name ?? "Unknown lead",
+      description: entry.description,
     });
   }
 

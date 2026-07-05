@@ -1,17 +1,16 @@
-import { randomBytes } from "crypto";
-import { createInquiry } from "@/services/airtable";
 import { getBusinessByIntakeApiKey } from "@/services/business";
-import { sendEmail } from "@/services/gmail";
-import { decrypt } from "@/lib/crypto";
-import { logAction, logIntakeAudit } from "@/lib/logger";
-import type { Business } from "@/types";
+import { createLeadFromSubmission } from "@/services/leadService";
+import { logIntakeAudit } from "@/lib/logger";
 
 /**
- * Business logic for POST /api/intake, kept out of the route handler so the
- * route is a thin HTTP adapter (parse request -> call this -> map result to
- * a status code). Every branch is audited via logIntakeAudit, independent of
- * whether the Airtable write itself succeeds, so a failed submission is
- * never silently lost.
+ * HTTP-facing business logic for POST /api/intake, kept out of the route
+ * handler so the route is a thin adapter (parse request -> call this -> map
+ * result to a status code). This file owns validation/sanitization/rate
+ * limiting/spam detection and the audit trail for the *request itself*;
+ * everything about what a Lead's arrival should trigger (Airtable write,
+ * activity log, in-app notification, owner email) lives in
+ * services/leadService.ts's createLeadFromSubmission, so future non-HTTP
+ * entry points can reuse it without going through this file.
  */
 
 const MAX_LENGTHS = {
@@ -42,7 +41,7 @@ export interface IntakeRequest {
 }
 
 export type IntakeOutcome =
-  | { ok: true; status: 201; id: string; inquiryId: string }
+  | { ok: true; status: 201; id: string; leadId: string }
   | { ok: false; status: 400; error: string; fields?: string[] }
   | { ok: false; status: 401; error: string }
   | { ok: false; status: 429; error: string }
@@ -57,12 +56,6 @@ function sanitizeText(value: unknown, maxLength: number, { multiline = false } =
   cleaned = multiline ? cleaned.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") : cleaned.replace(/[\x00-\x1F\x7F]/g, " ");
   cleaned = cleaned.replace(/[ \t]+/g, " ").trim();
   return cleaned.slice(0, maxLength);
-}
-
-function generateInquiryId(): string {
-  const stamp = Date.now().toString(36).toUpperCase();
-  const rand = randomBytes(3).toString("hex").toUpperCase();
-  return `INQ-${stamp}-${rand}`;
 }
 
 // In-memory sliding-window limiter, scoped per business+IP. Deliberately not
@@ -81,48 +74,6 @@ function isRateLimited(key: string): boolean {
   hits.push(now);
   rateLimitHits.set(key, hits);
   return hits.length > RATE_LIMIT_MAX;
-}
-
-/** Best-effort notification to the business's own inbox — never blocks the submission from succeeding. */
-async function sendIntakeNotificationEmail(
-  business: Business,
-  fields: { name: string; email: string; phone: string; company: string; service: string; message: string },
-  submittedAt: string
-): Promise<void> {
-  if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
-    logAction("intake.notify-skipped", { businessId: business.id, reason: "Gmail not connected" });
-    return;
-  }
-
-  const lines = [
-    `New website inquiry for ${business.businessName}`,
-    "",
-    `Name: ${fields.name}`,
-    `Email: ${fields.email}`,
-    fields.phone && `Phone: ${fields.phone}`,
-    fields.company && `Company: ${fields.company}`,
-    `Requested service: ${fields.service || "Not specified"}`,
-    "",
-    "Message:",
-    fields.message,
-    "",
-    `Submitted: ${new Date(submittedAt).toLocaleString("en-US", { timeZone: "America/Toronto" })}`,
-  ].filter((line): line is string => Boolean(line));
-
-  try {
-    await sendEmail({
-      refreshToken: decrypt(business.googleRefreshTokenEnc),
-      fromEmail: business.googleConnectedEmail,
-      to: business.ownerEmail,
-      subject: "New Website Inquiry",
-      body: lines.join("\n"),
-    });
-  } catch (error) {
-    logAction("intake.notify-failed", {
-      businessId: business.id,
-      error: error instanceof Error ? error.message : "unknown error",
-    });
-  }
 }
 
 export async function processIntake(request: IntakeRequest): Promise<IntakeOutcome> {
@@ -145,7 +96,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
   // Honeypot: respond as if it succeeded (without creating anything) so a bot doesn't learn it was caught.
   if (typeof raw.website === "string" && raw.website.trim() !== "") {
     await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source: "Website", result: "spam_blocked" });
-    return { ok: true, status: 201, id: "ignored", inquiryId: "ignored" };
+    return { ok: true, status: 201, id: "ignored", leadId: "ignored" };
   }
 
   const name = sanitizeText(raw.name, MAX_LENGTHS.name);
@@ -153,7 +104,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
   const message = sanitizeText(raw.message, MAX_LENGTHS.message, { multiline: true });
   const phone = sanitizeText(raw.phone, MAX_LENGTHS.phone);
   const company = sanitizeText(raw.company, MAX_LENGTHS.company);
-  const service = sanitizeText(raw.service, MAX_LENGTHS.service);
+  const requestedService = sanitizeText(raw.service, MAX_LENGTHS.service);
 
   const missingFields: string[] = [];
   if (!name) missingFields.push("name");
@@ -173,21 +124,18 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
     return { ok: false, status: 400, error: "Missing or invalid required fields.", fields: missingFields };
   }
 
-  const inquiryId = generateInquiryId();
-
-  let createdId: string;
+  let lead;
   try {
-    const inquiry = await createInquiry(business.id, inquiryId, {
+    lead = await createLeadFromSubmission(business, {
       name,
       email,
       phone,
       company,
-      service,
+      requestedService,
       message,
       ipAddress: ip ?? undefined,
       userAgent: userAgent ?? undefined,
     });
-    createdId = inquiry.id;
   } catch (error) {
     // The Airtable write is the one step that must not silently disappear on
     // failure — log the full sanitized payload (not just a summary) so the
@@ -201,19 +149,22 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       source: "Website",
       result: "airtable_failed",
       detail: {
-        inquiryId,
         error: error instanceof Error ? error.message : "unknown error",
-        payload: { name, email, phone, company, service, message },
+        payload: { name, email, phone, company, requestedService, message },
       },
     });
     return { ok: false, status: 502, error: "Could not save your inquiry right now. Please try again shortly." };
   }
 
-  logAction("intake.received", { businessId: business.id, inquiryId, email });
-  await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source: "Website", result: "success", detail: { inquiryId } });
+  await logIntakeAudit({
+    timestamp,
+    businessId: business.id,
+    ip,
+    userAgent,
+    source: "Website",
+    result: "success",
+    detail: { leadId: lead.leadId },
+  });
 
-  // Best-effort — a failed notification email must never turn a saved inquiry into a failed response.
-  await sendIntakeNotificationEmail(business, { name, email, phone, company, service, message }, timestamp);
-
-  return { ok: true, status: 201, id: createdId, inquiryId };
+  return { ok: true, status: 201, id: lead.id, leadId: lead.leadId };
 }

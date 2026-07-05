@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createEstimate, updateEstimate, updateInquiry } from "@/services/airtable";
+import { createEstimate, updateEstimate } from "@/services/airtable";
+import { markLeadConverted } from "@/services/leadService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
 import { addDays } from "@/lib/date";
 import { getCurrentBusinessId } from "@/lib/session";
@@ -19,7 +20,7 @@ export async function createEstimateAction(formData: FormData) {
   const dateSent = String(formData.get("dateSent") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
   const duringOnboarding = formData.get("onboarding") === "1";
-  const fromInquiry = String(formData.get("fromInquiry") ?? "").trim();
+  const fromLead = String(formData.get("fromLead") ?? "").trim();
 
   if (!customerName || !customerEmail || !serviceType || !dateSent || Number.isNaN(estimateValue)) {
     throw new Error("Missing required estimate fields.");
@@ -41,10 +42,11 @@ export async function createEstimateAction(formData: FormData) {
   });
   logAction("estimate.create", { estimateId: estimate.id, customerName, estimateValue });
 
-  if (fromInquiry) {
-    await updateInquiry(businessId, fromInquiry, { status: "Converted", convertedEstimateId: estimate.id });
-    logAction("inquiry.convert", { inquiryId: fromInquiry, estimateId: estimate.id });
-    revalidatePath("/inquiries");
+  if (fromLead) {
+    await markLeadConverted(businessId, fromLead, estimate.id);
+    logAction("lead.convert", { leadId: fromLead, estimateId: estimate.id });
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${fromLead}`);
   }
 
   revalidatePath("/");
@@ -55,7 +57,7 @@ export async function createEstimateAction(formData: FormData) {
     redirect("/onboarding/review");
   }
 
-  if (fromInquiry) {
+  if (fromLead) {
     redirect(`/estimates/${estimate.id}`);
   }
 

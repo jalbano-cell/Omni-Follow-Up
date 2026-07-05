@@ -27,6 +27,17 @@ export async function getCurrentBusinessId(): Promise<string> {
   return businessId;
 }
 
+/**
+ * Same lookup as getCurrentSession, but returns null instead of redirecting
+ * — for spots that render on every route including public ones (e.g. the
+ * root layout's notification bell), where "no session" is a normal case,
+ * not a protected page a user got to unauthenticated.
+ */
+export async function getOptionalSession(): Promise<SessionPayload | null> {
+  const cookieStore = await cookies();
+  return verifySessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+}
+
 /** The onboarding wizard step a business with this onboardingStep value still needs to complete. */
 function onboardingStepPath(step: number): string {
   if (step >= 4) return "/onboarding/review";

@@ -3,7 +3,9 @@ export const AIRTABLE_TABLES = {
   estimates: "Estimates",
   followUps: "FollowUps",
   replies: "Replies",
-  inquiries: "Inquiries",
+  leads: "Leads",
+  activityLog: "ActivityLog",
+  notifications: "Notifications",
 } as const;
 
 /** Airtable field names for the Businesses table (tenant root — one record per business). */
@@ -75,20 +77,49 @@ export const REPLY_FIELDS = {
   isRead: "isRead",
 } as const;
 
-/** Airtable field names for the Inquiries table (raw website contact-form submissions). */
-export const INQUIRY_FIELDS = {
+/** Airtable field names for the Leads table (every inbound business inquiry — today, exclusively via POST /api/intake). */
+export const LEAD_FIELDS = {
   businessId: "businessId",
-  inquiryId: "inquiryId",
+  leadId: "leadId",
   name: "name",
   email: "email",
   phone: "phone",
   company: "company",
-  service: "service",
+  requestedService: "requestedService",
   message: "message",
   status: "status",
-  source: "source",
-  submittedAt: "submittedAt",
+  leadSource: "leadSource",
+  createdTime: "createdTime",
+  lastActivityAt: "lastActivityAt",
   ipAddress: "ipAddress",
   userAgent: "userAgent",
   convertedEstimateId: "convertedEstimateId",
+  /** Free-text — no team/user roster exists yet, so this isn't a linked-record field. Defaults to the business owner. */
+  assignedTo: "assignedTo",
+  internalNotes: "internalNotes",
+  // AI placeholder fields (STEP 9) — always null until a real model is wired up. See services/leadService.ts's
+  // getAiInsightsPlaceholder for the stub that will eventually populate these.
+  aiSummary: "aiSummary",
+  priorityScore: "priorityScore",
+  suggestedNextAction: "suggestedNextAction",
+  suggestedFollowUpTiming: "suggestedFollowUpTiming",
+} as const;
+
+/** Airtable field names for the ActivityLog table — a durable per-business/per-lead event trail. */
+export const ACTIVITY_LOG_FIELDS = {
+  businessId: "businessId",
+  leadId: "leadId",
+  type: "type",
+  description: "description",
+  createdAt: "createdAt",
+} as const;
+
+/** Airtable field names for the Notifications table — in-app alerts for the business owner. */
+export const NOTIFICATION_FIELDS = {
+  businessId: "businessId",
+  leadId: "leadId",
+  type: "type",
+  message: "message",
+  isRead: "isRead",
+  createdAt: "createdAt",
 } as const;

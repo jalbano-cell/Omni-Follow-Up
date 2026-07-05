@@ -1,22 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { InquiryStatusBadge } from "@/components/inquiries/inquiry-status-badge";
-import { InquiryRowActions } from "@/components/inquiries/inquiry-row-actions";
+import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
+import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { cn } from "@/lib/utils";
-import { INQUIRY_STATUSES } from "@/config/constants";
+import { LEAD_STATUSES } from "@/config/constants";
 import { formatDate } from "@/lib/date";
-import type { Inquiry, InquiryStatus } from "@/types";
+import type { Lead, LeadStatus } from "@/types";
 
-const FILTERS: Array<InquiryStatus | "All"> = ["All", ...INQUIRY_STATUSES];
+const FILTERS: Array<LeadStatus | "All"> = ["All", ...LEAD_STATUSES];
 
-export function InquiryTable({ inquiries }: { inquiries: Inquiry[] }) {
-  const [filter, setFilter] = useState<InquiryStatus | "All">("New Inquiry");
+export function LeadTable({ leads }: { leads: Lead[] }) {
+  const [filter, setFilter] = useState<LeadStatus | "All">("New Inquiry");
 
   const filtered = useMemo(
-    () => (filter === "All" ? inquiries : inquiries.filter((i) => i.status === filter)),
-    [inquiries, filter]
+    () => (filter === "All" ? leads : leads.filter((l) => l.status === filter)),
+    [leads, filter]
   );
 
   return (
@@ -42,9 +43,9 @@ export function InquiryTable({ inquiries }: { inquiries: Inquiry[] }) {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            {inquiries.length === 0
-              ? "No website inquiries yet. They'll show up here the moment your contact form submits one."
-              : "No inquiries with this status."}
+            {leads.length === 0
+              ? "No leads yet. They'll show up here the moment your contact form submits one."
+              : "No leads with this status."}
           </p>
         </div>
       ) : (
@@ -56,26 +57,32 @@ export function InquiryTable({ inquiries }: { inquiries: Inquiry[] }) {
                 <TableHead>Company</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Service Requested</TableHead>
+                <TableHead>Requested Service</TableHead>
                 <TableHead>Submitted</TableHead>
+                <TableHead>Assigned</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((inquiry) => (
-                <TableRow key={inquiry.id}>
-                  <TableCell className="font-medium text-foreground">{inquiry.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{inquiry.company || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{inquiry.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{inquiry.phone || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{inquiry.service || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(inquiry.submittedAt)}</TableCell>
+              {filtered.map((lead) => (
+                <TableRow key={lead.id}>
+                  <TableCell className="font-medium text-foreground">
+                    <Link href={`/leads/${lead.id}`} className="hover:underline">
+                      {lead.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{lead.company || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{lead.email}</TableCell>
+                  <TableCell className="text-muted-foreground">{lead.phone || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{lead.requestedService || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(lead.createdTime)}</TableCell>
+                  <TableCell className="text-muted-foreground">{lead.assignedTo || "—"}</TableCell>
                   <TableCell>
-                    <InquiryStatusBadge status={inquiry.status} />
+                    <LeadStatusBadge status={lead.status} />
                   </TableCell>
                   <TableCell>
-                    <InquiryRowActions inquiry={inquiry} />
+                    <LeadRowActions lead={lead} />
                   </TableCell>
                 </TableRow>
               ))}

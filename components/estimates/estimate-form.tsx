@@ -15,7 +15,7 @@ import { SERVICE_TYPES } from "@/config/constants";
 import { todayIso } from "@/lib/date";
 
 export interface EstimateFormPrefill {
-  inquiryId: string;
+  leadId: string;
   customerName: string;
   customerEmail: string;
   serviceType: string;
@@ -34,7 +34,7 @@ export function EstimateForm({
       <CardContent className="px-6">
         <form action={createEstimateAction} className="flex flex-col gap-5">
           {onboarding && <input type="hidden" name="onboarding" value="1" />}
-          {prefill && <input type="hidden" name="fromInquiry" value={prefill.inquiryId} />}
+          {prefill && <input type="hidden" name="fromLead" value={prefill.leadId} />}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="customerName">Customer name</Label>
             <Input

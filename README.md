@@ -4,7 +4,7 @@ Multi-tenant estimate follow-up automation SaaS for local service businesses. Ea
 
 This is **not** a CRM or a website builder — see [CLAUDE.md](./CLAUDE.md) for scope and architecture rules, and [ui-ux-pro-max.md](./ui-ux-pro-max.md) for the design system this project follows.
 
-**Status:** the full phased migration is complete — multi-tenant foundation, onboarding/self-serve Gmail connection, Calendar reminders, the reply inbox, and the analytics dashboard are all live (see `/Users/john/.claude/plans/eager-riding-volcano.md`). A new business signs up, connects its own Google account (Gmail send/read + Calendar scopes, granted together in one consent), sets its follow-up cadence, and lands on its dashboard — all in one guided flow. Every drafted follow-up gets a short Calendar reminder nudging the owner to review it, cleared automatically once sent or skipped. Customer replies on a follow-up thread show up in the Reply Inbox and on the estimate's own page. Analytics shows a revenue trend, pipeline funnel, and reply engagement rate. No feature ever auto-sends: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
+**Status:** the full phased migration is complete — multi-tenant foundation, onboarding/self-serve Gmail connection, Calendar reminders, the reply inbox, and the analytics dashboard are all live (see `/Users/john/.claude/plans/eager-riding-volcano.md`). A new business signs up, connects its own Google account (Gmail send/read + Calendar scopes, granted together in one consent), sets its follow-up cadence, and lands on its dashboard — all in one guided flow. Every drafted follow-up gets a short Calendar reminder nudging the owner to review it, cleared automatically once sent or skipped. Customer replies on a follow-up thread show up in the Reply Inbox and on the estimate's own page. Analytics shows a revenue trend, pipeline funnel, and reply engagement rate. On top of that, `POST /api/intake` makes OmniFollowUp the single source of truth for every inbound website inquiry (a **Lead**) — see "Lead intake" below. No feature ever auto-sends: nothing goes out until a human clicks Approve *and then* Send Email in the queue.
 
 ## Stack
 
@@ -43,7 +43,7 @@ Everything set during onboarding can be changed later in Settings.
 
 ### Airtable setup
 
-Create a base with five tables:
+Create a base with seven tables:
 
 **Businesses** (the tenant root — one record per signed-up business)
 `businessName`, `ownerName`, `ownerEmail`, `passwordHash` (long text), `followUpCadenceSentDays`/`followUpCadenceFollowUp1Days`/`followUpCadenceFollowUp2Days` (number, optional per-business cadence override), `onboardingStep` (number), `onboardingCompletedAt` (date w/ time), `googleRefreshTokenEnc` (long text — AES-256-GCM encrypted, never plaintext), `googleConnectedEmail` (text), `googleScopes` (long text), `googleConnectedAt` (date w/ time), `calendarId` (text, optional — defaults to `"primary"` when blank), `createdAt` (date w/ time), `intakeApiKey` (text — bearer token for `POST /api/intake`, generated automatically on signup), `intakeApiKeyCreatedAt` (date w/ time)
@@ -57,10 +57,16 @@ Create a base with five tables:
 **Replies**
 `businessId` (text), `estimateId` (text), `gmailMessageId` (text), `gmailThreadId` (text), `fromEmail` (text), `subject` (text), `snippet` (long text), `bodyText` (long text), `receivedAt` (date w/ time), `isRead` (checkbox)
 
-**Inquiries** (raw website contact-form submissions, captured via `POST /api/intake`)
-`businessId` (text), `inquiryId` (text — human-readable unique ID, e.g. `INQ-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `service`, `message` (long text), `status` (single select: New Inquiry, Converted, Archived), `source` (text, always `"Website"` today), `submittedAt` (date w/ time), `ipAddress` (text), `userAgent` (long text), `convertedEstimateId` (text — set once "Convert to Estimate" creates an Estimate from this inquiry)
+**Leads** (every inbound business inquiry — today, always captured via `POST /api/intake`)
+`businessId` (text), `leadId` (text — human-readable unique ID, e.g. `LEAD-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `requestedService`, `message` (long text), `status` (single select: New Inquiry, Converted, Archived), `leadSource` (text, always `"Website"` today), `createdTime` (date w/ time), `lastActivityAt` (date w/ time — bumped on every ActivityLog entry for this lead), `ipAddress` (text), `userAgent` (long text), `convertedEstimateId` (text — set once "Convert to Estimate" creates an Estimate from this lead), `assignedTo` (text — free text, no team/user roster exists yet), `internalNotes` (long text — a single running log, newest entry first), `aiSummary` (long text), `priorityScore` (number), `suggestedNextAction` (text), `suggestedFollowUpTiming` (text) — the last four are AI placeholders, always null until a real model is wired up (see `services/leadService.ts`'s `getAiInsightsPlaceholder`)
 
-`businessId` on Estimates/FollowUps/Replies is a plain text field, not a linked-record field — matching the existing precedent that `estimateId` on FollowUps is already a plain string. Every tenant-scoped read/write in `services/airtable.ts` takes `businessId` as an explicit parameter and filters by it; direct-id lookups additionally verify the fetched record's `businessId` matches before returning it.
+**ActivityLog** (durable per-business/per-lead event trail — a Lead's Timeline and part of the dashboard's live activity feed)
+`businessId` (text), `leadId` (text), `type` (text — e.g. `lead.created`, `lead.converted`, `lead.archived`, `lead.assigned`, `lead.note_added`), `description` (text — human-readable, e.g. "New website inquiry received."), `createdAt` (date w/ time)
+
+**Notifications** (in-app alerts for the business owner, surfaced via the header bell)
+`businessId` (text), `leadId` (text), `type` (text), `message` (text), `isRead` (checkbox), `createdAt` (date w/ time)
+
+`businessId` on Estimates/FollowUps/Replies/Leads/ActivityLog/Notifications is a plain text field, not a linked-record field — matching the existing precedent that `estimateId` on FollowUps is already a plain string. Every tenant-scoped read/write in `services/airtable.ts` takes `businessId` as an explicit parameter and filters by it; direct-id lookups additionally verify the fetched record's `businessId` matches before returning it.
 
 Generate a Personal Access Token at [airtable.com/create/tokens](https://airtable.com/create/tokens) with `data.records:read`, `data.records:write`, and `schema.bases:write` scopes on that base, then set:
 
@@ -99,9 +105,9 @@ Sync runs once a day (piggybacked onto the same cron invocation as follow-up dra
 
 **Known limitation:** a customer reply from a different email address, or one deep in an old part of a long thread, won't be matched — this is a deliberate v1 simplicity tradeoff (loosening the match would risk pulling in messages that aren't actually replies to that estimate), not a bug.
 
-### Website intake (`POST /api/intake`)
+### Lead intake (`POST /api/intake`)
 
-Turns OmniFollowUp into the intake point for every inbound website lead, not just estimates you've already sent. A business's own website contact form (or any external form builder) posts directly to this endpoint — no session cookie, since the caller isn't logged in — authenticated by the business's own `intakeApiKey` (Settings → **Website intake API**, generated automatically on signup, copy/reveal/regenerate from there):
+OmniFollowUp is the single source of truth for every inbound business inquiry (a **Lead**) — a business's own website contact form (or any external form builder) posts directly to this endpoint — no session cookie, since the caller isn't logged in — authenticated by the business's own `intakeApiKey` (Settings → **Website intake API**, generated automatically on signup, copy/reveal/regenerate from there):
 
 ```
 POST https://<your-domain>/api/intake
@@ -111,13 +117,19 @@ Content-Type: application/json
 { "name": "...", "email": "...", "phone": "...", "company": "...", "service": "...", "message": "..." }
 ```
 
-`name`, `email`, and `message` are required; `phone`, `company`, and `service` are optional. `services/intakeService.ts` (all business logic, kept out of the route handler) validates and sanitizes every field (HTML/control-character stripping, length caps, email format), applies a honeypot spam check (an optional hidden `website` field — a non-empty value is silently treated as spam, responding as if it succeeded so a bot doesn't learn it was caught) and a best-effort in-memory rate limit (8 requests / 10 minutes per business+IP — resets on cold start, not a hard security boundary), then:
+`name`, `email`, and `message` are required; `phone`, `company`, and `service` are optional. `services/intakeService.ts` owns only the HTTP-facing side (validation/sanitization — HTML/control-character stripping, length caps, email format; a honeypot spam check via an optional hidden `website` field, silently treated as spam without tipping off the bot; a best-effort in-memory rate limit, 8 requests/10 minutes per business+IP, resets on cold start; the request-level audit log) and delegates everything else to `services/leadService.ts`'s `createLeadFromSubmission`:
 
-1. Creates an `Inquiries` record (`status: "New Inquiry"`, a unique `inquiryId`, `source: "Website"`, `submittedAt`, and the requester's IP/User-Agent when available).
-2. Sends a "New Website Inquiry" notification email to the business's own inbox via its already-connected Gmail account (`services/gmail.ts`) — skipped (logged, not thrown) if Google isn't connected yet. Nothing is ever emailed to the customer from this endpoint.
-3. Logs every attempt — success or failure — via `logIntakeAudit` (console + best-effort `/logs/intake/*.jsonl`), independent of whether the Airtable write itself succeeded, so a submission is never silently lost even if it didn't reach the dashboard.
+1. Creates a `Leads` record (`status: "New Inquiry"`, a unique `leadId`, `leadSource: "Website"`, `createdTime`, and the requester's IP/User-Agent when available).
+2. Logs a `lead.created` entry to the durable `ActivityLog` ("New website inquiry received.") via `services/activityService.ts`, and creates an in-app `Notification` — both surfaced immediately via the header bell (unread badge + dropdown) on every page.
+3. Sends a "New Website Inquiry" notification email (customer details, requested service, full message, submission timestamp, and the Lead ID) to the business's own inbox via its already-connected Gmail account (`services/gmail.ts`) — skipped (logged, not thrown) if Google isn't connected yet. Nothing is ever emailed to the customer from this endpoint.
 
-New inquiries show up immediately (live Airtable read, no cache) on the dashboard's **New Website Inquiries** card/banner and on the dedicated `/inquiries` page, where each one can be **Viewed** (full detail), **Converted to Estimate** (prefills the New Estimate form with the inquiry's name/email/service/message, then marks the inquiry `Converted` with `convertedEstimateId` set once the estimate is saved), or **Archived**. Converting is always an explicit human action — nothing here ever auto-creates an Estimate.
+Every attempt — success or failure — is logged via `logIntakeAudit` (console + best-effort `/logs/intake/*.jsonl`), independent of whether the Airtable write itself succeeded, so a submission is never silently lost even if it didn't reach the dashboard.
+
+New leads show up immediately (live Airtable read, no cache) on the dashboard's **New Leads** card/banner and on `/leads`, where each one can be **Viewed** (full Lead Details page), **Assigned** (free-text, no team roster yet), **Converted to Estimate** (prefills the New Estimate form with the lead's name/email/service/message, then marks the lead `Converted` with `convertedEstimateId` set once the estimate is saved), or **Archived**. Converting is always an explicit human action — nothing here ever auto-creates an Estimate.
+
+#### Lead Details page (`/leads/[id]`)
+
+Contact info, the original message plus any customer replies on the linked estimate's thread ("Conversation"), estimate status (or a Convert prompt if not yet converted), upcoming follow-ups for the linked estimate, internal notes (a running log — add one via the textarea, newest first), a full activity Timeline (every `ActivityLog` entry for this lead), and an **AI Insights** card. The AI card is a STEP-9-style placeholder: every Lead already carries `aiSummary`/`priorityScore`/`suggestedNextAction`/`suggestedFollowUpTiming` columns, but `services/leadService.ts`'s `getAiInsightsPlaceholder` only ever echoes whatever's already stored (always null today) and reports `available: false` — the card shows "Coming soon," never a fabricated value. Wiring up a real model later means replacing that one function, not changing the schema or page.
 
 ### Analytics (`/analytics`)
 
@@ -166,4 +178,6 @@ Manual approve/edit/skip/send actions and estimate status changes are also logge
 - **`gmail.readonly` requires Google's sensitive-scope app verification** before the consent screen works for real external users beyond manually-added test accounts — start that review process well before a public launch.
 - **`TOKEN_ENCRYPTION_KEY` is a single global secret** — losing or rotating it without a re-encryption migration means every business must reconnect Google.
 - **The intake rate limiter (`services/intakeService.ts`) is in-memory, per serverless instance** — a best-effort spam deterrent, not a hard limit; it resets on cold start and doesn't share state across concurrent instances. Move to a shared store (e.g. Upstash/Redis) if abuse becomes a real problem.
-- **The intake notification email requires the business to have already connected Google** — if it hasn't, the inquiry still saves and appears on the dashboard, but no "New Website Inquiry" email goes out (silently skipped, logged).
+- **The intake notification email requires the business to have already connected Google** — if it hasn't, the lead still saves and appears on the dashboard, but no "New Website Inquiry" email goes out (silently skipped, logged).
+- **`assignedTo` on a Lead is free text, not a real assignment** — there's no team/user-member roster in this product yet (each business is a single login). Treat it as a label, not an access-control or notification-routing mechanism.
+- **The AI fields on a Lead (`aiSummary`, `priorityScore`, `suggestedNextAction`, `suggestedFollowUpTiming`) are placeholders** — always null, `getAiInsightsPlaceholder` never fabricates a value. No model is wired up yet.

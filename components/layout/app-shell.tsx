@@ -10,7 +10,13 @@ import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Logo } from "@/components/layout/logo";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  notificationBell,
+}: {
+  children: React.ReactNode;
+  notificationBell?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -41,6 +47,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/">
             <Logo />
           </Link>
+          <div className="ml-auto">{notificationBell}</div>
+        </header>
+
+        <header className="hidden h-14 items-center justify-end border-b border-border px-6 md:flex">
+          {notificationBell}
         </header>
 
         <main className="flex-1 overflow-y-auto">
