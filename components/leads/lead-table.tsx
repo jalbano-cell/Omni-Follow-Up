@@ -72,10 +72,18 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
                       {lead.name}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{lead.company || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <span className="block max-w-[140px] truncate" title={lead.company || undefined}>
+                      {lead.company || "—"}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{lead.email}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.phone || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{lead.requestedService || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <span className="block max-w-[180px] truncate" title={lead.requestedService || undefined}>
+                      {lead.requestedService || "—"}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(lead.createdTime)}</TableCell>
                   <TableCell className="text-muted-foreground">{lead.assignedTo || "—"}</TableCell>
                   <TableCell>
