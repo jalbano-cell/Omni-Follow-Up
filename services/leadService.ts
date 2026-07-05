@@ -118,6 +118,13 @@ export async function archiveLead(businessId: string, id: string): Promise<Lead>
   return lead;
 }
 
+/** Reverts a Lead back to "New Inquiry" and clears its estimate link — called when its linked Estimate is deleted. */
+export async function revertLeadConversion(businessId: string, id: string): Promise<Lead> {
+  const lead = await updateLead(businessId, id, { status: "New Inquiry", convertedEstimateId: null });
+  await logLeadActivity(businessId, id, "lead.conversion_reverted", "Linked estimate was deleted — reverted to New Inquiry.");
+  return lead;
+}
+
 /** No team/user roster exists yet, so this is a free-text field, not an assignment to a real account. */
 export async function assignLead(businessId: string, id: string, assignedTo: string): Promise<Lead> {
   const lead = await updateLead(businessId, id, { assignedTo });

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { StatusActions } from "@/components/estimates/status-actions";
+import { DeleteEstimateDialog } from "@/components/estimates/delete-estimate-dialog";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,7 +58,12 @@ export default async function EstimateDetailPage({
       <PageHeader
         title={estimate.customerName}
         description={estimate.customerEmail}
-        action={<StatusBadge status={estimate.status} />}
+        action={
+          <div className="flex items-center gap-2">
+            <StatusBadge status={estimate.status} />
+            <DeleteEstimateDialog estimateId={estimate.id} customerName={estimate.customerName} />
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
