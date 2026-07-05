@@ -1,6 +1,6 @@
 import { Progress } from "@/components/ui/progress";
 
-const STEPS = ["Business info", "Connect Gmail", "Follow-up schedule", "Review", "Dashboard"];
+const STEPS = ["Business info", "Industry", "Connect Gmail", "Follow-up schedule", "First estimate", "Review"];
 
 /** currentStep is 1-indexed (1 = "Business info", already done via /signup by the time this renders). */
 export function StepIndicator({ currentStep }: { currentStep: number }) {

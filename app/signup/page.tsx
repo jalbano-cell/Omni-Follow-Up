@@ -1,5 +1,6 @@
 import { SignupForm } from "@/components/auth/signup-form";
 import { Logo } from "@/components/layout/logo";
+import { StepIndicator } from "@/components/onboarding/step-indicator";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function SignupPage({
           <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">OmniFollowUp</h1>
           <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
+        <StepIndicator currentStep={1} />
         <SignupForm error={error} />
       </div>
     </div>

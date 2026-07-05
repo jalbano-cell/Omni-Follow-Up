@@ -29,9 +29,11 @@ export async function getCurrentBusinessId(): Promise<string> {
 
 /** The onboarding wizard step a business with this onboardingStep value still needs to complete. */
 function onboardingStepPath(step: number): string {
-  if (step >= 2) return "/onboarding/review";
-  if (step >= 1) return "/onboarding/cadence";
-  return "/onboarding/gmail";
+  if (step >= 4) return "/onboarding/review";
+  if (step >= 3) return "/onboarding/first-estimate";
+  if (step >= 2) return "/onboarding/cadence";
+  if (step >= 1) return "/onboarding/gmail";
+  return "/onboarding/industry";
 }
 
 /**

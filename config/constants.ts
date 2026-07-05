@@ -3,9 +3,22 @@ import type { EstimateStatus, FollowUpStatus } from "@/types";
 /** Single deployment-wide timezone — used for the cron's local-hour check and Calendar reminder times. */
 export const APP_TIMEZONE = "America/Toronto";
 
-/** Local hour (in APP_TIMEZONE) a follow-up's Calendar reminder is scheduled at. */
+/** Local hour (in APP_TIMEZONE) a follow-up's Calendar reminder is scheduled at, when a business hasn't set its own working hours. */
 export const CALENDAR_REMINDER_HOUR = 9;
 export const CALENDAR_REMINDER_DURATION_MINUTES = 15;
+/** Default end-of-workday hour, when a business hasn't set its own. */
+export const DEFAULT_WORKING_HOURS_END = 17;
+
+/** Curated timezone options for the Settings/onboarding picker — the North American markets this product targets. */
+export const TIMEZONE_OPTIONS = [
+  { value: "America/Toronto", label: "Eastern Time (Toronto)" },
+  { value: "America/New_York", label: "Eastern Time (New York)" },
+  { value: "America/Chicago", label: "Central Time" },
+  { value: "America/Denver", label: "Mountain Time" },
+  { value: "America/Los_Angeles", label: "Pacific Time" },
+  { value: "America/Vancouver", label: "Pacific Time (Vancouver)" },
+  { value: "America/Halifax", label: "Atlantic Time (Halifax)" },
+] as const;
 
 export const ESTIMATE_STATUSES: EstimateStatus[] = [
   "Sent",

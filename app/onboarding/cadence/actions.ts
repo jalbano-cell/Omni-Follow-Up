@@ -21,8 +21,8 @@ export async function saveCadenceAction(formData: FormData) {
     followUpCadenceFollowUp1Days: followUp1Days,
     followUpCadenceFollowUp2Days: followUp2Days,
   });
-  await markOnboardingStep(businessId, 2);
+  await markOnboardingStep(businessId, 3);
   logAction("onboarding.cadence-set", { businessId, sentDays, followUp1Days, followUp2Days });
 
-  redirect("/onboarding/review");
+  redirect("/onboarding/first-estimate");
 }

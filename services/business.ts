@@ -1,6 +1,11 @@
 import Airtable, { type FieldSet, type Record as AirtableRecord } from "airtable";
 import { AIRTABLE_TABLES, BUSINESS_FIELDS } from "@/config/airtable";
-import { DEFAULT_FOLLOW_UP_CADENCE_DAYS } from "@/config/constants";
+import {
+  APP_TIMEZONE,
+  CALENDAR_REMINDER_HOUR,
+  DEFAULT_FOLLOW_UP_CADENCE_DAYS,
+  DEFAULT_WORKING_HOURS_END,
+} from "@/config/constants";
 import { env } from "@/lib/env";
 import type { Business, NewBusinessInput, UpdateBusinessInput } from "@/types";
 
@@ -25,6 +30,11 @@ function toBusiness(record: AirtableRecord<FieldSet>): Business {
     googleScopes: (record.get(BUSINESS_FIELDS.googleScopes) as string) ?? null,
     googleConnectedAt: (record.get(BUSINESS_FIELDS.googleConnectedAt) as string) ?? null,
     calendarId: (record.get(BUSINESS_FIELDS.calendarId) as string) ?? null,
+    industry: (record.get(BUSINESS_FIELDS.industry) as string) ?? null,
+    timezone: (record.get(BUSINESS_FIELDS.timezone) as string) ?? null,
+    workingHoursStart: (record.get(BUSINESS_FIELDS.workingHoursStart) as number) ?? null,
+    workingHoursEnd: (record.get(BUSINESS_FIELDS.workingHoursEnd) as number) ?? null,
+    emailSignature: (record.get(BUSINESS_FIELDS.emailSignature) as string) ?? null,
     createdAt: (record.get(BUSINESS_FIELDS.createdAt) as string) ?? "",
   };
 }
@@ -87,6 +97,13 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.googleConnectedAt !== undefined)
     fields[BUSINESS_FIELDS.googleConnectedAt] = input.googleConnectedAt ?? undefined;
   if (input.calendarId !== undefined) fields[BUSINESS_FIELDS.calendarId] = input.calendarId ?? undefined;
+  if (input.industry !== undefined) fields[BUSINESS_FIELDS.industry] = input.industry ?? undefined;
+  if (input.timezone !== undefined) fields[BUSINESS_FIELDS.timezone] = input.timezone ?? undefined;
+  if (input.workingHoursStart !== undefined)
+    fields[BUSINESS_FIELDS.workingHoursStart] = input.workingHoursStart ?? undefined;
+  if (input.workingHoursEnd !== undefined)
+    fields[BUSINESS_FIELDS.workingHoursEnd] = input.workingHoursEnd ?? undefined;
+  if (input.emailSignature !== undefined) fields[BUSINESS_FIELDS.emailSignature] = input.emailSignature ?? undefined;
 
   const record = await getBase()(AIRTABLE_TABLES.businesses).update(id, fields);
   return toBusiness(record);
@@ -143,4 +160,19 @@ export function getEffectiveCadenceDays(
 /** Which calendar Calendar reminders get created on — "primary" (the connected account's main calendar) unless overridden. */
 export function getEffectiveCalendarId(business: Pick<Business, "calendarId">): string {
   return business.calendarId ?? "primary";
+}
+
+/** The business's own timezone for Calendar reminder times, falling back to the app-wide default when unset. */
+export function getEffectiveTimezone(business: Pick<Business, "timezone">): string {
+  return business.timezone ?? APP_TIMEZONE;
+}
+
+/** The business's own working-hours window (hour-of-day, 0-23), falling back to the app-wide defaults when unset. */
+export function getEffectiveWorkingHours(
+  business: Pick<Business, "workingHoursStart" | "workingHoursEnd">
+): { start: number; end: number } {
+  return {
+    start: business.workingHoursStart ?? CALENDAR_REMINDER_HOUR,
+    end: business.workingHoursEnd ?? DEFAULT_WORKING_HOURS_END,
+  };
 }

@@ -21,6 +21,11 @@ export const BUSINESS_FIELDS = {
   googleScopes: "googleScopes",
   googleConnectedAt: "googleConnectedAt",
   calendarId: "calendarId",
+  industry: "industry",
+  timezone: "timezone",
+  workingHoursStart: "workingHoursStart",
+  workingHoursEnd: "workingHoursEnd",
+  emailSignature: "emailSignature",
   createdAt: "createdAt",
 } as const;
 

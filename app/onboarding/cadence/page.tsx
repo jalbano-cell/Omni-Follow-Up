@@ -19,7 +19,7 @@ export default async function OnboardingCadencePage() {
 
   return (
     <>
-      <StepIndicator currentStep={3} />
+      <StepIndicator currentStep={4} />
       <Card className="py-6">
         <CardContent className="px-6">
           <div className="mb-5 flex flex-col items-center gap-3 text-center">

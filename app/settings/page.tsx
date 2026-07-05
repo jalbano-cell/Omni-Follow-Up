@@ -6,10 +6,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/estimates/submit-button";
-import { getEffectiveCadenceDays } from "@/services/business";
-import { updateCadenceAction, disconnectGoogleAction } from "@/app/settings/actions";
+import { getEffectiveCadenceDays, getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
+import {
+  updateCadenceAction,
+  disconnectGoogleAction,
+  updateBusinessProfileAction,
+  updateCalendarIdAction,
+  updateScheduleAction,
+  updateEmailSignatureAction,
+} from "@/app/settings/actions";
 import { requireOnboardedBusiness, getCurrentSession } from "@/lib/session";
+import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -25,20 +41,50 @@ export default async function SettingsPage({
   const airtableConfigured = Boolean(process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID);
   const googleConnected = Boolean(business.googleRefreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
+  const calendarId = getEffectiveCalendarId(business);
+  const timezone = getEffectiveTimezone(business);
+  const workingHours = getEffectiveWorkingHours(business);
 
   return (
     <>
-      <PageHeader title="Settings" description="Connection status and follow-up defaults." />
+      <PageHeader title="Settings" description="Business profile, connections, and follow-up defaults." />
 
       <div className="flex flex-col gap-6">
         <Card className="py-5">
           <CardHeader className="px-5">
             <CardTitle className="text-base">Account</CardTitle>
-            <CardDescription>Your business and login.</CardDescription>
+            <CardDescription>Your business profile and login.</CardDescription>
           </CardHeader>
           <CardContent className="px-5">
-            <p className="text-sm font-medium text-foreground">{business.businessName}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Signed in as {email}</p>
+            <p className="mb-3 text-xs text-muted-foreground">Signed in as {email}</p>
+            <form action={updateBusinessProfileAction} className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="businessName" className="text-xs">
+                    Business name
+                  </Label>
+                  <Input id="businessName" name="businessName" defaultValue={business.businessName} required />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="industry" className="text-xs">
+                    Industry
+                  </Label>
+                  <Select name="industry" defaultValue={business.industry ?? SERVICE_TYPES[0]} required>
+                    <SelectTrigger id="industry" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SERVICE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <SubmitButton>Save profile</SubmitButton>
+            </form>
           </CardContent>
         </Card>
 
@@ -127,6 +173,46 @@ export default async function SettingsPage({
 
         <Card className="py-5">
           <CardHeader className="px-5">
+            <CardTitle className="text-base">Google Calendar connection</CardTitle>
+            <CardDescription>
+              Reminders are created on this calendar when a follow-up is drafted, via the same Google account
+              connected above.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
+              {googleConnected ? (
+                <>
+                  <CheckCircle2 className="size-4 text-success" />
+                  <span className="text-sm text-foreground">Connected</span>
+                  <Badge variant="success" className="ml-auto">
+                    {business.googleConnectedEmail}
+                  </Badge>
+                </>
+              ) : (
+                <>
+                  <XCircle className="size-4 text-destructive" />
+                  <span className="text-sm text-foreground">Not connected</span>
+                  <Badge variant="destructive" className="ml-auto">
+                    Reminders paused
+                  </Badge>
+                </>
+              )}
+            </div>
+            <form action={updateCalendarIdAction} className="mt-3 flex flex-col gap-1.5">
+              <Label htmlFor="calendarId" className="text-xs">
+                Calendar ID
+              </Label>
+              <div className="flex gap-2">
+                <Input id="calendarId" name="calendarId" defaultValue={calendarId} placeholder="primary" />
+                <SubmitButton>Save</SubmitButton>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
             <CardTitle className="text-base">Follow-up cadence</CardTitle>
             <CardDescription>Days after each stage before the next follow-up is due.</CardDescription>
           </CardHeader>
@@ -173,13 +259,90 @@ export default async function SettingsPage({
 
         <Card className="py-5">
           <CardHeader className="px-5">
+            <CardTitle className="text-base">Timezone & working hours</CardTitle>
+            <CardDescription>Used to schedule Calendar reminders at the right local time.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <form action={updateScheduleAction} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="timezone" className="text-xs">
+                  Timezone
+                </Label>
+                <Select name="timezone" defaultValue={timezone} required>
+                  <SelectTrigger id="timezone" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONE_OPTIONS.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="workingHoursStart" className="text-xs">
+                    Working hours start
+                  </Label>
+                  <Input
+                    id="workingHoursStart"
+                    name="workingHoursStart"
+                    type="number"
+                    min={0}
+                    max={23}
+                    defaultValue={workingHours.start}
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="workingHoursEnd" className="text-xs">
+                    Working hours end
+                  </Label>
+                  <Input
+                    id="workingHoursEnd"
+                    name="workingHoursEnd"
+                    type="number"
+                    min={0}
+                    max={23}
+                    defaultValue={workingHours.end}
+                    required
+                  />
+                </div>
+              </div>
+              <SubmitButton>Save schedule</SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Email signature</CardTitle>
+            <CardDescription>Appended to the bottom of every follow-up email you send.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <form action={updateEmailSignatureAction} className="flex flex-col gap-4">
+              <Textarea
+                name="emailSignature"
+                defaultValue={business.emailSignature ?? ""}
+                placeholder={`Thanks,\n${business.ownerName}\n${business.businessName}`}
+                rows={4}
+              />
+              <SubmitButton>Save signature</SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
             <CardTitle className="text-base">Out of scope</CardTitle>
             <CardDescription>Deliberately not part of this product.</CardDescription>
           </CardHeader>
           <CardContent className="px-5">
             <ul className="list-inside list-disc text-sm text-muted-foreground">
               <li>CRM-style contact/pipeline management beyond what&apos;s on an estimate</li>
-              <li>Reading replies — threading keeps outbound follow-ups in the right Gmail thread, but the app doesn&apos;t yet surface customer responses</li>
+              <li>Two-way calendar scheduling — reminders are output-only, never booking or checking availability</li>
             </ul>
           </CardContent>
         </Card>
