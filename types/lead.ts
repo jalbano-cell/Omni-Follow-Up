@@ -1,6 +1,6 @@
 export type LeadStatus = "New Inquiry" | "Converted" | "Archived";
 
-/** Lifecycle of a Lead's AI analysis — see services/aiInsightsService.ts. */
+/** Lifecycle of a Lead's AI analysis — see services/automation/leadClassifier.ts. */
 export type AiInsightsStatus = "pending" | "completed" | "failed" | "dismissed";
 
 /**
@@ -34,7 +34,7 @@ export interface Lead {
   assignedTo: string;
   /** Free-form internal notes, newest entry first, each prefixed with a timestamp by services/leadService.ts. */
   internalNotes: string;
-  // --- AI Lead Intelligence — null until services/aiInsightsService.ts's analyzeLead populates them (or
+  // --- AI Lead Intelligence — null until services/automation/leadClassifier.ts's analyzeLead populates them (or
   // forever, if analysis fails). The business owner can edit or dismiss these; never fabricate a value here. ---
   aiSummary: string | null;
   /** e.g. "Website", "SEO", "Automation", "AI Agent", "Restaurant", "General Inquiry" — free text, not a closed enum. */

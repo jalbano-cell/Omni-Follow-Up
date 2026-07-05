@@ -53,7 +53,7 @@ function timezoneOffsetMinutes(instant: Date, timeZone: string): number {
 
 /**
  * Converts a local wall-clock date/time (e.g. "2026-07-06T10:00:00", as
- * Google Calendar's API and services/aiInsightsService.ts's appointment
+ * Google Calendar's API and services/automation/appointmentParser.ts's appointment
  * parsing both use) within an IANA timezone into the actual UTC instant.
  * Approximates the DST state using the nominal wall-clock date itself
  * (rather than the true instant, which is what we're solving for) — fine in

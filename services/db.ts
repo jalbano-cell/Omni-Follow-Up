@@ -349,7 +349,7 @@ export async function getNewLeadCount(businessId: string): Promise<number> {
  * "New Inquiry"/"Website" on creation — status only changes later via
  * updateLead (Convert to Estimate / Archive). AI fields start empty with
  * aiStatus "pending" — services/leadService.ts's createLeadFromSubmission
- * runs the real analysis (services/aiInsightsService.ts) right after.
+ * runs the real analysis (services/automation/leadClassifier.ts) right after.
  */
 export async function createLead(businessId: string, leadId: string, input: NewLeadInput): Promise<Lead> {
   const now = new Date().toISOString();
