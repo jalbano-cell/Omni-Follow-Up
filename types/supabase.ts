@@ -97,6 +97,54 @@ export type Database = {
           },
         ]
       }
+      estimate_attachments: {
+        Row: {
+          content_type: string | null
+          estimate_id: string
+          file_name: string
+          id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+          workspace_id: string
+        }
+        Insert: {
+          content_type?: string | null
+          estimate_id: string
+          file_name: string
+          id?: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+          workspace_id: string
+        }
+        Update: {
+          content_type?: string | null
+          estimate_id?: string
+          file_name?: string
+          id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_attachments_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_attachments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estimates: {
         Row: {
           business_name: string

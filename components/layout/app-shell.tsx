@@ -20,9 +20,11 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // The login/signup/onboarding screens render their own full-page layout —
-  // no sidebar/nav chrome that would just redirect back to /login anyway.
-  if (pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding")) {
+  // The login/signup/onboarding screens, and the public customer portal
+  // (/e/[token] — no session, a customer viewing their own estimate), render
+  // their own full-page layout — no sidebar/nav chrome meant for a logged-in
+  // business owner.
+  if (pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding") || pathname.startsWith("/e/")) {
     return <>{children}</>;
   }
 

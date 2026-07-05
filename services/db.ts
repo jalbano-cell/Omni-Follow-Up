@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { insertRow, updateRow, deleteRow, selectById, selectWhere } from "@/lib/supabase";
+import { deleteAttachmentsForEstimate } from "@/services/estimateAttachmentService";
 import { OPEN_ESTIMATE_STATUSES, DEFAULT_LEAD_SOURCE } from "@/config/constants";
 import { env } from "@/lib/env";
 import { todayIso } from "@/lib/date";
@@ -229,6 +230,7 @@ export async function deleteEstimate(businessId: string, id: string): Promise<vo
   await Promise.all([
     ...followUps.map((f) => deleteRow("followups", f.id)),
     ...replies.map((r) => deleteRow("replies", r.id)),
+    deleteAttachmentsForEstimate(businessId, id),
   ]);
 
   await deleteRow("estimates", id);
