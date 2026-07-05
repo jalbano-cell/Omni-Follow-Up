@@ -46,6 +46,7 @@ export type IntakeAuditResult =
   | "rate_limited"
   | "spam_blocked"
   | "validation_failed"
+  | "plan_limit_exceeded"
   | "db_failed";
 
 export interface IntakeAuditEntry {

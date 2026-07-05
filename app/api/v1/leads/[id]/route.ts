@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveBusinessFromBearer, unauthorized, API_CORS_HEADERS } from "@/lib/apiAuth";
+import { resolveBusinessFromBearer, unauthorized, requirePublicApiFeature, API_CORS_HEADERS } from "@/lib/apiAuth";
 import { getLead, updateLead } from "@/services/db";
 import { LEAD_STATUSES } from "@/config/constants";
 import type { LeadStatus } from "@/types";
@@ -13,6 +13,8 @@ export async function OPTIONS() {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const business = await resolveBusinessFromBearer(request);
   if (!business) return unauthorized();
+  const gateError = await requirePublicApiFeature(business);
+  if (gateError) return gateError;
 
   const { id } = await params;
   const existing = await getLead(business.id, id);

@@ -8,6 +8,8 @@ export interface Plan {
   maxLeadsPerMonth: number | null;
   maxUsers: number;
   features: Record<PlanFeature, boolean>;
+  /** The Billing Price backing this plan's checkout — null until first created (see services/billingService.ts's ensureProBillingPrice). Free has no Billing price; it's never checked out. */
+  billingPriceId: string | null;
 }
 
 export type SubscriptionStatus = "active" | "trialing" | "past_due" | "canceled";
@@ -17,7 +19,6 @@ export interface Subscription {
   businessId: string;
   planId: string;
   status: SubscriptionStatus;
-  /** Placeholder — nothing in the app calls the Billing API yet (see services/subscriptionService.ts). */
   billingCustomerId: string | null;
   billingSubscriptionId: string | null;
   currentPeriodEnd: string | null;

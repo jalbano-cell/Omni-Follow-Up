@@ -20,6 +20,7 @@ import {
   type MergeDuplicateResult,
 } from "@/services/leadService";
 import { getBusinessById } from "@/services/business";
+import { LeadLimitExceededError } from "@/services/subscriptionService";
 import { parseCsv, csvRowsToLeads } from "@/lib/csv";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
@@ -155,6 +156,9 @@ export async function importLeadsCsvAction(csvText: string): Promise<CsvImportSu
       const message = error instanceof Error ? error.message : "unknown error";
       errors.push(`Row ${row.rowNumber}: ${message}`);
       logAction("lead.csv-import-row-failed", { row: row.rowNumber, error: message });
+      // Once the plan's monthly lead limit is hit it stays hit for every remaining row —
+      // stop attempting rather than repeating the same failed create (and DB round-trip) N more times.
+      if (error instanceof LeadLimitExceededError) break;
     }
   }
 

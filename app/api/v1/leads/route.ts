@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveBusinessFromBearer, unauthorized, handleLeadIntakeRequest, API_CORS_HEADERS } from "@/lib/apiAuth";
+import { resolveBusinessFromBearer, unauthorized, handleLeadIntakeRequest, requirePublicApiFeature, API_CORS_HEADERS } from "@/lib/apiAuth";
 import { getLeads } from "@/services/db";
 import { LEAD_STATUSES } from "@/config/constants";
 import type { LeadStatus } from "@/types";
@@ -18,6 +18,8 @@ export async function OPTIONS() {
 export async function GET(request: Request) {
   const business = await resolveBusinessFromBearer(request);
   if (!business) return unauthorized();
+  const gateError = await requirePublicApiFeature(business);
+  if (gateError) return gateError;
 
   const statusParam = new URL(request.url).searchParams.get("status");
   if (statusParam && !LEAD_STATUSES.includes(statusParam as LeadStatus)) {

@@ -1,3 +1,4 @@
+import { checkFeatureGate } from "@/services/subscriptionService";
 import { logAction } from "@/lib/logger";
 import type { Business } from "@/types";
 
@@ -21,6 +22,9 @@ export async function dispatchWebhookEvent(
   data: Record<string, unknown>
 ): Promise<void> {
   if (!business.outboundWebhookUrl) return;
+  // Belt-and-suspenders: the Settings action already blocks setting a URL without the "webhooks"
+  // feature, but a business that had it set while on Pro and then downgraded shouldn't keep firing.
+  if (!(await checkFeatureGate(business.id, "webhooks"))) return;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DISPATCH_TIMEOUT_MS);

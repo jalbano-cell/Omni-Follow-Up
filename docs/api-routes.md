@@ -6,12 +6,13 @@ Every route under `/app/api/`. For the public, integration-facing routes (`/api/
 |---|---|---|
 | `POST /api/intake` | Bearer (business's intake API key) | Website contact form → creates a Lead. Thin adapter over `lib/apiAuth.ts`'s `handleLeadIntakeRequest` → `services/intakeService.ts`. |
 | `POST /api/v1/webhooks/leads` | Bearer (same intake API key) | Identical to `POST /api/v1/leads` — see `docs/api.md`. |
-| `GET/POST /api/v1/leads` | Bearer | Public API: list/create leads. |
-| `PATCH /api/v1/leads/:id` | Bearer | Public API: update a lead's status/assignedTo/internalNotes. |
-| `GET/POST /api/v1/estimates` | Bearer | Public API: list/create estimates. |
+| `GET/POST /api/v1/leads` | Bearer | Public API: list leads (`GET`, gated behind the Pro plan's `publicApi` feature) / create a lead (`POST`, ungated — same as the webhook route above). |
+| `PATCH /api/v1/leads/:id` | Bearer | Public API: update a lead's status/assignedTo/internalNotes. Gated behind `publicApi`. |
+| `GET/POST /api/v1/estimates` | Bearer | Public API: list/create estimates. Gated behind `publicApi`. |
 | `GET /api/oauth/google/start` | Session | Begins the Google OAuth consent redirect for the current business. |
 | `GET /api/oauth/google/callback` | Signed OAuth state token (`lib/auth.ts`) | Exchanges the OAuth code, saves the encrypted refresh token. |
 | `POST /api/follow-ups/generate` | Bearer (`CRON_SECRET`, optional) | The daily automation entry point — see `docs/cron-jobs.md`. |
+| `POST /api/webhooks/billing` | Billing signature (`BILLING_WEBHOOK_SECRET`) | Keeps the `subscriptions` table in sync with Billing — `checkout.session.completed`, `customer.subscription.updated`/`.deleted`, `invoice.payment_failed`. See `services/billingService.ts`. |
 
 ## Middleware exemptions
 

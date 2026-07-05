@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { IntakeKeyCard } from "@/components/settings/intake-key-card";
 import { LeadSourcesCard } from "@/components/settings/lead-sources-card";
 import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
+import { BillingCard } from "@/components/settings/billing-card";
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ import {
   getEffectiveGmailLeadMonitoring,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
-import { getEffectivePlan } from "@/services/subscriptionService";
+import { getEffectivePlan, getSubscription, getLeadsThisMonthUsage } from "@/services/subscriptionService";
 import {
   updateCadenceAction,
   disconnectGoogleAction,
@@ -51,9 +52,9 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ googleError?: string }>;
+  searchParams: Promise<{ googleError?: string; checkout?: "success" | "cancelled" }>;
 }) {
-  const { googleError } = await searchParams;
+  const { googleError, checkout } = await searchParams;
   const { email } = await getCurrentSession();
   const business = await requireOnboardedBusiness();
 
@@ -78,6 +79,8 @@ export default async function SettingsPage({
   const monitorGmailInbox = getEffectiveGmailLeadMonitoring(business);
   const emailTemplates = await listEmailTemplates(business.id);
   const plan = await getEffectivePlan(business.id);
+  const subscription = await getSubscription(business.id);
+  const leadsUsedThisMonth = await getLeadsThisMonthUsage(business.id);
 
   return (
     <>
@@ -122,20 +125,7 @@ export default async function SettingsPage({
           </CardContent>
         </Card>
 
-        <Card className="py-5">
-          <CardHeader className="px-5">
-            <CardTitle className="text-base">Plan</CardTitle>
-            <CardDescription>Every business is on the Free plan for now — paid plans aren&apos;t live yet.</CardDescription>
-          </CardHeader>
-          <CardContent className="px-5">
-            <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
-              <span className="text-sm font-medium text-foreground">{plan.name}</span>
-              <Badge variant="secondary" className="ml-auto">
-                {plan.maxLeadsPerMonth ? `${plan.maxLeadsPerMonth} leads/mo` : "Unlimited leads"}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <BillingCard plan={plan} subscription={subscription} leadsUsedThisMonth={leadsUsedThisMonth} checkoutStatus={checkout} />
 
         <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} />
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveBusinessFromBearer, unauthorized, API_CORS_HEADERS } from "@/lib/apiAuth";
+import { resolveBusinessFromBearer, unauthorized, requirePublicApiFeature, API_CORS_HEADERS } from "@/lib/apiAuth";
 import { createEstimate, getEstimates } from "@/services/db";
 import { getEffectiveCadenceDays } from "@/services/business";
 import { addDays, todayIso } from "@/lib/date";
@@ -16,6 +16,8 @@ export async function OPTIONS() {
 export async function GET(request: Request) {
   const business = await resolveBusinessFromBearer(request);
   if (!business) return unauthorized();
+  const gateError = await requirePublicApiFeature(business);
+  if (gateError) return gateError;
 
   const estimates = await getEstimates(business.id);
   return NextResponse.json({ estimates }, { status: 200, headers: API_CORS_HEADERS });
@@ -24,6 +26,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const business = await resolveBusinessFromBearer(request);
   if (!business) return unauthorized();
+  const gateError = await requirePublicApiFeature(business);
+  if (gateError) return gateError;
 
   let body: unknown;
   try {

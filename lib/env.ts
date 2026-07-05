@@ -38,4 +38,12 @@ export const env = {
   get supabaseServiceRoleKey() {
     return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   },
+  /** Server-only — authenticates every Billing API call (services/billingService.ts). Test-mode (sk_test_...) and live-mode (sk_live_...) keys create separate, non-overlapping Products/Prices/Customers. */
+  get billingSecretKey() {
+    return requireEnv("BILLING_SECRET_KEY");
+  },
+  /** Verifies that a POST to /api/webhooks/billing genuinely came from Billing (HMAC signature check) — from the Billing Dashboard's webhook endpoint settings, not the same value as the secret key. */
+  get billingWebhookSecret() {
+    return requireEnv("BILLING_WEBHOOK_SECRET");
+  },
 };

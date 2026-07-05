@@ -461,6 +461,7 @@ export type Database = {
           max_users: number
           name: string
           price_cents: number
+          billing_price_id: string | null
         }
         Insert: {
           created_at?: string
@@ -470,6 +471,7 @@ export type Database = {
           max_users?: number
           name: string
           price_cents?: number
+          billing_price_id?: string | null
         }
         Update: {
           created_at?: string
@@ -479,6 +481,7 @@ export type Database = {
           max_users?: number
           name?: string
           price_cents?: number
+          billing_price_id?: string | null
         }
         Relationships: []
       }
