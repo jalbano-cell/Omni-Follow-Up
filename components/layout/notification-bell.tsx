@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuGroup,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,9 @@ export function NotificationBell({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
         <div className="flex items-center justify-between px-1.5 py-1">
-          <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+          </DropdownMenuGroup>
           {unreadCount > 0 && (
             <button
               type="button"
