@@ -10,7 +10,8 @@ import {
   createNotification,
 } from "@/services/db";
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
-import { analyzeLead, generateLeadAcknowledgment, type AcknowledgmentBookingOutcome } from "@/services/aiInsightsService";
+import { analyzeLead } from "@/services/automation/leadClassifier";
+import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/services/emailBuilder";
 import { resolveAppointmentBooking } from "@/services/appointmentBooking";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
@@ -75,8 +76,8 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
 /**
  * Automatic acknowledgment email sent to the CUSTOMER, with no human
  * approval — an explicit, narrow exception granted for this one email only
- * (see services/aiInsightsService.ts's generateLeadAcknowledgment for the
- * safety constraints on its content, and CLAUDE.md's "Sending is
+ * (see services/emailBuilder.ts's buildAcknowledgmentEmail for the template
+ * that keeps its content safe to auto-send, and CLAUDE.md's "Sending is
  * approval-gated" section for why this doesn't contradict that rule).
  * Requires Gmail connected, same as the owner-notification email — skipped
  * and logged otherwise, never blocking lead creation.
@@ -117,16 +118,7 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
     );
   }
 
-  const content = await generateLeadAcknowledgment(lead, business.businessName, bookingOutcome);
-  if (!content) {
-    await logLeadActivity(
-      business.id,
-      lead.id,
-      "lead.acknowledgment_failed",
-      "Automatic acknowledgment email could not be generated."
-    );
-    return;
-  }
+  const content = buildAcknowledgmentEmail(lead, business.businessName, bookingOutcome);
 
   try {
     await sendEmail({
@@ -255,7 +247,7 @@ export interface LeadAiInsights {
   generatedAt: string | null;
 }
 
-/** Reads the AI Lead Intelligence fields straight off the Lead record — see services/aiInsightsService.ts for how they're populated. */
+/** Reads the AI Lead Intelligence fields straight off the Lead record — see services/automation/leadClassifier.ts for how they're populated. */
 export function toAiInsights(lead: Lead): LeadAiInsights {
   return {
     status: lead.aiStatus,

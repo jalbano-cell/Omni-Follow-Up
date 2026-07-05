@@ -27,10 +27,6 @@ export const env = {
   get tokenEncryptionKey() {
     return requireEnv("TOKEN_ENCRYPTION_KEY");
   },
-  /** Optional — AI Lead Intelligence degrades to aiStatus="failed" (never fabricated) rather than requiring this. */
-  get geminiApiKey() {
-    return process.env.GEMINI_API_KEY;
-  },
   /** The database — see lib/supabase.ts. Required; every read/write in the app goes through it. */
   get supabaseUrl() {
     return requireEnv("NEXT_PUBLIC_SUPABASE_URL");

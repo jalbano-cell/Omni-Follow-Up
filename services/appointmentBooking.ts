@@ -1,7 +1,7 @@
 import { listBusyIntervals, createEvent } from "@/services/calendar";
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
-import { parseRequestedAppointment } from "@/services/aiInsightsService";
+import { parseRequestedAppointment } from "@/services/automation/appointmentParser";
 import { decrypt } from "@/lib/crypto";
 import { zonedDateTimeToUtc, formatZonedDateTime } from "@/lib/date";
 import { logAction } from "@/lib/logger";
