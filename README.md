@@ -109,7 +109,7 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...      # "publishable" key
 SUPABASE_SERVICE_ROLE_KEY=...         # "secret" key — server only, never expose client-side
 ```
-Schema lives in `supabase/migrations/*.sql`, applied by hand in the Supabase SQL Editor (no CLI/DDL access wired up). Right now only newly-created Leads are mirrored into Supabase (best-effort, after Airtable's write succeeds) — everything else (Estimates, FollowUps, Replies, Businesses, and every Lead action past creation) is still Airtable-only.
+Schema lives in `supabase/migrations/*.sql`. The Supabase CLI is linked (`supabase link --project-ref pqdlqlpesmoxklvalwgr`) — apply a new migration with `supabase db push`, and regenerate `types/supabase.ts` afterward with `supabase gen types typescript --linked > types/supabase.ts`. Right now only newly-created Leads are mirrored into Supabase (best-effort, after Airtable's write succeeds) — everything else (Estimates, FollowUps, Replies, Businesses, and every Lead action past creation) is still Airtable-only.
 
 ### Calendar reminders (output-only)
 
