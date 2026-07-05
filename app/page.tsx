@@ -16,14 +16,15 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AirtableErrorState } from "@/components/layout/airtable-error-state";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/estimates/status-badge";
-import { InquiryStatusBadge } from "@/components/inquiries/inquiry-status-badge";
+import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
+import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getDashboardStats, getUpcomingFollowUps, getRecentActivity, getFollowUpFunnel } from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
 import { getReplyInbox } from "@/services/replyMatcher";
-import { getEstimates, getInquiries } from "@/services/airtable";
+import { getEstimates, getLeads } from "@/services/airtable";
 import { formatCurrency, formatDate } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
@@ -39,10 +40,10 @@ export default async function DashboardPage() {
   let upcomingFollowUps;
   let funnel;
   let recentActivity;
-  let newInquiries;
+  let newLeads;
 
   try {
-    [stats, followUpQueue, recentEstimates, unreadReplies, upcomingFollowUps, funnel, recentActivity, newInquiries] =
+    [stats, followUpQueue, recentEstimates, unreadReplies, upcomingFollowUps, funnel, recentActivity, newLeads] =
       await Promise.all([
         getDashboardStats(businessId),
         getFollowUpQueue(businessId),
@@ -51,7 +52,7 @@ export default async function DashboardPage() {
         getUpcomingFollowUps(businessId),
         getFollowUpFunnel(businessId),
         getRecentActivity(businessId, 8),
-        getInquiries(businessId).then((inquiries) => inquiries.filter((i) => i.status === "New Inquiry")),
+        getLeads(businessId).then((leads) => leads.filter((l) => l.status === "New Inquiry")),
       ]);
   } catch (error) {
     return (
@@ -75,15 +76,15 @@ export default async function DashboardPage() {
         }
       />
 
-      {newInquiries.length > 0 && (
+      {newLeads.length > 0 && (
         <Link
-          href="/inquiries"
+          href="/leads"
           className="mb-6 flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 transition-colors hover:bg-warning/15"
         >
           <MessageSquarePlus className="size-4.5 shrink-0 text-warning" strokeWidth={2} />
           <p className="text-sm text-foreground">
             <span className="font-medium">
-              {newInquiries.length} new website {newInquiries.length === 1 ? "inquiry" : "inquiries"}
+              {newLeads.length} new {newLeads.length === 1 ? "lead" : "leads"}
             </span>{" "}
             waiting for review.
           </p>
@@ -195,36 +196,34 @@ export default async function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between px-5">
             <CardTitle className="flex items-center gap-2 text-base">
               <MessageSquarePlus className="size-4 text-muted-foreground" />
-              New Website Inquiries
+              New Leads
             </CardTitle>
-            <Button variant="ghost" size="sm" render={<Link href="/inquiries" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/leads" />}>
               View all <ArrowRight className="size-3.5" />
             </Button>
           </CardHeader>
           <CardContent className="px-5">
-            {newInquiries.length === 0 ? (
+            {newLeads.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No new inquiries. Once your website&apos;s contact form submits one, it&apos;ll show up here within
+                No new leads. Once your website&apos;s contact form submits one, it&apos;ll show up here within
                 seconds.
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {newInquiries.slice(0, 5).map((inquiry) => (
-                  <li key={inquiry.id} className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
+                {newLeads.slice(0, 5).map((lead) => (
+                  <li key={lead.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <Link href={`/leads/${lead.id}`} className="min-w-0 hover:opacity-80">
                       <p className="truncate text-sm font-medium text-foreground">
-                        {inquiry.name}
-                        {inquiry.company && (
-                          <span className="font-normal text-muted-foreground"> · {inquiry.company}</span>
-                        )}
+                        {lead.name}
+                        {lead.company && <span className="font-normal text-muted-foreground"> · {lead.company}</span>}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {inquiry.service || "General inquiry"} · {inquiry.email}
+                        {lead.requestedService || "General inquiry"} · {formatDate(lead.createdTime)}
                       </p>
-                    </div>
+                    </Link>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{formatDate(inquiry.submittedAt)}</span>
-                      <InquiryStatusBadge status={inquiry.status} />
+                      <LeadStatusBadge status={lead.status} />
+                      <LeadRowActions lead={lead} />
                     </div>
                   </li>
                 ))}

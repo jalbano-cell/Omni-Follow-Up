@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { EstimateForm, type EstimateFormPrefill } from "@/components/estimates/estimate-form";
-import { getInquiry } from "@/services/airtable";
+import { getLead } from "@/services/airtable";
 import { SERVICE_TYPES } from "@/config/constants";
 import { requireOnboardedBusiness } from "@/lib/session";
 
@@ -14,29 +14,29 @@ function matchServiceType(raw: string): string {
 export default async function NewEstimatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ fromInquiry?: string }>;
+  searchParams: Promise<{ fromLead?: string }>;
 }) {
   const { id: businessId } = await requireOnboardedBusiness();
-  const { fromInquiry } = await searchParams;
+  const { fromLead } = await searchParams;
 
   let prefill: EstimateFormPrefill | undefined;
-  if (fromInquiry) {
-    const inquiry = await getInquiry(businessId, fromInquiry);
-    if (inquiry && inquiry.status === "New Inquiry") {
-      const matchedService = inquiry.service ? matchServiceType(inquiry.service) : SERVICE_TYPES[0];
+  if (fromLead) {
+    const lead = await getLead(businessId, fromLead);
+    if (lead && lead.status === "New Inquiry") {
+      const matchedService = lead.requestedService ? matchServiceType(lead.requestedService) : SERVICE_TYPES[0];
       const notes = [
-        inquiry.phone && `Phone: ${inquiry.phone}`,
-        inquiry.service && inquiry.service.toLowerCase() !== matchedService.toLowerCase() &&
-          `Requested service (as submitted): ${inquiry.service}`,
-        inquiry.message && `Inquiry message:\n${inquiry.message}`,
+        lead.phone && `Phone: ${lead.phone}`,
+        lead.requestedService && lead.requestedService.toLowerCase() !== matchedService.toLowerCase() &&
+          `Requested service (as submitted): ${lead.requestedService}`,
+        lead.message && `Lead message:\n${lead.message}`,
       ]
         .filter((line): line is string => Boolean(line))
         .join("\n\n");
 
       prefill = {
-        inquiryId: inquiry.id,
-        customerName: inquiry.name,
-        customerEmail: inquiry.email,
+        leadId: lead.id,
+        customerName: lead.name,
+        customerEmail: lead.email,
         serviceType: matchedService,
         notes,
       };
@@ -48,7 +48,7 @@ export default async function NewEstimatePage({
       <PageHeader
         title="New Estimate"
         description={
-          prefill ? "Prefilled from a website inquiry — add the estimate value and date sent." : "Log an estimate you've sent to a customer."
+          prefill ? "Prefilled from a lead — add the estimate value and date sent." : "Log an estimate you've sent to a customer."
         }
       />
       <EstimateForm prefill={prefill} />

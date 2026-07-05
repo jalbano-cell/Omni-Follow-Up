@@ -9,7 +9,7 @@ import { Logo } from "@/components/layout/logo";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/inquiries", label: "Inquiries", icon: MessageSquarePlus },
+  { href: "/leads", label: "Leads", icon: MessageSquarePlus },
   { href: "/estimates", label: "Estimates", icon: FileText },
   { href: "/follow-ups", label: "Follow-up Queue", icon: Clock },
   { href: "/replies", label: "Reply Inbox", icon: MailOpen },

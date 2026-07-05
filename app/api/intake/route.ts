@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { success: true, inquiryId: outcome.inquiryId },
+    { success: true, leadId: outcome.leadId },
     { status: outcome.status, headers: CORS_HEADERS }
   );
 }

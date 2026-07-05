@@ -1,22 +1,34 @@
 import Airtable, { type FieldSet, type Record as AirtableRecord } from "airtable";
-import { AIRTABLE_TABLES, ESTIMATE_FIELDS, FOLLOWUP_FIELDS, REPLY_FIELDS, INQUIRY_FIELDS } from "@/config/airtable";
+import {
+  AIRTABLE_TABLES,
+  ESTIMATE_FIELDS,
+  FOLLOWUP_FIELDS,
+  REPLY_FIELDS,
+  LEAD_FIELDS,
+  ACTIVITY_LOG_FIELDS,
+  NOTIFICATION_FIELDS,
+} from "@/config/airtable";
 import { OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { env } from "@/lib/env";
 import { todayIso } from "@/lib/date";
 import type {
+  ActivityLogEntry,
   Estimate,
   EstimateStatus,
   FollowUp,
   FollowUpStatus,
-  Inquiry,
+  Lead,
+  NewActivityLogEntryInput,
   NewEstimateInput,
   NewFollowUpInput,
-  NewInquiryInput,
+  NewLeadInput,
+  NewNotificationInput,
   NewReplyInput,
+  Notification,
   Reply,
   UpdateEstimateInput,
   UpdateFollowUpInput,
-  UpdateInquiryInput,
+  UpdateLeadInput,
 } from "@/types";
 
 function getBase() {
@@ -64,23 +76,53 @@ function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
   };
 }
 
-function toInquiry(record: AirtableRecord<FieldSet>): Inquiry {
+function toLead(record: AirtableRecord<FieldSet>): Lead {
   return {
     id: record.id,
-    businessId: (record.get(INQUIRY_FIELDS.businessId) as string) ?? "",
-    inquiryId: (record.get(INQUIRY_FIELDS.inquiryId) as string) ?? "",
-    name: (record.get(INQUIRY_FIELDS.name) as string) ?? "",
-    email: (record.get(INQUIRY_FIELDS.email) as string) ?? "",
-    phone: (record.get(INQUIRY_FIELDS.phone) as string) ?? "",
-    company: (record.get(INQUIRY_FIELDS.company) as string) ?? "",
-    service: (record.get(INQUIRY_FIELDS.service) as string) ?? "",
-    message: (record.get(INQUIRY_FIELDS.message) as string) ?? "",
-    status: ((record.get(INQUIRY_FIELDS.status) as Inquiry["status"]) ?? "New Inquiry"),
-    source: (record.get(INQUIRY_FIELDS.source) as string) ?? "Website",
-    submittedAt: (record.get(INQUIRY_FIELDS.submittedAt) as string) ?? "",
-    ipAddress: (record.get(INQUIRY_FIELDS.ipAddress) as string) ?? null,
-    userAgent: (record.get(INQUIRY_FIELDS.userAgent) as string) ?? null,
-    convertedEstimateId: (record.get(INQUIRY_FIELDS.convertedEstimateId) as string) ?? null,
+    businessId: (record.get(LEAD_FIELDS.businessId) as string) ?? "",
+    leadId: (record.get(LEAD_FIELDS.leadId) as string) ?? "",
+    name: (record.get(LEAD_FIELDS.name) as string) ?? "",
+    email: (record.get(LEAD_FIELDS.email) as string) ?? "",
+    phone: (record.get(LEAD_FIELDS.phone) as string) ?? "",
+    company: (record.get(LEAD_FIELDS.company) as string) ?? "",
+    requestedService: (record.get(LEAD_FIELDS.requestedService) as string) ?? "",
+    message: (record.get(LEAD_FIELDS.message) as string) ?? "",
+    status: ((record.get(LEAD_FIELDS.status) as Lead["status"]) ?? "New Inquiry"),
+    leadSource: (record.get(LEAD_FIELDS.leadSource) as string) ?? "Website",
+    createdTime: (record.get(LEAD_FIELDS.createdTime) as string) ?? "",
+    lastActivityAt: (record.get(LEAD_FIELDS.lastActivityAt) as string) ?? "",
+    ipAddress: (record.get(LEAD_FIELDS.ipAddress) as string) ?? null,
+    userAgent: (record.get(LEAD_FIELDS.userAgent) as string) ?? null,
+    convertedEstimateId: (record.get(LEAD_FIELDS.convertedEstimateId) as string) ?? null,
+    assignedTo: (record.get(LEAD_FIELDS.assignedTo) as string) ?? "",
+    internalNotes: (record.get(LEAD_FIELDS.internalNotes) as string) ?? "",
+    aiSummary: (record.get(LEAD_FIELDS.aiSummary) as string) ?? null,
+    priorityScore: (record.get(LEAD_FIELDS.priorityScore) as number) ?? null,
+    suggestedNextAction: (record.get(LEAD_FIELDS.suggestedNextAction) as string) ?? null,
+    suggestedFollowUpTiming: (record.get(LEAD_FIELDS.suggestedFollowUpTiming) as string) ?? null,
+  };
+}
+
+function toActivityLogEntry(record: AirtableRecord<FieldSet>): ActivityLogEntry {
+  return {
+    id: record.id,
+    businessId: (record.get(ACTIVITY_LOG_FIELDS.businessId) as string) ?? "",
+    leadId: (record.get(ACTIVITY_LOG_FIELDS.leadId) as string) ?? "",
+    type: (record.get(ACTIVITY_LOG_FIELDS.type) as string) ?? "",
+    description: (record.get(ACTIVITY_LOG_FIELDS.description) as string) ?? "",
+    createdAt: (record.get(ACTIVITY_LOG_FIELDS.createdAt) as string) ?? "",
+  };
+}
+
+function toNotification(record: AirtableRecord<FieldSet>): Notification {
+  return {
+    id: record.id,
+    businessId: (record.get(NOTIFICATION_FIELDS.businessId) as string) ?? "",
+    leadId: (record.get(NOTIFICATION_FIELDS.leadId) as string) ?? "",
+    type: (record.get(NOTIFICATION_FIELDS.type) as string) ?? "",
+    message: (record.get(NOTIFICATION_FIELDS.message) as string) ?? "",
+    isRead: (record.get(NOTIFICATION_FIELDS.isRead) as boolean) ?? false,
+    createdAt: (record.get(NOTIFICATION_FIELDS.createdAt) as string) ?? "",
   };
 }
 
@@ -283,72 +325,154 @@ export async function markReplyRead(businessId: string, id: string): Promise<Rep
   return toReply(record);
 }
 
-export async function getInquiries(businessId: string): Promise<Inquiry[]> {
-  const records = await getBase()(AIRTABLE_TABLES.inquiries)
+export async function getLeads(businessId: string): Promise<Lead[]> {
+  const records = await getBase()(AIRTABLE_TABLES.leads)
     .select({
-      filterByFormula: `{${INQUIRY_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
-      sort: [{ field: INQUIRY_FIELDS.submittedAt, direction: "desc" }],
+      filterByFormula: `{${LEAD_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
+      sort: [{ field: LEAD_FIELDS.createdTime, direction: "desc" }],
     })
     .all();
-  return records.map(toInquiry);
+  return records.map(toLead);
 }
 
 /** Direct-id lookup — ownership verified against the fetched record, same rationale as getEstimate. */
-export async function getInquiry(businessId: string, id: string): Promise<Inquiry | null> {
+export async function getLead(businessId: string, id: string): Promise<Lead | null> {
   try {
-    const record = await getBase()(AIRTABLE_TABLES.inquiries).find(id);
-    const inquiry = toInquiry(record);
-    return inquiry.businessId === businessId ? inquiry : null;
+    const record = await getBase()(AIRTABLE_TABLES.leads).find(id);
+    const lead = toLead(record);
+    return lead.businessId === businessId ? lead : null;
   } catch {
     return null;
   }
 }
 
-/** Count of unreviewed website inquiries — the live signal behind the dashboard's notification banner and sidebar badge. */
-export async function getNewInquiryCount(businessId: string): Promise<number> {
-  const inquiries = await getInquiries(businessId);
-  return inquiries.filter((i) => i.status === "New Inquiry").length;
+/** Count of unreviewed leads — the live signal behind the dashboard's notification banner and sidebar badge. */
+export async function getNewLeadCount(businessId: string): Promise<number> {
+  const leads = await getLeads(businessId);
+  return leads.filter((l) => l.status === "New Inquiry").length;
 }
 
 /**
- * Creates an Inquiry from a validated, sanitized website submission. Always
+ * Creates a Lead from a validated, sanitized submission. Always
  * "New Inquiry"/"Website" on creation — status only changes later via
- * updateInquiry (Convert to Estimate / Archive).
+ * updateLead (Convert to Estimate / Archive). AI placeholder fields are left
+ * null — see services/leadService.ts's getAiInsightsPlaceholder.
  */
-export async function createInquiry(
-  businessId: string,
-  inquiryId: string,
-  input: NewInquiryInput
-): Promise<Inquiry> {
-  const record = await getBase()(AIRTABLE_TABLES.inquiries).create({
-    [INQUIRY_FIELDS.businessId]: businessId,
-    [INQUIRY_FIELDS.inquiryId]: inquiryId,
-    [INQUIRY_FIELDS.name]: input.name,
-    [INQUIRY_FIELDS.email]: input.email,
-    [INQUIRY_FIELDS.phone]: input.phone ?? "",
-    [INQUIRY_FIELDS.company]: input.company ?? "",
-    [INQUIRY_FIELDS.service]: input.service ?? "",
-    [INQUIRY_FIELDS.message]: input.message,
-    [INQUIRY_FIELDS.status]: "New Inquiry",
-    [INQUIRY_FIELDS.source]: "Website",
-    [INQUIRY_FIELDS.submittedAt]: new Date().toISOString(),
-    [INQUIRY_FIELDS.ipAddress]: input.ipAddress ?? "",
-    [INQUIRY_FIELDS.userAgent]: input.userAgent ?? "",
+export async function createLead(businessId: string, leadId: string, input: NewLeadInput): Promise<Lead> {
+  const now = new Date().toISOString();
+  const record = await getBase()(AIRTABLE_TABLES.leads).create({
+    [LEAD_FIELDS.businessId]: businessId,
+    [LEAD_FIELDS.leadId]: leadId,
+    [LEAD_FIELDS.name]: input.name,
+    [LEAD_FIELDS.email]: input.email,
+    [LEAD_FIELDS.phone]: input.phone ?? "",
+    [LEAD_FIELDS.company]: input.company ?? "",
+    [LEAD_FIELDS.requestedService]: input.requestedService ?? "",
+    [LEAD_FIELDS.message]: input.message,
+    [LEAD_FIELDS.status]: "New Inquiry",
+    [LEAD_FIELDS.leadSource]: "Website",
+    [LEAD_FIELDS.createdTime]: now,
+    [LEAD_FIELDS.lastActivityAt]: now,
+    [LEAD_FIELDS.ipAddress]: input.ipAddress ?? "",
+    [LEAD_FIELDS.userAgent]: input.userAgent ?? "",
+    [LEAD_FIELDS.assignedTo]: "",
+    [LEAD_FIELDS.internalNotes]: "",
   });
-  return toInquiry(record);
+  return toLead(record);
 }
 
-export async function updateInquiry(businessId: string, id: string, input: UpdateInquiryInput): Promise<Inquiry> {
-  const existing = await getInquiry(businessId, id);
+export async function updateLead(businessId: string, id: string, input: UpdateLeadInput): Promise<Lead> {
+  const existing = await getLead(businessId, id);
   if (!existing) {
-    throw new Error("Inquiry not found for this business.");
+    throw new Error("Lead not found for this business.");
   }
 
   const fields: FieldSet = {};
-  if (input.status !== undefined) fields[INQUIRY_FIELDS.status] = input.status;
+  if (input.status !== undefined) fields[LEAD_FIELDS.status] = input.status;
   if (input.convertedEstimateId !== undefined)
-    fields[INQUIRY_FIELDS.convertedEstimateId] = input.convertedEstimateId ?? undefined;
+    fields[LEAD_FIELDS.convertedEstimateId] = input.convertedEstimateId ?? undefined;
+  if (input.assignedTo !== undefined) fields[LEAD_FIELDS.assignedTo] = input.assignedTo;
+  if (input.internalNotes !== undefined) fields[LEAD_FIELDS.internalNotes] = input.internalNotes;
+  if (input.lastActivityAt !== undefined) fields[LEAD_FIELDS.lastActivityAt] = input.lastActivityAt;
 
-  const record = await getBase()(AIRTABLE_TABLES.inquiries).update(id, fields);
-  return toInquiry(record);
+  const record = await getBase()(AIRTABLE_TABLES.leads).update(id, fields);
+  return toLead(record);
+}
+
+export async function getActivityLog(businessId: string): Promise<ActivityLogEntry[]> {
+  const records = await getBase()(AIRTABLE_TABLES.activityLog)
+    .select({
+      filterByFormula: `{${ACTIVITY_LOG_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
+      sort: [{ field: ACTIVITY_LOG_FIELDS.createdAt, direction: "desc" }],
+    })
+    .all();
+  return records.map(toActivityLogEntry);
+}
+
+export async function getActivityForLead(businessId: string, leadId: string): Promise<ActivityLogEntry[]> {
+  const entries = await getActivityLog(businessId);
+  return entries.filter((e) => e.leadId === leadId);
+}
+
+export async function createActivityLogEntry(
+  businessId: string,
+  input: NewActivityLogEntryInput
+): Promise<ActivityLogEntry> {
+  const record = await getBase()(AIRTABLE_TABLES.activityLog).create({
+    [ACTIVITY_LOG_FIELDS.businessId]: businessId,
+    [ACTIVITY_LOG_FIELDS.leadId]: input.leadId,
+    [ACTIVITY_LOG_FIELDS.type]: input.type,
+    [ACTIVITY_LOG_FIELDS.description]: input.description,
+    [ACTIVITY_LOG_FIELDS.createdAt]: new Date().toISOString(),
+  });
+  return toActivityLogEntry(record);
+}
+
+export async function getNotifications(businessId: string): Promise<Notification[]> {
+  const records = await getBase()(AIRTABLE_TABLES.notifications)
+    .select({
+      filterByFormula: `{${NOTIFICATION_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
+      sort: [{ field: NOTIFICATION_FIELDS.createdAt, direction: "desc" }],
+    })
+    .all();
+  return records.map(toNotification);
+}
+
+export async function getUnreadNotificationCount(businessId: string): Promise<number> {
+  const notifications = await getNotifications(businessId);
+  return notifications.filter((n) => !n.isRead).length;
+}
+
+export async function createNotification(businessId: string, input: NewNotificationInput): Promise<Notification> {
+  const record = await getBase()(AIRTABLE_TABLES.notifications).create({
+    [NOTIFICATION_FIELDS.businessId]: businessId,
+    [NOTIFICATION_FIELDS.leadId]: input.leadId,
+    [NOTIFICATION_FIELDS.type]: input.type,
+    [NOTIFICATION_FIELDS.message]: input.message,
+    [NOTIFICATION_FIELDS.isRead]: false,
+    [NOTIFICATION_FIELDS.createdAt]: new Date().toISOString(),
+  });
+  return toNotification(record);
+}
+
+export async function markNotificationRead(businessId: string, id: string): Promise<Notification> {
+  const notifications = await getNotifications(businessId);
+  if (!notifications.some((n) => n.id === id)) {
+    throw new Error("Notification not found for this business.");
+  }
+  const record = await getBase()(AIRTABLE_TABLES.notifications).update(id, {
+    [NOTIFICATION_FIELDS.isRead]: true,
+  });
+  return toNotification(record);
+}
+
+/** Marks every unread notification read in one pass — used by the bell dropdown's "Mark all read". */
+export async function markAllNotificationsRead(businessId: string): Promise<number> {
+  const unread = (await getNotifications(businessId)).filter((n) => !n.isRead);
+  await Promise.all(
+    unread.map((n) =>
+      getBase()(AIRTABLE_TABLES.notifications).update(n.id, { [NOTIFICATION_FIELDS.isRead]: true })
+    )
+  );
+  return unread.length;
 }
