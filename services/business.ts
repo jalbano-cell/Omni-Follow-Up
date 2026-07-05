@@ -36,6 +36,7 @@ function toBusiness(row: WorkspaceRow): Business {
     createdAt: row.created_at,
     intakeApiKey: row.intake_api_key,
     intakeApiKeyCreatedAt: row.intake_api_key_created_at,
+    autoBookAppointments: row.auto_book_appointments,
   };
 }
 
@@ -96,6 +97,7 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.emailSignature !== undefined) fields.email_signature = input.emailSignature;
   if (input.intakeApiKey !== undefined) fields.intake_api_key = input.intakeApiKey;
   if (input.intakeApiKeyCreatedAt !== undefined) fields.intake_api_key_created_at = input.intakeApiKeyCreatedAt;
+  if (input.autoBookAppointments !== undefined) fields.auto_book_appointments = input.autoBookAppointments;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -184,4 +186,9 @@ export function getEffectiveWorkingHours(
     start: business.workingHoursStart ?? CALENDAR_REMINDER_HOUR,
     end: business.workingHoursEnd ?? DEFAULT_WORKING_HOURS_END,
   };
+}
+
+/** Whether a requested appointment books automatically (true) or only produces a reviewable recommendation (false, the default) — see services/appointmentBooking.ts. */
+export function getEffectiveAutoBooking(business: Pick<Business, "autoBookAppointments">): boolean {
+  return business.autoBookAppointments ?? false;
 }

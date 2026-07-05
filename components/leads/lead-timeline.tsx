@@ -30,6 +30,8 @@ const TIMELINE_ICON: Record<string, { icon: LucideIcon; className: string }> = {
   "lead.acknowledgment_failed": { icon: MailWarning, className: "text-destructive" },
   "lead.appointment_booked": { icon: CalendarCheck, className: "text-success" },
   "lead.appointment_alternates_offered": { icon: CalendarClock, className: "text-warning-foreground" },
+  "lead.appointment_recommended": { icon: CalendarClock, className: "text-warning-foreground" },
+  "lead.appointment_dismissed": { icon: Archive, className: "text-muted-foreground" },
   "lead.archived": { icon: Archive, className: "text-muted-foreground" },
   "lead.conversion_reverted": { icon: Undo2, className: "text-warning-foreground" },
   "lead.assigned": { icon: UserCheck, className: "text-primary" },

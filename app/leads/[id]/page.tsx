@@ -8,21 +8,24 @@ import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { LeadTimeline } from "@/components/leads/lead-timeline";
 import { LeadNotes } from "@/components/leads/lead-notes";
 import { AiInsightsCard } from "@/components/leads/ai-insights-card";
+import { PendingAppointmentBanner } from "@/components/leads/pending-appointment-banner";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getLeadDetail } from "@/services/leadService";
+import { getEffectiveTimezone } from "@/services/business";
 import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
-import { formatCurrency, formatDate } from "@/lib/date";
+import { formatCurrency, formatDate, zonedDateTimeToUtc, formatZonedDateTime } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { id: businessId } = await requireOnboardedBusiness();
+  const business = await requireOnboardedBusiness();
+  const businessId = business.id;
 
   let detail;
   try {
@@ -47,6 +50,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const futureFollowUps = upcomingFollowUps.filter((f) => ACTIONABLE_FOLLOWUP_STATUSES.includes(f.status));
 
+  const pendingAppointmentLabel = lead.pendingAppointmentDateTime
+    ? formatZonedDateTime(zonedDateTimeToUtc(lead.pendingAppointmentDateTime, getEffectiveTimezone(business)), getEffectiveTimezone(business))
+    : null;
+
   return (
     <>
       <Link
@@ -56,6 +63,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         <ArrowLeft className="size-3.5" />
         Back to leads
       </Link>
+
+      {pendingAppointmentLabel && <PendingAppointmentBanner leadId={lead.id} label={pendingAppointmentLabel} />}
 
       <PageHeader
         title={lead.name}

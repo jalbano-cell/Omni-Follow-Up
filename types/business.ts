@@ -33,6 +33,8 @@ export interface Business {
   /** Bearer-token secret for POST /api/intake — a website's contact form authenticates with this to identify the tenant. */
   intakeApiKey: string | null;
   intakeApiKeyCreatedAt: string | null;
+  /** Opt-in, defaults to false when null (see getEffectiveAutoBooking in services/business.ts) — off means a requested appointment becomes a reviewable recommendation on the Lead instead of an automatic Calendar booking. */
+  autoBookAppointments: boolean | null;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;

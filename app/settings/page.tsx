@@ -18,7 +18,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/estimates/submit-button";
-import { getEffectiveCadenceDays, getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
+import {
+  getEffectiveCadenceDays,
+  getEffectiveCalendarId,
+  getEffectiveTimezone,
+  getEffectiveWorkingHours,
+  getEffectiveAutoBooking,
+} from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
 import {
   updateCadenceAction,
@@ -27,6 +33,7 @@ import {
   updateCalendarIdAction,
   updateScheduleAction,
   updateEmailSignatureAction,
+  updateAppointmentPreferencesAction,
 } from "@/app/settings/actions";
 import { requireOnboardedBusiness, getCurrentSession } from "@/lib/session";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
@@ -56,6 +63,7 @@ export default async function SettingsPage({
   const calendarId = getEffectiveCalendarId(business);
   const timezone = getEffectiveTimezone(business);
   const workingHours = getEffectiveWorkingHours(business);
+  const autoBookAppointments = getEffectiveAutoBooking(business);
   const emailTemplates = await listEmailTemplates(business.id);
 
   return (
@@ -224,6 +232,36 @@ export default async function SettingsPage({
                 <Input id="calendarId" name="calendarId" defaultValue={calendarId} placeholder="primary" />
                 <SubmitButton>Save</SubmitButton>
               </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Appointment preferences</CardTitle>
+            <CardDescription>
+              When a customer&apos;s message requests a specific date/time, should it book automatically or wait for
+              your approval?
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <form action={updateAppointmentPreferencesAction} className="flex flex-col gap-4">
+              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="autoBookAppointments"
+                  defaultChecked={autoBookAppointments}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border"
+                />
+                <span>
+                  <span className="font-medium text-foreground">Automatically book appointments when the requested time is open</span>
+                  <br />
+                  <span className="text-xs text-muted-foreground">
+                    Off by default — leaves a reviewable recommendation on the Lead instead, with an Approve button.
+                  </span>
+                </span>
+              </label>
+              <SubmitButton>Save preferences</SubmitButton>
             </form>
           </CardContent>
         </Card>

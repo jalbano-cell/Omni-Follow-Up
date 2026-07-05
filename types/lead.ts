@@ -51,6 +51,15 @@ export interface Lead {
   /** When analysis last completed — null while pending, unset if it has never run. */
   aiGeneratedAt: string | null;
   aiStatus: AiInsightsStatus;
+  /**
+   * Set when the lead requested a specific date/time and auto-booking is off
+   * (see services/appointmentBooking.ts, getEffectiveAutoBooking) — a
+   * business owner reviews and either approves the real booking
+   * (services/leadService.ts's approveRecommendedAppointment, which clears
+   * these) or ignores it. Null once approved, dismissed, or never requested.
+   */
+  pendingAppointmentDateTime: string | null;
+  pendingAppointmentDurationMinutes: number | null;
 }
 
 export type NewLeadInput = Pick<Lead, "name" | "email" | "message"> &
@@ -75,5 +84,7 @@ export type UpdateLeadInput = Partial<
     | "aiResponseUrgencyReason"
     | "aiGeneratedAt"
     | "aiStatus"
+    | "pendingAppointmentDateTime"
+    | "pendingAppointmentDurationMinutes"
   >
 >;
