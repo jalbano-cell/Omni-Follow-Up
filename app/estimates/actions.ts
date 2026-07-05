@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createEstimate, updateEstimate } from "@/services/airtable";
-import { getBusinessById, getEffectiveCadenceDays } from "@/services/business";
+import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
 import { addDays } from "@/lib/date";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
@@ -18,6 +18,7 @@ export async function createEstimateAction(formData: FormData) {
   const estimateValue = Number(formData.get("estimateValue"));
   const dateSent = String(formData.get("dateSent") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const duringOnboarding = formData.get("onboarding") === "1";
 
   if (!customerName || !customerEmail || !serviceType || !dateSent || Number.isNaN(estimateValue)) {
     throw new Error("Missing required estimate fields.");
@@ -41,6 +42,12 @@ export async function createEstimateAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/estimates");
+
+  if (duringOnboarding) {
+    await markOnboardingStep(businessId, 4);
+    redirect("/onboarding/review");
+  }
+
   redirect("/");
 }
 

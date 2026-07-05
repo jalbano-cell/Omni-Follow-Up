@@ -20,7 +20,7 @@ export default async function OnboardingGmailPage({
 
   return (
     <>
-      <StepIndicator currentStep={2} />
+      <StepIndicator currentStep={3} />
       <Card className="py-6">
         <CardContent className="flex flex-col items-center gap-4 px-6 text-center">
           <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">

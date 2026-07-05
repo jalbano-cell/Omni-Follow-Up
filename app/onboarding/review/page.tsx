@@ -17,6 +17,7 @@ export default async function OnboardingReviewPage() {
 
   const rows: Array<[string, string]> = [
     ["Business", business?.businessName ?? "—"],
+    ["Industry", business?.industry ?? "—"],
     ["Email", business?.ownerEmail ?? "—"],
     ["Gmail", business?.googleConnectedEmail ?? "Not connected"],
     ["Cadence", `${cadence.Sent} / ${cadence["Follow-up 1"]} / ${cadence["Follow-up 2"]} days`],
@@ -24,7 +25,7 @@ export default async function OnboardingReviewPage() {
 
   return (
     <>
-      <StepIndicator currentStep={4} />
+      <StepIndicator currentStep={6} />
       <Card className="py-6">
         <CardContent className="px-6">
           <div className="mb-5 flex flex-col items-center gap-3 text-center">

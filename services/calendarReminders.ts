@@ -1,19 +1,19 @@
 import { createEvent, deleteEvent } from "@/services/calendar";
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { updateFollowUp } from "@/services/airtable";
-import { getEffectiveCalendarId } from "@/services/business";
+import { getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
-import { APP_TIMEZONE, CALENDAR_REMINDER_HOUR, CALENDAR_REMINDER_DURATION_MINUTES } from "@/config/constants";
+import { CALENDAR_REMINDER_DURATION_MINUTES } from "@/config/constants";
 import type { Business, Estimate, FollowUp } from "@/types";
 
-function reminderTimeRange(dateIso: string): { start: string; end: string } {
+function reminderTimeRange(dateIso: string, reminderHour: number): { start: string; end: string } {
   const pad = (n: number) => String(n).padStart(2, "0");
-  const startHour = pad(CALENDAR_REMINDER_HOUR);
+  const startHour = pad(reminderHour);
   const endMinutes = CALENDAR_REMINDER_DURATION_MINUTES;
   return {
     start: `${dateIso}T${startHour}:00:00`,
-    end: `${dateIso}T${pad(CALENDAR_REMINDER_HOUR + Math.floor(endMinutes / 60))}:${pad(endMinutes % 60)}:00`,
+    end: `${dateIso}T${pad(reminderHour + Math.floor(endMinutes / 60))}:${pad(endMinutes % 60)}:00`,
   };
 }
 
@@ -31,7 +31,7 @@ export async function ensureReminderForDraft(business: Business, followUp: Follo
 
   try {
     const accessToken = await refreshAccessToken(decrypt(business.googleRefreshTokenEnc));
-    const { start, end } = reminderTimeRange(followUp.scheduledDate);
+    const { start, end } = reminderTimeRange(followUp.scheduledDate, getEffectiveWorkingHours(business).start);
     const eventId = await createEvent({
       accessToken,
       calendarId: getEffectiveCalendarId(business),
@@ -39,7 +39,7 @@ export async function ensureReminderForDraft(business: Business, followUp: Follo
       description: `${estimate.serviceType} estimate (${estimate.estimateValue}) is due for a follow-up. Review and send it from the Follow-up Queue in OmniFollowUp.`,
       startDateTime: start,
       endDateTime: end,
-      timeZone: APP_TIMEZONE,
+      timeZone: getEffectiveTimezone(business),
     });
     await updateFollowUp(business.id, followUp.id, { calendarEventId: eventId });
   } catch (error) {

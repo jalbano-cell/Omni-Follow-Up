@@ -14,11 +14,12 @@ import { createEstimateAction } from "@/app/estimates/actions";
 import { SERVICE_TYPES } from "@/config/constants";
 import { todayIso } from "@/lib/date";
 
-export function EstimateForm() {
+export function EstimateForm({ onboarding = false }: { onboarding?: boolean }) {
   return (
     <Card className="max-w-xl py-6">
       <CardContent className="px-6">
         <form action={createEstimateAction} className="flex flex-col gap-5">
+          {onboarding && <input type="hidden" name="onboarding" value="1" />}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="customerName">Customer name</Label>
             <Input id="customerName" name="customerName" placeholder="Jamie Rivera" required />

@@ -33,6 +33,10 @@ function subjectFor(estimate: Estimate): string {
   return `Your ${estimate.serviceType} estimate from ${estimate.businessName || "us"}`;
 }
 
+function bodyWithSignature(message: string, emailSignature: string | null): string {
+  return emailSignature ? `${message}\n\n${emailSignature}` : message;
+}
+
 /**
  * Sends an already-approved follow-up via Gmail and syncs Airtable. This is
  * the ONLY path that ever calls services/gmail.ts — it is invoked exclusively
@@ -73,7 +77,7 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
         fromEmail: business.googleConnectedEmail,
         to: estimate.customerEmail,
         subject: subjectFor(estimate),
-        body: followUp.message,
+        body: bodyWithSignature(followUp.message, business.emailSignature),
         threadId: estimate.gmailThreadId,
         inReplyToMessageId: estimate.gmailLastMessageId,
       });

@@ -20,6 +20,15 @@ export interface Business {
   googleConnectedAt: string | null;
   /** Which calendar Calendar reminders get created on — defaults to "primary" when blank. */
   calendarId: string | null;
+  /** Primary service category — same vocabulary as an Estimate's serviceType (config/constants.ts SERVICE_TYPES). */
+  industry: string | null;
+  /** IANA timezone; falls back to APP_TIMEZONE when null. */
+  timezone: string | null;
+  /** Hour-of-day (0-23) the business's work day starts/ends; falls back to CALENDAR_REMINDER_HOUR/17 when null. */
+  workingHoursStart: number | null;
+  workingHoursEnd: number | null;
+  /** Appended to the body of every outbound follow-up email when set. */
+  emailSignature: string | null;
   createdAt: string;
 }
 
