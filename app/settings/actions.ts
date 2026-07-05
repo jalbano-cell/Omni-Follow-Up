@@ -129,3 +129,26 @@ export async function updateAppointmentPreferencesAction(formData: FormData) {
   logAction("settings.appointment-preferences-update", { businessId, autoBookAppointments });
   revalidatePath("/settings");
 }
+
+export async function updateWebhookUrlAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+  const url = String(formData.get("outboundWebhookUrl") ?? "").trim();
+
+  if (url && !/^https?:\/\//i.test(url)) {
+    throw new Error("Webhook URL must start with http:// or https://");
+  }
+
+  await updateBusiness(businessId, { outboundWebhookUrl: url || null });
+  logAction("settings.webhook-url-update", { businessId, hasUrl: Boolean(url) });
+  revalidatePath("/settings");
+}
+
+export async function updateNotificationPreferencesAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+  const notifyOnNewLead = formData.get("notifyOnNewLead") === "on";
+  const notifyOnReply = formData.get("notifyOnReply") === "on";
+
+  await updateBusiness(businessId, { notifyOnNewLead, notifyOnReply });
+  logAction("settings.notification-preferences-update", { businessId, notifyOnNewLead, notifyOnReply });
+  revalidatePath("/settings");
+}

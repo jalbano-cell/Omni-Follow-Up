@@ -8,6 +8,7 @@ import { markLeadConverted, revertLeadConversion } from "@/services/leadService"
 import { logEstimateActivity } from "@/services/activityService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
 import { uploadEstimateAttachment, deleteEstimateAttachment } from "@/services/estimateAttachmentService";
+import { dispatchWebhookEvent } from "@/services/webhookDispatcher";
 import { createEstimateShareToken } from "@/lib/auth";
 import { addDays } from "@/lib/date";
 import { getCurrentBusinessId } from "@/lib/session";
@@ -71,13 +72,26 @@ export async function createEstimateAction(formData: FormData) {
 
 export async function updateEstimateStatusAction(id: string, status: EstimateStatus) {
   const businessId = await getCurrentBusinessId();
-  await updateEstimate(businessId, id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
+  const estimate = await updateEstimate(businessId, id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
   logAction("estimate.status-update", { estimateId: id, status });
 
-  if (status === "Booked") {
-    await logEstimateActivity(businessId, id, "estimate.booked", "Estimate marked as booked.");
-  } else if (status === "Lost") {
-    await logEstimateActivity(businessId, id, "estimate.lost", "Estimate marked as lost.");
+  if (status === "Booked" || status === "Lost") {
+    await logEstimateActivity(
+      businessId,
+      id,
+      status === "Booked" ? "estimate.booked" : "estimate.lost",
+      status === "Booked" ? "Estimate marked as booked." : "Estimate marked as lost."
+    );
+    const business = await getBusinessById(businessId);
+    if (business) {
+      await dispatchWebhookEvent(business, status === "Booked" ? "estimate.booked" : "estimate.lost", {
+        estimateId: estimate.id,
+        estimateNumber: estimate.estimateNumber,
+        customerName: estimate.customerName,
+        customerEmail: estimate.customerEmail,
+        estimateValue: estimate.estimateValue,
+      });
+    }
   }
 
   revalidatePath("/");

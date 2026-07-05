@@ -546,8 +546,11 @@ export type Database = {
           industry: string | null
           intake_api_key: string | null
           intake_api_key_created_at: string | null
+          notify_on_new_lead: boolean | null
+          notify_on_reply: boolean | null
           onboarding_completed_at: string | null
           onboarding_step: number
+          outbound_webhook_url: string | null
           owner_email: string
           owner_name: string
           password_hash: string
@@ -572,8 +575,11 @@ export type Database = {
           industry?: string | null
           intake_api_key?: string | null
           intake_api_key_created_at?: string | null
+          notify_on_new_lead?: boolean | null
+          notify_on_reply?: boolean | null
           onboarding_completed_at?: string | null
           onboarding_step?: number
+          outbound_webhook_url?: string | null
           owner_email: string
           owner_name: string
           password_hash: string
@@ -598,8 +604,11 @@ export type Database = {
           industry?: string | null
           intake_api_key?: string | null
           intake_api_key_created_at?: string | null
+          notify_on_new_lead?: boolean | null
+          notify_on_reply?: boolean | null
           onboarding_completed_at?: string | null
           onboarding_step?: number
+          outbound_webhook_url?: string | null
           owner_email?: string
           owner_name?: string
           password_hash?: string
