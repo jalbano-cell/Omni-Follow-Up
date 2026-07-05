@@ -219,6 +219,30 @@ export async function updateEstimate(
   return toEstimate(record);
 }
 
+/**
+ * Deletes an Estimate and everything that only makes sense in relation to it
+ * — its FollowUps and Replies — so the Follow-up Queue and Reply Inbox never
+ * show orphaned rows pointing at a deleted estimate. Ownership is verified
+ * first (same rationale as every other direct-id lookup); no-ops if the
+ * estimate doesn't exist or belongs to a different business.
+ */
+export async function deleteEstimate(businessId: string, id: string): Promise<void> {
+  const estimate = await getEstimate(businessId, id);
+  if (!estimate) return;
+
+  const [followUps, replies] = await Promise.all([
+    getFollowUpsForEstimate(businessId, id),
+    getRepliesForEstimate(businessId, id),
+  ]);
+
+  await Promise.all([
+    ...followUps.map((f) => getBase()(AIRTABLE_TABLES.followUps).destroy(f.id)),
+    ...replies.map((r) => getBase()(AIRTABLE_TABLES.replies).destroy(r.id)),
+  ]);
+
+  await getBase()(AIRTABLE_TABLES.estimates).destroy(id);
+}
+
 /** Open estimates whose nextFollowUpDate has arrived (or passed), scoped to one business. */
 export async function getDueFollowUps(businessId: string): Promise<Estimate[]> {
   const estimates = await getEstimates(businessId);
@@ -479,10 +503,16 @@ export async function createNotification(businessId: string, input: NewNotificat
   return toNotification(record);
 }
 
-export async function markNotificationRead(businessId: string, id: string): Promise<Notification> {
+/**
+ * Idempotent by design — returns null instead of throwing when the id isn't
+ * found (already deleted, already read via another tab, stale dropdown data).
+ * "Mark as read" on a notification that's no longer there just isn't an
+ * error a click in the header bell should ever be able to surface.
+ */
+export async function markNotificationRead(businessId: string, id: string): Promise<Notification | null> {
   const notifications = await getNotifications(businessId);
   if (!notifications.some((n) => n.id === id)) {
-    throw new Error("Notification not found for this business.");
+    return null;
   }
   const record = await getBase()(AIRTABLE_TABLES.notifications).update(id, {
     [NOTIFICATION_FIELDS.isRead]: true,

@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createEstimate, updateEstimate } from "@/services/airtable";
-import { markLeadConverted } from "@/services/leadService";
+import { createEstimate, updateEstimate, deleteEstimate, getLeads } from "@/services/airtable";
+import { markLeadConverted, revertLeadConversion } from "@/services/leadService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
 import { addDays } from "@/lib/date";
 import { getCurrentBusinessId } from "@/lib/session";
@@ -72,4 +72,33 @@ export async function updateEstimateStatusAction(id: string, status: EstimateSta
   revalidatePath("/estimates");
   revalidatePath(`/estimates/${id}`);
   revalidatePath("/follow-ups");
+}
+
+/**
+ * Permanently deletes an Estimate along with its FollowUps/Replies (see
+ * services/airtable.ts's deleteEstimate). If a Lead had been converted to
+ * this estimate, it's reverted back to "New Inquiry" rather than left
+ * pointing at a deleted record. No redirect here — this is invoked
+ * programmatically from a confirmation dialog (not a <form action={...}>),
+ * so the caller navigates client-side after this resolves.
+ */
+export async function deleteEstimateAction(id: string) {
+  const businessId = await getCurrentBusinessId();
+
+  const leads = await getLeads(businessId);
+  const linkedLead = leads.find((l) => l.convertedEstimateId === id);
+
+  await deleteEstimate(businessId, id);
+  logAction("estimate.delete", { estimateId: id });
+
+  if (linkedLead) {
+    await revertLeadConversion(businessId, linkedLead.id);
+    revalidatePath("/leads");
+    revalidatePath(`/leads/${linkedLead.id}`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/estimates");
+  revalidatePath("/follow-ups");
+  revalidatePath("/replies");
 }

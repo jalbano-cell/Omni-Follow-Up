@@ -27,13 +27,21 @@ export function NotificationBell({
 
   function markAllRead() {
     startTransition(async () => {
-      await markAllNotificationsReadAction();
+      try {
+        await markAllNotificationsReadAction();
+      } catch {
+        // Best-effort — the action itself already swallows errors; this is just a second layer of defense.
+      }
     });
   }
 
   function markRead(id: string) {
     startTransition(async () => {
-      await markNotificationReadAction(id);
+      try {
+        await markNotificationReadAction(id);
+      } catch {
+        // Best-effort — never let a notification click crash the page.
+      }
     });
   }
 
