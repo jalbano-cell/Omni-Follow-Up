@@ -16,6 +16,7 @@ import { resolveAppointmentBooking, bookRecommendedAppointment } from "@/service
 import { getBusinessById, getEffectiveNotifyOnNewLead } from "@/services/business";
 import { dispatchWebhookEvent } from "@/services/webhookDispatcher";
 import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
+import { assertLeadLimitNotExceeded } from "@/services/subscriptionService";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -268,6 +269,10 @@ export async function dismissDuplicateLead(businessId: string, id: string): Prom
  * failed response.
  */
 export async function createLeadFromSubmission(business: Business, input: NewLeadInput): Promise<Lead> {
+  // Throws LeadLimitExceededError if this business's plan caps monthly leads and it's already at the cap —
+  // enforced here since every source (Website, Gmail, Manual, CSV, Webhook) funnels through this one function.
+  await assertLeadLimitNotExceeded(business.id);
+
   const leadId = generateLeadId();
   // Snapshot existing leads before this one is created — a duplicate check must never match the new lead against itself.
   const existingLeads = await getLeads(business.id);

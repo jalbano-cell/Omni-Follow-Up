@@ -12,6 +12,8 @@ Reference for every environment variable this app reads. `.env.example` is the s
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase "publishable" key — safe client-side (nothing here currently uses it client-side, but it's not secret). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase "secret" key — server-only, bypasses RLS. Never send to the client. |
+| `STRIPE_SECRET_KEY` | Yes (for Pro-plan billing) | Authenticates every Stripe API call (`services/stripeService.ts`). A restricted key (`rk_...`) scoped to Checkout/Billing Portal/Subscriptions/Prices/Products is safer than the full secret key. Test-mode (`sk_test_...`/test `rk_...`) and live-mode keys are entirely separate Stripe universes — switching modes recreates the Pro Price automatically (see `ensureProStripePrice`). |
+| `STRIPE_WEBHOOK_SECRET` | Yes (for Pro-plan billing) | Verifies `POST /api/webhooks/stripe` genuinely came from Stripe (HMAC signature). From the Dashboard's webhook endpoint settings (or `stripe listen` for local dev) — a different secret from the API key. |
 
 ## No longer used
 

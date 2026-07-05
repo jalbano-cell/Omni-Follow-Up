@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBusinessByIntakeApiKey } from "@/services/business";
 import { processIntake } from "@/services/intakeService";
+import { checkFeatureGate } from "@/services/subscriptionService";
 import type { Business } from "@/types";
 import type { LeadSource } from "@/config/constants";
 
@@ -38,6 +39,27 @@ export async function resolveBusinessFromBearer(request: Request): Promise<Busin
 
 export function unauthorized(): NextResponse {
   return NextResponse.json({ error: "Invalid or missing API key." }, { status: 401, headers: API_CORS_HEADERS });
+}
+
+/**
+ * Gates the "read/manage your existing data" side of the public API — GET
+ * /api/v1/leads, PATCH /api/v1/leads/:id, GET+POST /api/v1/estimates —
+ * behind the Pro plan's `publicApi` feature. Returns a ready-to-return 403
+ * NextResponse if this business's plan doesn't include it, or null if the
+ * route should proceed. Deliberately NOT applied to POST /api/v1/leads or
+ * /api/v1/webhooks/leads (identical handler, see handleLeadIntakeRequest) —
+ * creating a lead is a basic inbound channel every plan gets, same tier as
+ * POST /api/intake; gating creation there too would just push Free-plan
+ * integrators onto the identical /api/v1/webhooks/leads route instead of
+ * actually restricting anything.
+ */
+export async function requirePublicApiFeature(business: Business): Promise<NextResponse | null> {
+  const allowed = await checkFeatureGate(business.id, "publicApi");
+  if (allowed) return null;
+  return NextResponse.json(
+    { error: "The public API requires the Pro plan. Upgrade in Settings to enable it." },
+    { status: 403, headers: API_CORS_HEADERS }
+  );
 }
 
 /**

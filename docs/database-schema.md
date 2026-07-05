@@ -44,9 +44,9 @@ One row per `(workspace_id, template_key)` override; absence of a row means "use
 
 Metadata rows for files in the private `estimate-attachments` Supabase Storage bucket (`storage_path`, `file_name`, `content_type`, `size_bytes`). Every read/write goes through the service-role client; customer downloads use a short-lived signed URL, never direct bucket access.
 
-## `plans` / `subscriptions` (Phase 8)
+## `plans` / `subscriptions`
 
-`plans` is a small seeded table (`free`, `pro` — see the Phase 8 migration) with `price_cents`, `max_leads_per_month`, `max_users`, and a `features` JSONB map. `subscriptions` links a `workspace_id` to a `plan_id` plus placeholder `stripe_customer_id`/`stripe_subscription_id` columns — no Stripe API call exists anywhere yet. A workspace with no `subscriptions` row is implicitly on the Free plan (`services/subscriptionService.ts`'s `getEffectivePlan`).
+`plans` is a small seeded table (`free`, `pro`) with `price_cents`, `max_leads_per_month`, `max_users`, a `features` JSONB map, and `stripe_price_id` (null until `services/stripeService.ts`'s `ensureProStripePrice` creates it on first checkout — self-heals if it stops resolving, e.g. after switching Stripe test/live keys). `subscriptions` links a `workspace_id` to a `plan_id`, a `status` (`active`/`trialing`/`past_due`/`canceled`), `stripe_customer_id`/`stripe_subscription_id`, and `current_period_end` — kept in sync by `POST /api/webhooks/stripe`, never written from anywhere else. A workspace with no `subscriptions` row is implicitly on the Free plan (`services/subscriptionService.ts`'s `getEffectivePlan`); Free's `max_leads_per_month` (50) is enforced (`assertLeadLimitNotExceeded`), not just displayed.
 
 ## Migration history
 

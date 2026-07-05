@@ -1,5 +1,6 @@
 import { getBusinessByIntakeApiKey } from "@/services/business";
 import { createLeadFromSubmission } from "@/services/leadService";
+import { LeadLimitExceededError } from "@/services/subscriptionService";
 import { logIntakeAudit } from "@/lib/logger";
 import { DEFAULT_LEAD_SOURCE, type LeadSource } from "@/config/constants";
 
@@ -47,6 +48,7 @@ export type IntakeOutcome =
   | { ok: true; status: 201; id: string; leadId: string }
   | { ok: false; status: 400; error: string; fields?: string[] }
   | { ok: false; status: 401; error: string }
+  | { ok: false; status: 402; error: string }
   | { ok: false; status: 429; error: string }
   | { ok: false; status: 502; error: string };
 
@@ -142,6 +144,11 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       userAgent: userAgent ?? undefined,
     });
   } catch (error) {
+    if (error instanceof LeadLimitExceededError) {
+      await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source, result: "plan_limit_exceeded" });
+      return { ok: false, status: 402, error: error.message };
+    }
+
     // The database write is the one step that must not silently disappear on
     // failure — log the full sanitized payload (not just a summary) so the
     // submission is recoverable from Vercel's function logs even though it

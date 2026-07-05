@@ -4,14 +4,15 @@ import type { Database } from "@/types/supabase";
 import type { Plan, PlanFeature, Subscription } from "@/types";
 
 /**
- * Subscription/plan scaffolding for the eventual Stripe integration — no
- * Stripe SDK call exists anywhere yet (stripeCustomerId/stripeSubscriptionId
- * are placeholder columns). A workspace with no `subscriptions` row is
- * implicitly on the 'free' plan, same nullable-override-with-default
- * pattern used everywhere else in this app.
+ * Subscription/plan logic — real Stripe billing lives in services/stripeService.ts
+ * (checkout/portal/webhook sync); this file owns plan/feature/usage lookups
+ * only. A workspace with no `subscriptions` row is implicitly on the 'free'
+ * plan, same nullable-override-with-default pattern used everywhere else in
+ * this app.
  */
 
 const FREE_PLAN_ID = "free";
+export const PRO_PLAN_ID = "pro";
 
 type PlanRow = Database["public"]["Tables"]["plans"]["Row"];
 type SubscriptionRow = Database["public"]["Tables"]["subscriptions"]["Row"];
@@ -24,6 +25,7 @@ function toPlan(row: PlanRow): Plan {
     maxLeadsPerMonth: row.max_leads_per_month,
     maxUsers: row.max_users,
     features: (row.features ?? {}) as Record<PlanFeature, boolean>,
+    stripePriceId: row.stripe_price_id,
   };
 }
 
@@ -39,7 +41,7 @@ function toSubscription(row: SubscriptionRow): Subscription {
   };
 }
 
-async function getPlan(planId: string): Promise<Plan> {
+export async function getPlan(planId: string): Promise<Plan> {
   const row = await selectById("plans", planId);
   if (!row) {
     throw new Error(`Unknown plan id: ${planId}`);
@@ -75,4 +77,28 @@ export async function getLeadsThisMonthUsage(businessId: string): Promise<number
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   return leads.filter((lead) => new Date(lead.createdTime) >= monthStart).length;
+}
+
+/** Thrown by assertLeadLimitNotExceeded — callers (API routes, Server Actions) catch this specifically to return a clean "upgrade to continue" response instead of a generic 500/error page. */
+export class LeadLimitExceededError extends Error {
+  constructor(public readonly limit: number) {
+    super(`This plan's monthly lead limit (${limit}) has been reached. Upgrade to Pro for unlimited leads.`);
+    this.name = "LeadLimitExceededError";
+  }
+}
+
+/**
+ * Called once at the top of services/leadService.ts's createLeadFromSubmission
+ * — the single choke point every lead source (Website, Gmail, Manual, CSV,
+ * Webhook) funnels through, so this enforces the cap identically regardless
+ * of source. No-ops for a plan with no cap (maxLeadsPerMonth: null, e.g. Pro).
+ */
+export async function assertLeadLimitNotExceeded(businessId: string): Promise<void> {
+  const plan = await getEffectivePlan(businessId);
+  if (plan.maxLeadsPerMonth === null) return;
+
+  const usage = await getLeadsThisMonthUsage(businessId);
+  if (usage >= plan.maxLeadsPerMonth) {
+    throw new LeadLimitExceededError(plan.maxLeadsPerMonth);
+  }
 }

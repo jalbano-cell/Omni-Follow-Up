@@ -1,12 +1,51 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey } from "@/services/business";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey, getBusinessById } from "@/services/business";
 import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplateService";
+import { checkFeatureGate } from "@/services/subscriptionService";
+import { createCheckoutSession, createBillingPortalSession } from "@/services/stripeService";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
 import type { EmailTemplateKey } from "@/types";
+
+async function getSettingsBaseUrl(): Promise<string> {
+  const host = (await headers()).get("host") ?? "localhost:3000";
+  const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+  return `${protocol}://${host}/settings`;
+}
+
+export async function upgradeToProAction() {
+  const businessId = await getCurrentBusinessId();
+  const business = await getBusinessById(businessId);
+  if (!business) {
+    throw new Error("Business not found.");
+  }
+
+  const baseUrl = await getSettingsBaseUrl();
+  const checkoutUrl = await createCheckoutSession(business, {
+    successUrl: `${baseUrl}?checkout=success`,
+    cancelUrl: `${baseUrl}?checkout=cancelled`,
+  });
+  logAction("stripe.checkout-started", { businessId });
+  redirect(checkoutUrl);
+}
+
+export async function manageBillingAction() {
+  const businessId = await getCurrentBusinessId();
+  const business = await getBusinessById(businessId);
+  if (!business) {
+    throw new Error("Business not found.");
+  }
+
+  const baseUrl = await getSettingsBaseUrl();
+  const portalUrl = await createBillingPortalSession(business, { returnUrl: baseUrl });
+  logAction("stripe.billing-portal-opened", { businessId });
+  redirect(portalUrl);
+}
 
 export async function updateBusinessProfileAction(formData: FormData) {
   const businessId = await getCurrentBusinessId();
@@ -136,6 +175,9 @@ export async function updateWebhookUrlAction(formData: FormData) {
 
   if (url && !/^https?:\/\//i.test(url)) {
     throw new Error("Webhook URL must start with http:// or https://");
+  }
+  if (url && !(await checkFeatureGate(businessId, "webhooks"))) {
+    throw new Error("Outbound webhooks require the Pro plan. Upgrade above to enable this.");
   }
 
   await updateBusiness(businessId, { outboundWebhookUrl: url || null });

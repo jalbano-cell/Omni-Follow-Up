@@ -38,4 +38,12 @@ export const env = {
   get supabaseServiceRoleKey() {
     return requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   },
+  /** Server-only — authenticates every Stripe API call (services/stripeService.ts). Test-mode (sk_test_...) and live-mode (sk_live_...) keys create separate, non-overlapping Products/Prices/Customers. */
+  get stripeSecretKey() {
+    return requireEnv("STRIPE_SECRET_KEY");
+  },
+  /** Verifies that a POST to /api/webhooks/stripe genuinely came from Stripe (HMAC signature check) — from the Stripe Dashboard's webhook endpoint settings, not the same value as the secret key. */
+  get stripeWebhookSecret() {
+    return requireEnv("STRIPE_WEBHOOK_SECRET");
+  },
 };
