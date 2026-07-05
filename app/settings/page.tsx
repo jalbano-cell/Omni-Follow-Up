@@ -49,6 +49,15 @@ import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
 
 export const dynamic = "force-dynamic";
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-2 flex items-center gap-3">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 export default async function SettingsPage({
   searchParams,
 }: {
@@ -63,11 +72,6 @@ export default async function SettingsPage({
   const intakeEndpointUrl = `${protocol}://${host}/api/intake`;
   const webhookEndpointUrl = `${protocol}://${host}/api/v1/webhooks/leads`;
 
-  const databaseConfigured = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
   const googleConnected = Boolean(business.googleRefreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
   const calendarId = getEffectiveCalendarId(business);
@@ -127,7 +131,7 @@ export default async function SettingsPage({
 
         <BillingCard plan={plan} subscription={subscription} leadsUsedThisMonth={leadsUsedThisMonth} checkoutStatus={checkout} />
 
-        <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} />
+        <SectionLabel>Lead sources</SectionLabel>
 
         <LeadSourcesCard
           intakeApiKeyPresent={Boolean(business.intakeApiKey)}
@@ -140,39 +144,10 @@ export default async function SettingsPage({
 
         <Card className="py-5">
           <CardHeader className="px-5">
-            <CardTitle className="text-base">Database connection</CardTitle>
+            <CardTitle className="text-base">Google connection</CardTitle>
             <CardDescription>
-              Data source for leads, estimates, and follow-ups. Configured via environment variables.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-5">
-            <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
-              {databaseConfigured ? (
-                <>
-                  <CheckCircle2 className="size-4 text-success" />
-                  <span className="text-sm text-foreground">Connected</span>
-                  <Badge variant="success" className="ml-auto">
-                    Supabase env vars set
-                  </Badge>
-                </>
-              ) : (
-                <>
-                  <XCircle className="size-4 text-destructive" />
-                  <span className="text-sm text-foreground">Not connected</span>
-                  <Badge variant="destructive" className="ml-auto">
-                    Missing env vars
-                  </Badge>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="py-5">
-          <CardHeader className="px-5">
-            <CardTitle className="text-base">Gmail connection</CardTitle>
-            <CardDescription>
-              Used to send approved follow-ups. Nothing sends until you click Send Email in the queue.
+              One connection covers three things: sending approved follow-ups, creating Calendar reminders when a
+              follow-up is drafted, and (optionally) monitoring your inbox for new leads.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-5">
@@ -195,7 +170,7 @@ export default async function SettingsPage({
                   <XCircle className="size-4 text-destructive" />
                   <span className="text-sm text-foreground">Not connected</span>
                   <Badge variant="destructive" className="ml-auto">
-                    Sending paused
+                    Sending &amp; reminders paused
                   </Badge>
                 </>
               )}
@@ -218,6 +193,17 @@ export default async function SettingsPage({
                 </Button>
               )}
             </div>
+
+            <form action={updateCalendarIdAction} className="mt-4 flex flex-col gap-1.5 border-t border-border pt-4">
+              <Label htmlFor="calendarId" className="text-xs">
+                Calendar ID
+              </Label>
+              <div className="flex gap-2">
+                <Input id="calendarId" name="calendarId" defaultValue={calendarId} placeholder="primary" />
+                <SubmitButton>Save</SubmitButton>
+              </div>
+            </form>
+
             <form action={updateGmailLeadMonitoringAction} className="mt-4 border-t border-border pt-4">
               <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
                 <input
@@ -239,76 +225,6 @@ export default async function SettingsPage({
               <div className="mt-3">
                 <SubmitButton>Save</SubmitButton>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="py-5">
-          <CardHeader className="px-5">
-            <CardTitle className="text-base">Google Calendar connection</CardTitle>
-            <CardDescription>
-              Reminders are created on this calendar when a follow-up is drafted, via the same Google account
-              connected above.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-5">
-            <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
-              {googleConnected ? (
-                <>
-                  <CheckCircle2 className="size-4 text-success" />
-                  <span className="text-sm text-foreground">Connected</span>
-                  <Badge variant="success" className="ml-auto">
-                    {business.googleConnectedEmail}
-                  </Badge>
-                </>
-              ) : (
-                <>
-                  <XCircle className="size-4 text-destructive" />
-                  <span className="text-sm text-foreground">Not connected</span>
-                  <Badge variant="destructive" className="ml-auto">
-                    Reminders paused
-                  </Badge>
-                </>
-              )}
-            </div>
-            <form action={updateCalendarIdAction} className="mt-3 flex flex-col gap-1.5">
-              <Label htmlFor="calendarId" className="text-xs">
-                Calendar ID
-              </Label>
-              <div className="flex gap-2">
-                <Input id="calendarId" name="calendarId" defaultValue={calendarId} placeholder="primary" />
-                <SubmitButton>Save</SubmitButton>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="py-5">
-          <CardHeader className="px-5">
-            <CardTitle className="text-base">Appointment preferences</CardTitle>
-            <CardDescription>
-              When a customer&apos;s message requests a specific date/time, should it book automatically or wait for
-              your approval?
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-5">
-            <form action={updateAppointmentPreferencesAction} className="flex flex-col gap-4">
-              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="autoBookAppointments"
-                  defaultChecked={autoBookAppointments}
-                  className="mt-0.5 size-4 shrink-0 rounded border-border"
-                />
-                <span>
-                  <span className="font-medium text-foreground">Automatically book appointments when the requested time is open</span>
-                  <br />
-                  <span className="text-xs text-muted-foreground">
-                    Off by default — leaves a reviewable recommendation on the Lead instead, with an Approve button.
-                  </span>
-                </span>
-              </label>
-              <SubmitButton>Save preferences</SubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -340,30 +256,34 @@ export default async function SettingsPage({
           </CardContent>
         </Card>
 
+        <SectionLabel>Automation</SectionLabel>
+
+        <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} />
+
         <Card className="py-5">
           <CardHeader className="px-5">
-            <CardTitle className="text-base">Notification preferences</CardTitle>
-            <CardDescription>Which events email or notify you in-app.</CardDescription>
+            <CardTitle className="text-base">Appointment preferences</CardTitle>
+            <CardDescription>
+              When a customer&apos;s message requests a specific date/time, should it book automatically or wait for
+              your approval?
+            </CardDescription>
           </CardHeader>
           <CardContent className="px-5">
-            <form action={updateNotificationPreferencesAction} className="flex flex-col gap-3">
+            <form action={updateAppointmentPreferencesAction} className="flex flex-col gap-4">
               <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
                 <input
                   type="checkbox"
-                  name="notifyOnNewLead"
-                  defaultChecked={notifyOnNewLead}
+                  name="autoBookAppointments"
+                  defaultChecked={autoBookAppointments}
                   className="mt-0.5 size-4 shrink-0 rounded border-border"
                 />
-                <span className="font-medium text-foreground">Email me when a new lead arrives</span>
-              </label>
-              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="notifyOnReply"
-                  defaultChecked={notifyOnReply}
-                  className="mt-0.5 size-4 shrink-0 rounded border-border"
-                />
-                <span className="font-medium text-foreground">Notify me in-app when a customer replies</span>
+                <span>
+                  <span className="font-medium text-foreground">Automatically book appointments when the requested time is open</span>
+                  <br />
+                  <span className="text-xs text-muted-foreground">
+                    Off by default — leaves a reviewable recommendation on the Lead instead, with an Approve button.
+                  </span>
+                </span>
               </label>
               <SubmitButton>Save preferences</SubmitButton>
             </form>
@@ -475,6 +395,38 @@ export default async function SettingsPage({
           </CardContent>
         </Card>
 
+        <SectionLabel>Notifications &amp; signature</SectionLabel>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Notification preferences</CardTitle>
+            <CardDescription>Which events email or notify you in-app.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <form action={updateNotificationPreferencesAction} className="flex flex-col gap-3">
+              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="notifyOnNewLead"
+                  defaultChecked={notifyOnNewLead}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border"
+                />
+                <span className="font-medium text-foreground">Email me when a new lead arrives</span>
+              </label>
+              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="notifyOnReply"
+                  defaultChecked={notifyOnReply}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border"
+                />
+                <span className="font-medium text-foreground">Notify me in-app when a customer replies</span>
+              </label>
+              <SubmitButton>Save preferences</SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+
         <Card className="py-5">
           <CardHeader className="px-5">
             <CardTitle className="text-base">Email signature</CardTitle>
@@ -490,19 +442,6 @@ export default async function SettingsPage({
               />
               <SubmitButton>Save signature</SubmitButton>
             </form>
-          </CardContent>
-        </Card>
-
-        <Card className="py-5">
-          <CardHeader className="px-5">
-            <CardTitle className="text-base">Out of scope</CardTitle>
-            <CardDescription>Deliberately not part of this product.</CardDescription>
-          </CardHeader>
-          <CardContent className="px-5">
-            <ul className="list-inside list-disc text-sm text-muted-foreground">
-              <li>CRM-style contact/pipeline management beyond what&apos;s on an estimate</li>
-              <li>Two-way calendar scheduling — reminders are output-only, never booking or checking availability</li>
-            </ul>
           </CardContent>
         </Card>
       </div>
