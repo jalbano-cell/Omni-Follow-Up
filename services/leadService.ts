@@ -10,7 +10,8 @@ import {
   createNotification,
 } from "@/services/airtable";
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
-import { analyzeLead, generateLeadAcknowledgment } from "@/services/aiInsightsService";
+import { analyzeLead, generateLeadAcknowledgment, type AcknowledgmentBookingOutcome } from "@/services/aiInsightsService";
+import { resolveAppointmentBooking } from "@/services/appointmentBooking";
 import { syncLeadCreationToSupabase } from "@/services/supabaseSync";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
@@ -80,6 +81,12 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
  * approval-gated" section for why this doesn't contradict that rule).
  * Requires Gmail connected, same as the owner-notification email — skipped
  * and logged otherwise, never blocking lead creation.
+ *
+ * First checks (via services/appointmentBooking.ts) whether the lead's
+ * message requested a specific date/time — if so, that's either booked as a
+ * real Calendar event (customer invited) or resolved to open alternate
+ * slots, both also done with no human approval, and the acknowledgment
+ * reflects whichever outcome resulted.
  */
 async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Promise<void> {
   if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
@@ -87,7 +94,31 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
     return;
   }
 
-  const content = await generateLeadAcknowledgment(lead, business.businessName);
+  const booking = await resolveAppointmentBooking(business, lead);
+  const bookingOutcome: AcknowledgmentBookingOutcome =
+    booking.type === "booked"
+      ? { type: "booked", dateTimeLabel: booking.label }
+      : booking.type === "alternates"
+        ? { type: "alternates", alternateLabels: booking.labels }
+        : { type: "none" };
+
+  if (booking.type === "booked") {
+    await logLeadActivity(
+      business.id,
+      lead.id,
+      "lead.appointment_booked",
+      `Appointment automatically booked for ${booking.label}.`
+    );
+  } else if (booking.type === "alternates") {
+    await logLeadActivity(
+      business.id,
+      lead.id,
+      "lead.appointment_alternates_offered",
+      `Requested time unavailable — offered alternates: ${booking.labels.join(", ")}.`
+    );
+  }
+
+  const content = await generateLeadAcknowledgment(lead, business.businessName, bookingOutcome);
   if (!content) {
     await logLeadActivity(
       business.id,
