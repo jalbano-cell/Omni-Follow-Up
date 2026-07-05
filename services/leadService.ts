@@ -15,6 +15,7 @@ import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/s
 import { resolveAppointmentBooking, bookRecommendedAppointment } from "@/services/appointmentBooking";
 import { getBusinessById, getEffectiveNotifyOnNewLead } from "@/services/business";
 import { dispatchWebhookEvent } from "@/services/webhookDispatcher";
+import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -223,6 +224,39 @@ export async function dismissRecommendedAppointment(businessId: string, id: stri
   return lead;
 }
 
+export type MergeDuplicateResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Confirms a flagged possible-duplicate really is one. Never combines data
+ * between the two records (no field copying, no re-parenting of Estimates)
+ * — merging here just means archiving the newer, duplicate Lead so it stops
+ * appearing as an open inquiry, while keeping a permanent trail on both
+ * records pointing at each other. The earlier Lead (possibleDuplicateOfLeadId)
+ * remains the single source of truth going forward.
+ */
+export async function mergeDuplicateLead(businessId: string, id: string): Promise<MergeDuplicateResult> {
+  const lead = await getLead(businessId, id);
+  if (!lead || !lead.possibleDuplicateOfLeadId) {
+    return { ok: false, error: "No possible duplicate flagged for this lead." };
+  }
+  const original = await getLead(businessId, lead.possibleDuplicateOfLeadId);
+  if (!original) {
+    return { ok: false, error: "The original lead no longer exists." };
+  }
+
+  await updateLead(businessId, id, { status: "Archived" });
+  await logLeadActivity(businessId, id, "lead.duplicate_merged", `Merged into ${original.leadId} (${original.name}) — archived as a duplicate.`);
+  await logLeadActivity(businessId, original.id, "lead.duplicate_merged_into", `${lead.name} (${lead.leadId}) was merged into this lead as a duplicate.`);
+  return { ok: true };
+}
+
+/** Clears a possible-duplicate flag without merging — the owner reviewed both and decided they're genuinely separate leads. */
+export async function dismissDuplicateLead(businessId: string, id: string): Promise<Lead> {
+  const lead = await updateLead(businessId, id, { possibleDuplicateOfLeadId: null });
+  await logLeadActivity(businessId, id, "lead.duplicate_dismissed", "Possible-duplicate flag dismissed — confirmed not a duplicate.");
+  return lead;
+}
+
 /**
  * Creates a Lead and everything that must happen alongside it: an
  * ActivityLog entry ("New website inquiry received."), an in-app
@@ -235,7 +269,9 @@ export async function dismissRecommendedAppointment(businessId: string, id: stri
  */
 export async function createLeadFromSubmission(business: Business, input: NewLeadInput): Promise<Lead> {
   const leadId = generateLeadId();
-  const lead = await createLead(business.id, leadId, input);
+  // Snapshot existing leads before this one is created — a duplicate check must never match the new lead against itself.
+  const existingLeads = await getLeads(business.id);
+  let lead = await createLead(business.id, leadId, input);
 
   await logLeadActivity(business.id, lead.id, "lead.created", "New website inquiry received.");
 
@@ -251,6 +287,30 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
       leadId: lead.leadId,
       error: error instanceof Error ? error.message : "unknown error",
     });
+  }
+
+  const possibleDuplicate = findPossibleDuplicateLead(existingLeads, input, lead.createdTime);
+  if (possibleDuplicate) {
+    try {
+      lead = await updateLead(business.id, lead.id, { possibleDuplicateOfLeadId: possibleDuplicate.id });
+      await logLeadActivity(
+        business.id,
+        lead.id,
+        "lead.possible_duplicate_flagged",
+        `Possible duplicate of ${possibleDuplicate.leadId} (${possibleDuplicate.name}).`
+      );
+      await createNotification(business.id, {
+        leadId: lead.id,
+        type: "lead.possible_duplicate",
+        message: `${lead.name} looks like a possible duplicate of an existing lead — review to merge or dismiss.`,
+      });
+    } catch (error) {
+      logAction("lead.duplicate-flag-failed", {
+        businessId: business.id,
+        leadId: lead.leadId,
+        error: error instanceof Error ? error.message : "unknown error",
+      });
+    }
   }
 
   await sendLeadNotificationEmail(business, lead);
@@ -402,6 +462,8 @@ export interface LeadDetail {
   conversation: Reply[];
   upcomingFollowUps: FollowUp[];
   aiInsights: LeadAiInsights;
+  /** The earlier Lead this one was flagged as a likely re-submission of (services/duplicateLeadDetection.ts) — null once dismissed/merged, or if never flagged. */
+  possibleDuplicateOfLead: Lead | null;
 }
 
 /** Everything the Lead Details page needs, joined in one call. */
@@ -409,9 +471,10 @@ export async function getLeadDetail(businessId: string, id: string): Promise<Lea
   const lead = await getLead(businessId, id);
   if (!lead) return null;
 
-  const [timeline, linkedEstimate] = await Promise.all([
+  const [timeline, linkedEstimate, possibleDuplicateOfLead] = await Promise.all([
     getLeadTimeline(businessId, id),
     lead.convertedEstimateId ? getEstimate(businessId, lead.convertedEstimateId) : Promise.resolve(null),
+    lead.possibleDuplicateOfLeadId ? getLead(businessId, lead.possibleDuplicateOfLeadId) : Promise.resolve(null),
   ]);
 
   const [conversation, upcomingFollowUps] = linkedEstimate
@@ -428,5 +491,6 @@ export async function getLeadDetail(businessId: string, id: string): Promise<Lea
     conversation,
     upcomingFollowUps,
     aiInsights: toAiInsights(lead),
+    possibleDuplicateOfLead,
   };
 }

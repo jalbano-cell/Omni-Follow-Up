@@ -1,6 +1,6 @@
 import { getDueFollowUps, getEstimates, getFollowUps, getLeads, getReplies } from "@/services/db";
 import { getRecentActivityLog } from "@/services/activityService";
-import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES } from "@/config/constants";
+import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES, LEAD_SOURCES } from "@/config/constants";
 import { todayIso } from "@/lib/date";
 import type { EstimateStatus, Reply } from "@/types";
 
@@ -52,6 +52,29 @@ export async function getFollowUpFunnel(businessId: string): Promise<FollowUpFun
       value: matching.reduce((sum, e) => sum + e.estimateValue, 0),
     };
   });
+}
+
+export interface LeadSourceBreakdownItem {
+  source: string;
+  count: number;
+}
+
+/** Lead counts per source, in config/constants.ts's LEAD_SOURCES order — every listed source appears even at zero, plus one "Other" bucket for any legacy/unlisted value already stored on a Lead (leadSource is a free string, not a closed enum). */
+export async function getLeadSourceBreakdown(businessId: string): Promise<LeadSourceBreakdownItem[]> {
+  const leads = await getLeads(businessId);
+  const known: readonly string[] = LEAD_SOURCES;
+
+  const items: LeadSourceBreakdownItem[] = LEAD_SOURCES.map((source) => ({
+    source,
+    count: leads.filter((l) => l.leadSource === source).length,
+  }));
+
+  const otherCount = leads.filter((l) => !known.includes(l.leadSource)).length;
+  if (otherCount > 0) {
+    items.push({ source: "Other", count: otherCount });
+  }
+
+  return items;
 }
 
 export interface RevenueTrendPoint {

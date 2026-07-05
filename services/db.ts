@@ -122,6 +122,9 @@ function toLead(row: LeadRow): Lead {
     aiStatus: row.ai_status as Lead["aiStatus"],
     pendingAppointmentDateTime: row.pending_appointment_date_time,
     pendingAppointmentDurationMinutes: row.pending_appointment_duration_minutes,
+    gmailMessageId: row.gmail_message_id,
+    gmailThreadId: row.gmail_thread_id,
+    possibleDuplicateOfLeadId: row.possible_duplicate_of_lead_id,
   };
 }
 
@@ -387,6 +390,8 @@ export async function createLead(businessId: string, leadId: string, input: NewL
     assigned_to: "",
     internal_notes: "",
     ai_status: "pending",
+    gmail_message_id: input.gmailMessageId ?? null,
+    gmail_thread_id: input.gmailThreadId ?? null,
   });
   return toLead(row);
 }
@@ -417,6 +422,7 @@ export async function updateLead(businessId: string, id: string, input: UpdateLe
   if (input.pendingAppointmentDateTime !== undefined) fields.pending_appointment_date_time = input.pendingAppointmentDateTime;
   if (input.pendingAppointmentDurationMinutes !== undefined)
     fields.pending_appointment_duration_minutes = input.pendingAppointmentDurationMinutes;
+  if (input.possibleDuplicateOfLeadId !== undefined) fields.possible_duplicate_of_lead_id = input.possibleDuplicateOfLeadId;
 
   const row = await updateRow("leads", id, fields);
   return toLead(row);

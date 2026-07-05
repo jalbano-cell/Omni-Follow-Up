@@ -13,8 +13,11 @@ import {
   createLeadFromSubmission,
   approveRecommendedAppointment,
   dismissRecommendedAppointment,
+  mergeDuplicateLead,
+  dismissDuplicateLead,
   type UpdateAiInsightsInput,
   type ApproveAppointmentResult,
+  type MergeDuplicateResult,
 } from "@/services/leadService";
 import { getBusinessById } from "@/services/business";
 import { parseCsv, csvRowsToLeads } from "@/lib/csv";
@@ -109,37 +112,55 @@ export async function createLeadAction(formData: FormData) {
   redirect(`/leads/${lead.id}`);
 }
 
-/** Bulk-imports leads from an uploaded CSV's raw text (parsed server-side — see lib/csv.ts). Each row reuses createLeadFromSubmission; a bad row is skipped rather than aborting the whole import. */
-export async function importLeadsCsvAction(csvText: string): Promise<{ imported: number; skipped: number }> {
+export interface CsvImportSummary {
+  imported: number;
+  /** Rows missing a required field (name/email) — never attempted. Each entry e.g. "Row 4: Missing email". */
+  skippedRows: string[];
+  /** Rows that had valid data but failed during creation (rare — e.g. a transient database error). Each entry e.g. "Row 6: Business not found.". */
+  errors: string[];
+}
+
+/** Bulk-imports leads from an uploaded CSV's raw text (parsed server-side — see lib/csv.ts). Each row reuses createLeadFromSubmission; a bad row is skipped (or its creation failure recorded) rather than aborting the whole import — possible duplicates aren't skipped here, they're flagged for review same as any other entry point (services/duplicateLeadDetection.ts). */
+export async function importLeadsCsvAction(csvText: string): Promise<CsvImportSummary> {
   const businessId = await getCurrentBusinessId();
   const business = await getBusinessById(businessId);
   if (!business) {
     throw new Error("Business not found.");
   }
 
-  const candidates = csvRowsToLeads(parseCsv(csvText));
+  const rows = csvRowsToLeads(parseCsv(csvText));
 
   let imported = 0;
-  for (const candidate of candidates) {
+  const skippedRows: string[] = [];
+  const errors: string[] = [];
+
+  for (const row of rows) {
+    if (!row.data) {
+      skippedRows.push(`Row ${row.rowNumber}: ${row.error}`);
+      continue;
+    }
+
     try {
       await createLeadFromSubmission(business, {
-        name: candidate.name,
-        email: candidate.email,
-        phone: candidate.phone,
-        company: candidate.company,
-        requestedService: candidate.service,
-        message: candidate.message || "(Imported via CSV — no message provided.)",
+        name: row.data.name,
+        email: row.data.email,
+        phone: row.data.phone,
+        company: row.data.company,
+        requestedService: row.data.service,
+        message: row.data.message || "(Imported via CSV — no message provided.)",
         leadSource: "CSV Import",
       });
       imported += 1;
     } catch (error) {
-      logAction("lead.csv-import-row-failed", { error: error instanceof Error ? error.message : "unknown error" });
+      const message = error instanceof Error ? error.message : "unknown error";
+      errors.push(`Row ${row.rowNumber}: ${message}`);
+      logAction("lead.csv-import-row-failed", { row: row.rowNumber, error: message });
     }
   }
 
-  logAction("lead.csv-import", { businessId, imported, total: candidates.length });
+  logAction("lead.csv-import", { businessId, imported, skipped: skippedRows.length, errors: errors.length, total: rows.length });
   revalidatePath("/leads");
-  return { imported, skipped: candidates.length - imported };
+  return { imported, skippedRows, errors };
 }
 
 export async function approveRecommendedAppointmentAction(id: string): Promise<ApproveAppointmentResult> {
@@ -154,5 +175,21 @@ export async function dismissRecommendedAppointmentAction(id: string) {
   const businessId = await getCurrentBusinessId();
   await dismissRecommendedAppointment(businessId, id);
   logAction("lead.appointment-dismiss", { leadId: id });
+  revalidatePath(`/leads/${id}`);
+}
+
+export async function mergeDuplicateLeadAction(id: string): Promise<MergeDuplicateResult> {
+  const businessId = await getCurrentBusinessId();
+  const result = await mergeDuplicateLead(businessId, id);
+  logAction("lead.duplicate-merge", { leadId: id, ok: result.ok });
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${id}`);
+  return result;
+}
+
+export async function dismissDuplicateLeadAction(id: string) {
+  const businessId = await getCurrentBusinessId();
+  await dismissDuplicateLead(businessId, id);
+  logAction("lead.duplicate-dismiss", { leadId: id });
   revalidatePath(`/leads/${id}`);
 }

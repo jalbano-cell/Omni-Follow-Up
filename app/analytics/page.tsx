@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { RevenueTrendChart } from "@/components/analytics/revenue-trend-chart";
 import { ReplyMetricsCard } from "@/components/analytics/reply-metrics-card";
-import { getFollowUpFunnel, getRevenueTrend, getReplyMetrics } from "@/services/analytics";
+import { LeadSourceChart } from "@/components/analytics/lead-source-chart";
+import { getFollowUpFunnel, getRevenueTrend, getReplyMetrics, getLeadSourceBreakdown } from "@/services/analytics";
 import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +16,13 @@ export default async function AnalyticsPage() {
   let funnel;
   let trend;
   let replyMetrics;
+  let leadSources;
   try {
-    [funnel, trend, replyMetrics] = await Promise.all([
+    [funnel, trend, replyMetrics, leadSources] = await Promise.all([
       getFollowUpFunnel(businessId),
       getRevenueTrend(businessId),
       getReplyMetrics(businessId),
+      getLeadSourceBreakdown(businessId),
     ]);
   } catch (error) {
     return (
@@ -65,6 +68,16 @@ export default async function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-6 py-5">
+        <CardHeader className="px-5">
+          <CardTitle className="text-base">Leads by source</CardTitle>
+          <CardDescription>Every lead ever received, grouped by how it entered the system.</CardDescription>
+        </CardHeader>
+        <CardContent className="px-5">
+          <LeadSourceChart items={leadSources} />
+        </CardContent>
+      </Card>
     </>
   );
 }

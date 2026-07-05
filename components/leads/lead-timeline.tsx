@@ -18,6 +18,9 @@ import {
   PartyPopper,
   XCircle,
   Circle,
+  Copy,
+  CopyCheck,
+  CopyX,
   type LucideIcon,
 } from "lucide-react";
 import { formatDate } from "@/lib/date";
@@ -46,6 +49,10 @@ const TIMELINE_ICON: Record<string, { icon: LucideIcon; className: string }> = {
   "estimate.reply_received": { icon: MessageSquare, className: "text-primary" },
   "estimate.booked": { icon: PartyPopper, className: "text-success" },
   "estimate.lost": { icon: XCircle, className: "text-destructive" },
+  "lead.possible_duplicate_flagged": { icon: Copy, className: "text-warning-foreground" },
+  "lead.duplicate_merged": { icon: CopyX, className: "text-muted-foreground" },
+  "lead.duplicate_merged_into": { icon: CopyCheck, className: "text-muted-foreground" },
+  "lead.duplicate_dismissed": { icon: CopyCheck, className: "text-muted-foreground" },
 };
 
 const DEFAULT_ICON = { icon: Circle, className: "text-muted-foreground fill-current" };
