@@ -1,185 +1,675 @@
-/**
- * Hand-written to match supabase/migrations/0001_init_schema.sql exactly.
- * If the schema changes, update this file in the same commit — there's no
- * codegen step wired up yet (would use `supabase gen types typescript`
- * once the Supabase CLI is linked to the project).
- */
+// Generated via `supabase gen types typescript --linked` — do not hand-edit.
+// Regenerate after any schema change (new migration file + apply it, then rerun).
 
-export interface Database {
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      workspaces: {
-        Row: {
-          id: string;
-          business_name: string;
-          owner_name: string;
-          owner_email: string;
-          password_hash: string;
-          follow_up_cadence_sent_days: number | null;
-          follow_up_cadence_followup1_days: number | null;
-          follow_up_cadence_followup2_days: number | null;
-          onboarding_step: number;
-          onboarding_completed_at: string | null;
-          google_refresh_token_enc: string | null;
-          google_connected_email: string | null;
-          google_scopes: string | null;
-          google_connected_at: string | null;
-          calendar_id: string | null;
-          industry: string | null;
-          timezone: string | null;
-          working_hours_start: number | null;
-          working_hours_end: number | null;
-          email_signature: string | null;
-          intake_api_key: string | null;
-          intake_api_key_created_at: string | null;
-          created_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["workspaces"]["Row"]> &
-          Pick<Database["public"]["Tables"]["workspaces"]["Row"], "business_name" | "owner_name" | "owner_email" | "password_hash">;
-        Update: Partial<Database["public"]["Tables"]["workspaces"]["Row"]>;
-      };
-      users: {
-        Row: {
-          id: string;
-          email: string;
-          workspace_id: string;
-          role: string;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["users"]["Row"]> &
-          Pick<Database["public"]["Tables"]["users"]["Row"], "email" | "workspace_id">;
-        Update: Partial<Database["public"]["Tables"]["users"]["Row"]>;
-      };
-      leads: {
-        Row: {
-          id: string;
-          workspace_id: string;
-          lead_id: string;
-          name: string;
-          email: string;
-          phone: string;
-          company: string;
-          service: string;
-          message: string;
-          status: string;
-          source: string;
-          ip_address: string | null;
-          user_agent: string | null;
-          converted_estimate_id: string | null;
-          assigned_to: string;
-          internal_notes: string;
-          ai_summary: string | null;
-          ai_category: string | null;
-          ai_priority: string | null;
-          ai_priority_reason: string | null;
-          ai_opportunity_value_range: string | null;
-          ai_opportunity_confidence: string | null;
-          suggested_next_action: string | null;
-          ai_response_urgency: string | null;
-          ai_response_urgency_reason: string | null;
-          ai_generated_at: string | null;
-          ai_status: string;
-          created_at: string;
-          last_activity_at: string;
-          updated_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> &
-          Pick<Database["public"]["Tables"]["leads"]["Row"], "workspace_id" | "lead_id" | "name" | "email" | "message">;
-        Update: Partial<Database["public"]["Tables"]["leads"]["Row"]>;
-      };
-      estimates: {
-        Row: {
-          id: string;
-          workspace_id: string;
-          lead_id: string | null;
-          customer_name: string;
-          customer_email: string;
-          business_name: string;
-          service_type: string;
-          value: number;
-          status: string;
-          date_sent: string;
-          next_followup_date: string | null;
-          last_contact_date: string | null;
-          notes: string;
-          gmail_thread_id: string | null;
-          gmail_last_message_id: string | null;
-          created_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["estimates"]["Row"]> &
-          Pick<Database["public"]["Tables"]["estimates"]["Row"], "workspace_id" | "customer_name" | "customer_email">;
-        Update: Partial<Database["public"]["Tables"]["estimates"]["Row"]>;
-      };
-      followups: {
-        Row: {
-          id: string;
-          workspace_id: string;
-          estimate_id: string;
-          message: string;
-          status: string;
-          scheduled_date: string;
-          sent_at: string | null;
-          calendar_event_id: string | null;
-          created_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["followups"]["Row"]> &
-          Pick<Database["public"]["Tables"]["followups"]["Row"], "workspace_id" | "estimate_id" | "message" | "scheduled_date">;
-        Update: Partial<Database["public"]["Tables"]["followups"]["Row"]>;
-      };
-      replies: {
-        Row: {
-          id: string;
-          workspace_id: string;
-          estimate_id: string;
-          gmail_message_id: string;
-          gmail_thread_id: string;
-          from_email: string;
-          subject: string;
-          snippet: string;
-          body_text: string;
-          received_at: string;
-          is_read: boolean;
-          created_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["replies"]["Row"]> &
-          Pick<Database["public"]["Tables"]["replies"]["Row"], "workspace_id" | "estimate_id" | "gmail_message_id" | "gmail_thread_id" | "from_email" | "received_at">;
-        Update: Partial<Database["public"]["Tables"]["replies"]["Row"]>;
-      };
       activity_logs: {
         Row: {
-          id: string;
-          workspace_id: string;
-          lead_id: string | null;
-          action: string;
-          description: string;
-          metadata: Record<string, unknown> | null;
-          created_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["activity_logs"]["Row"]> &
-          Pick<Database["public"]["Tables"]["activity_logs"]["Row"], "workspace_id" | "action">;
-        Update: Partial<Database["public"]["Tables"]["activity_logs"]["Row"]>;
-      };
+          action: string
+          airtable_record_id: string | null
+          created_at: string
+          description: string
+          id: string
+          lead_id: string | null
+          metadata: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          airtable_record_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          lead_id?: string | null
+          metadata?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          airtable_record_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          lead_id?: string | null
+          metadata?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          airtable_record_id: string | null
+          business_name: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          date_sent: string
+          gmail_last_message_id: string | null
+          gmail_thread_id: string | null
+          id: string
+          last_contact_date: string | null
+          lead_id: string | null
+          next_followup_date: string | null
+          notes: string
+          service_type: string
+          status: string
+          value: number
+          workspace_id: string
+        }
+        Insert: {
+          airtable_record_id?: string | null
+          business_name?: string
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          date_sent?: string
+          gmail_last_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          last_contact_date?: string | null
+          lead_id?: string | null
+          next_followup_date?: string | null
+          notes?: string
+          service_type?: string
+          status?: string
+          value?: number
+          workspace_id: string
+        }
+        Update: {
+          airtable_record_id?: string | null
+          business_name?: string
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          date_sent?: string
+          gmail_last_message_id?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          last_contact_date?: string | null
+          lead_id?: string | null
+          next_followup_date?: string | null
+          notes?: string
+          service_type?: string
+          status?: string
+          value?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followups: {
+        Row: {
+          airtable_record_id: string | null
+          calendar_event_id: string | null
+          created_at: string
+          estimate_id: string
+          id: string
+          message: string
+          scheduled_date: string
+          sent_at: string | null
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          airtable_record_id?: string | null
+          calendar_event_id?: string | null
+          created_at?: string
+          estimate_id: string
+          id?: string
+          message: string
+          scheduled_date: string
+          sent_at?: string | null
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          airtable_record_id?: string | null
+          calendar_event_id?: string | null
+          created_at?: string
+          estimate_id?: string
+          id?: string
+          message?: string
+          scheduled_date?: string
+          sent_at?: string | null
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followups_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followups_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          ai_category: string | null
+          ai_generated_at: string | null
+          ai_opportunity_confidence: string | null
+          ai_opportunity_value_range: string | null
+          ai_priority: string | null
+          ai_priority_reason: string | null
+          ai_response_urgency: string | null
+          ai_response_urgency_reason: string | null
+          ai_status: string
+          ai_summary: string | null
+          airtable_record_id: string | null
+          assigned_to: string
+          company: string
+          converted_estimate_id: string | null
+          created_at: string
+          email: string
+          id: string
+          internal_notes: string
+          ip_address: string | null
+          last_activity_at: string
+          lead_id: string
+          message: string
+          name: string
+          phone: string
+          service: string
+          source: string
+          status: string
+          suggested_next_action: string | null
+          updated_at: string
+          user_agent: string | null
+          workspace_id: string
+        }
+        Insert: {
+          ai_category?: string | null
+          ai_generated_at?: string | null
+          ai_opportunity_confidence?: string | null
+          ai_opportunity_value_range?: string | null
+          ai_priority?: string | null
+          ai_priority_reason?: string | null
+          ai_response_urgency?: string | null
+          ai_response_urgency_reason?: string | null
+          ai_status?: string
+          ai_summary?: string | null
+          airtable_record_id?: string | null
+          assigned_to?: string
+          company?: string
+          converted_estimate_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          internal_notes?: string
+          ip_address?: string | null
+          last_activity_at?: string
+          lead_id: string
+          message: string
+          name: string
+          phone?: string
+          service?: string
+          source?: string
+          status?: string
+          suggested_next_action?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          workspace_id: string
+        }
+        Update: {
+          ai_category?: string | null
+          ai_generated_at?: string | null
+          ai_opportunity_confidence?: string | null
+          ai_opportunity_value_range?: string | null
+          ai_priority?: string | null
+          ai_priority_reason?: string | null
+          ai_response_urgency?: string | null
+          ai_response_urgency_reason?: string | null
+          ai_status?: string
+          ai_summary?: string | null
+          airtable_record_id?: string | null
+          assigned_to?: string
+          company?: string
+          converted_estimate_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          internal_notes?: string
+          ip_address?: string | null
+          last_activity_at?: string
+          lead_id?: string
+          message?: string
+          name?: string
+          phone?: string
+          service?: string
+          source?: string
+          status?: string
+          suggested_next_action?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_converted_estimate_id_fkey"
+            columns: ["converted_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
-          id: string;
-          workspace_id: string;
-          lead_id: string | null;
-          type: string;
-          message: string;
-          is_read: boolean;
-          created_at: string;
-          airtable_record_id: string | null;
-        };
-        Insert: Partial<Database["public"]["Tables"]["notifications"]["Row"]> &
-          Pick<Database["public"]["Tables"]["notifications"]["Row"], "workspace_id" | "type" | "message">;
-        Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
-      };
-    };
-  };
+          airtable_record_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          lead_id: string | null
+          message: string
+          type: string
+          workspace_id: string
+        }
+        Insert: {
+          airtable_record_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          lead_id?: string | null
+          message: string
+          type: string
+          workspace_id: string
+        }
+        Update: {
+          airtable_record_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          lead_id?: string | null
+          message?: string
+          type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replies: {
+        Row: {
+          airtable_record_id: string | null
+          body_text: string
+          created_at: string
+          estimate_id: string
+          from_email: string
+          gmail_message_id: string
+          gmail_thread_id: string
+          id: string
+          is_read: boolean
+          received_at: string
+          snippet: string
+          subject: string
+          workspace_id: string
+        }
+        Insert: {
+          airtable_record_id?: string | null
+          body_text?: string
+          created_at?: string
+          estimate_id: string
+          from_email: string
+          gmail_message_id: string
+          gmail_thread_id: string
+          id?: string
+          is_read?: boolean
+          received_at: string
+          snippet?: string
+          subject?: string
+          workspace_id: string
+        }
+        Update: {
+          airtable_record_id?: string | null
+          body_text?: string
+          created_at?: string
+          estimate_id?: string
+          from_email?: string
+          gmail_message_id?: string
+          gmail_thread_id?: string
+          id?: string
+          is_read?: boolean
+          received_at?: string
+          snippet?: string
+          subject?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replies_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          role: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          role?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          role?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          airtable_record_id: string | null
+          business_name: string
+          calendar_id: string | null
+          created_at: string
+          email_signature: string | null
+          follow_up_cadence_followup1_days: number | null
+          follow_up_cadence_followup2_days: number | null
+          follow_up_cadence_sent_days: number | null
+          google_connected_at: string | null
+          google_connected_email: string | null
+          google_refresh_token_enc: string | null
+          google_scopes: string | null
+          id: string
+          industry: string | null
+          intake_api_key: string | null
+          intake_api_key_created_at: string | null
+          onboarding_completed_at: string | null
+          onboarding_step: number
+          owner_email: string
+          owner_name: string
+          password_hash: string
+          timezone: string | null
+          working_hours_end: number | null
+          working_hours_start: number | null
+        }
+        Insert: {
+          airtable_record_id?: string | null
+          business_name: string
+          calendar_id?: string | null
+          created_at?: string
+          email_signature?: string | null
+          follow_up_cadence_followup1_days?: number | null
+          follow_up_cadence_followup2_days?: number | null
+          follow_up_cadence_sent_days?: number | null
+          google_connected_at?: string | null
+          google_connected_email?: string | null
+          google_refresh_token_enc?: string | null
+          google_scopes?: string | null
+          id?: string
+          industry?: string | null
+          intake_api_key?: string | null
+          intake_api_key_created_at?: string | null
+          onboarding_completed_at?: string | null
+          onboarding_step?: number
+          owner_email: string
+          owner_name: string
+          password_hash: string
+          timezone?: string | null
+          working_hours_end?: number | null
+          working_hours_start?: number | null
+        }
+        Update: {
+          airtable_record_id?: string | null
+          business_name?: string
+          calendar_id?: string | null
+          created_at?: string
+          email_signature?: string | null
+          follow_up_cadence_followup1_days?: number | null
+          follow_up_cadence_followup2_days?: number | null
+          follow_up_cadence_sent_days?: number | null
+          google_connected_at?: string | null
+          google_connected_email?: string | null
+          google_refresh_token_enc?: string | null
+          google_scopes?: string | null
+          id?: string
+          industry?: string | null
+          intake_api_key?: string | null
+          intake_api_key_created_at?: string | null
+          onboarding_completed_at?: string | null
+          onboarding_step?: number
+          owner_email?: string
+          owner_name?: string
+          password_hash?: string
+          timezone?: string | null
+          working_hours_end?: number | null
+          working_hours_start?: number | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

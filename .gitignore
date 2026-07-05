@@ -48,3 +48,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase CLI local cache (project ref/pooler URL — no secrets, but not meant to be committed)
+supabase/.temp/
