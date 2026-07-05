@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { AirtableErrorState } from "@/components/layout/airtable-error-state";
+import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { FollowUpQueue } from "@/components/follow-ups/follow-up-queue";
 import { GenerateFollowUpsButton } from "@/components/follow-ups/generate-follow-ups-button";
 import { getFollowUpQueue } from "@/services/followupEngine";
@@ -17,7 +17,7 @@ export default async function FollowUpsPage() {
     return (
       <>
         <PageHeader title="Follow-up Queue" description="Suggested follow-ups waiting on your review." />
-        <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />
+        <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />
       </>
     );
   }

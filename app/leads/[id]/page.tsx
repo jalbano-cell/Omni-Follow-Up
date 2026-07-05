@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { AirtableErrorState } from "@/components/layout/airtable-error-state";
+import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { LeadTimeline } from "@/components/leads/lead-timeline";
@@ -28,7 +28,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   try {
     detail = await getLeadDetail(businessId, id);
   } catch (error) {
-    return <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
+    return <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
   }
 
   if (!detail) notFound();

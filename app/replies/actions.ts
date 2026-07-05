@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { markReplyRead } from "@/services/airtable";
+import { markReplyRead } from "@/services/db";
 import { getBusinessById } from "@/services/business";
 import { syncRepliesForBusiness } from "@/services/replyMatcher";
 import { getCurrentBusinessId } from "@/lib/session";

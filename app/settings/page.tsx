@@ -44,7 +44,11 @@ export default async function SettingsPage({
   const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
   const intakeEndpointUrl = `${protocol}://${host}/api/intake`;
 
-  const airtableConfigured = Boolean(process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID);
+  const databaseConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
   const googleConnected = Boolean(business.googleRefreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
   const calendarId = getEffectiveCalendarId(business);
@@ -98,19 +102,19 @@ export default async function SettingsPage({
 
         <Card className="py-5">
           <CardHeader className="px-5">
-            <CardTitle className="text-base">Airtable connection</CardTitle>
+            <CardTitle className="text-base">Database connection</CardTitle>
             <CardDescription>
-              Data source for estimates and follow-ups. Configured via environment variables.
+              Data source for leads, estimates, and follow-ups. Configured via environment variables.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-5">
             <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
-              {airtableConfigured ? (
+              {databaseConfigured ? (
                 <>
                   <CheckCircle2 className="size-4 text-success" />
                   <span className="text-sm text-foreground">Connected</span>
                   <Badge variant="success" className="ml-auto">
-                    AIRTABLE_API_KEY & AIRTABLE_BASE_ID set
+                    Supabase env vars set
                   </Badge>
                 </>
               ) : (

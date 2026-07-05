@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { AirtableErrorState } from "@/components/layout/airtable-error-state";
+import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { LeadTable } from "@/components/leads/lead-table";
-import { getLeads } from "@/services/airtable";
+import { getLeads } from "@/services/db";
 import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function LeadsPage() {
     return (
       <>
         <PageHeader title="Leads" description="Every inbound business inquiry, in one place." />
-        <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />
+        <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />
       </>
     );
   }

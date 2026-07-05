@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { AirtableErrorState } from "@/components/layout/airtable-error-state";
+import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { RevenueTrendChart } from "@/components/analytics/revenue-trend-chart";
@@ -25,7 +25,7 @@ export default async function AnalyticsPage() {
     return (
       <>
         <PageHeader title="Analytics" description="Pipeline health and revenue trend." />
-        <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />
+        <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />
       </>
     );
   }

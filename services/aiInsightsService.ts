@@ -1,4 +1,4 @@
-import { updateLead } from "@/services/airtable";
+import { updateLead } from "@/services/db";
 import { logLeadActivity } from "@/services/activityService";
 import { logAction } from "@/lib/logger";
 import { env } from "@/lib/env";

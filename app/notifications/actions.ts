@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { markNotificationRead, markAllNotificationsRead } from "@/services/airtable";
+import { markNotificationRead, markAllNotificationsRead } from "@/services/db";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 

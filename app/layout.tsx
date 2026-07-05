@@ -3,7 +3,7 @@ import { Space_Grotesk, Inter } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
-import { getNotifications, getUnreadNotificationCount } from "@/services/airtable";
+import { getNotifications, getUnreadNotificationCount } from "@/services/db";
 import { getOptionalSession } from "@/lib/session";
 import "./globals.css";
 
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 /**
  * Renders on every route, including public ones (login/signup) where there's
  * no session — getOptionalSession (unlike getCurrentSession) returns null
- * instead of redirecting there. Also swallows Airtable errors so a
+ * instead of redirecting there. Also swallows database errors so a
  * misconfigured/unreachable base degrades to "no bell," not a broken layout.
  */
 async function NotificationBellSlot() {

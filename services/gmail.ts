@@ -3,7 +3,7 @@ import { refreshAccessToken } from "@/services/googleOAuth";
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 /**
- * Thin, dependency-free Gmail API client — pure transport, no Airtable or
+ * Thin, dependency-free Gmail API client — pure transport, no database or
  * orchestration knowledge. Each call is parameterized with the sending
  * business's own refresh token/address (services/googleOAuth.ts handles the
  * OAuth exchange itself), since Gmail sending is per-tenant, not a single

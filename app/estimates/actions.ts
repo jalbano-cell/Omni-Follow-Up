@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createEstimate, updateEstimate, deleteEstimate, getLeads } from "@/services/airtable";
+import { createEstimate, updateEstimate, deleteEstimate, getLeads } from "@/services/db";
 import { markLeadConverted, revertLeadConversion } from "@/services/leadService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
 import { addDays } from "@/lib/date";
@@ -76,7 +76,7 @@ export async function updateEstimateStatusAction(id: string, status: EstimateSta
 
 /**
  * Permanently deletes an Estimate along with its FollowUps/Replies (see
- * services/airtable.ts's deleteEstimate). If a Lead had been converted to
+ * services/db.ts's deleteEstimate). If a Lead had been converted to
  * this estimate, it's reverted back to "New Inquiry" rather than left
  * pointing at a deleted record. No redirect here — this is invoked
  * programmatically from a confirmation dialog (not a <form action={...}>),

@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { AirtableErrorState } from "@/components/layout/airtable-error-state";
+import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { StatusActions } from "@/components/estimates/status-actions";
 import { DeleteEstimateDialog } from "@/components/estimates/delete-estimate-dialog";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getEstimate, getFollowUpsForEstimate, getRepliesForEstimate } from "@/services/airtable";
+import { getEstimate, getFollowUpsForEstimate, getRepliesForEstimate } from "@/services/db";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
@@ -31,7 +31,7 @@ export default async function EstimateDetailPage({
     followUps = estimate ? await getFollowUpsForEstimate(businessId, id) : [];
     replies = estimate ? await getRepliesForEstimate(businessId, id) : [];
   } catch (error) {
-    return <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
+    return <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
   }
 
   if (!estimate) notFound();

@@ -8,11 +8,10 @@ import {
   getRepliesForEstimate,
   updateLead,
   createNotification,
-} from "@/services/airtable";
+} from "@/services/db";
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
 import { analyzeLead, generateLeadAcknowledgment, type AcknowledgmentBookingOutcome } from "@/services/aiInsightsService";
 import { resolveAppointmentBooking } from "@/services/appointmentBooking";
-import { syncLeadCreationToSupabase } from "@/services/supabaseSync";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -162,12 +161,11 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
  * Creates a Lead and everything that must happen alongside it: an
  * ActivityLog entry ("New website inquiry received."), an in-app
  * Notification, a best-effort email to the business's own connected Gmail,
- * an automatic AI Lead Intelligence analysis, an automatic (no-approval)
- * acknowledgment email to the customer, and (Airtable -> Supabase migration,
- * Phase 4) a best-effort mirror of the finished Lead into Supabase. The
- * Airtable write (createLead) is the one step the caller must treat as
- * authoritative — every step after it is a best-effort side effect that must
- * never turn a saved lead into a failed response.
+ * an automatic AI Lead Intelligence analysis, and an automatic (no-approval)
+ * acknowledgment email to the customer. The Supabase write (createLead) is
+ * the one step the caller must treat as authoritative — every step after it
+ * is a best-effort side effect that must never turn a saved lead into a
+ * failed response.
  */
 export async function createLeadFromSubmission(business: Business, input: NewLeadInput): Promise<Lead> {
   const leadId = generateLeadId();
@@ -192,9 +190,6 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
   await sendLeadNotificationEmail(business, lead);
   await analyzeLead(business.id, lead);
   await sendLeadAcknowledgmentEmail(business, lead);
-
-  const finalLead = (await getLead(business.id, lead.id)) ?? lead;
-  await syncLeadCreationToSupabase(business, finalLead);
 
   return lead;
 }

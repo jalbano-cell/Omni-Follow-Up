@@ -5,7 +5,7 @@ import { processIntake } from "@/services/intakeService";
  * Public endpoint — a business's own website contact form posts here
  * directly (cross-origin, no session cookie), authenticated by the bearer
  * API key from that business's Settings page. See services/intakeService.ts
- * for the actual validation/rate-limit/spam/Airtable/notification logic;
+ * for the actual validation/rate-limit/spam/database/notification logic;
  * this handler only adapts HTTP <-> that service.
  */
 

@@ -3,7 +3,7 @@ const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
 /**
  * Read-only Gmail transport — deliberately separate from services/gmail.ts
  * (which only ever sends) to keep send/read concerns split. Pure transport:
- * no Airtable, no matching/dedup logic, no orchestration.
+ * no database writes, no matching/dedup logic, no orchestration.
  */
 
 interface GmailHeader {

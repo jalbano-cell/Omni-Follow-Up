@@ -1,6 +1,6 @@
 import { createEvent, deleteEvent } from "@/services/calendar";
 import { refreshAccessToken } from "@/services/googleOAuth";
-import { updateFollowUp } from "@/services/airtable";
+import { updateFollowUp } from "@/services/db";
 import { getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";

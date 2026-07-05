@@ -8,21 +8,21 @@ This is **not** a CRM or a website builder — see [CLAUDE.md](./CLAUDE.md) for 
 
 ## Stack
 
-Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Recharts (revenue trend) · Airtable (data store) · Gmail API (outbound email + reply reading) · Google Calendar API (reminders) · Google OAuth (self-serve per-tenant connection) · Vercel-ready
+Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Recharts (revenue trend) · Supabase/Postgres (data store) · Google Gemini (AI Lead Intelligence, acknowledgment/booking) · Gmail API (outbound email + reply reading) · Google Calendar API (reminders + appointment booking) · Google OAuth (self-serve per-tenant connection) · Vercel-ready
 
 ## Getting started
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in your Airtable/auth/Google credentials
+cp .env.example .env.local   # fill in your Supabase/auth/Google credentials
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you'll land on `/login` (or `/signup` to create the first account, which walks straight into the onboarding wizard). Without Airtable configured, every data page shows a friendly "not connected" state instead of crashing.
+Open [http://localhost:3000](http://localhost:3000) — you'll land on `/login` (or `/signup` to create the first account, which walks straight into the onboarding wizard). Without Supabase configured, every data page shows a friendly "not connected" state instead of crashing.
 
 ### Accounts
 
-Each business has its own account: email + password, stored in the `Businesses` Airtable table (`passwordHash` via Node's `scrypt`, never the plaintext). Sign up at `/signup`, sign in at `/login` (password field has a show/hide toggle). Sessions are a signed JWT (`lib/auth.ts`, via `jose`) in an httpOnly cookie, verified both by `middleware.ts` (Edge runtime — redirects to `/login` if missing/invalid) and independently by `lib/session.ts` on every page/action that needs to know *which* business is asking. Set:
+Each business has its own account: email + password, stored in the `workspaces` table (`password_hash` via Node's `scrypt`, never the plaintext). Sign up at `/signup`, sign in at `/login` (password field has a show/hide toggle). Sessions are a signed JWT (`lib/auth.ts`, via `jose`) in an httpOnly cookie, verified both by `middleware.ts` (Edge runtime — redirects to `/login` if missing/invalid) and independently by `lib/session.ts` on every page/action that needs to know *which* business is asking. Set:
 
 ```
 AUTH_SECRET=<openssl rand -hex 32>
@@ -41,41 +41,43 @@ A new signup is redirected straight into a short wizard before it can reach the 
 
 Everything set during onboarding can be changed later in Settings.
 
-### Airtable setup
+### Database (Supabase)
 
-Create a base with seven tables:
+Postgres via Supabase is the single data store for the whole app — every tenant's data lives in the same project, scoped by a `workspace_id` column (application-level tenant isolation, not Postgres RLS; see CLAUDE.md's Database section for why). Schema lives in `supabase/migrations/*.sql`:
 
-**Businesses** (the tenant root — one record per signed-up business)
-`businessName`, `ownerName`, `ownerEmail`, `passwordHash` (long text), `followUpCadenceSentDays`/`followUpCadenceFollowUp1Days`/`followUpCadenceFollowUp2Days` (number, optional per-business cadence override), `onboardingStep` (number), `onboardingCompletedAt` (date w/ time), `googleRefreshTokenEnc` (long text — AES-256-GCM encrypted, never plaintext), `googleConnectedEmail` (text), `googleScopes` (long text), `googleConnectedAt` (date w/ time), `calendarId` (text, optional — defaults to `"primary"` when blank), `createdAt` (date w/ time), `intakeApiKey` (text — bearer token for `POST /api/intake`, generated automatically on signup), `intakeApiKeyCreatedAt` (date w/ time)
+**workspaces** (the tenant root — one row per signed-up business)
+`business_name`, `owner_name`, `owner_email`, `password_hash`, `follow_up_cadence_sent_days`/`follow_up_cadence_followup1_days`/`follow_up_cadence_followup2_days` (optional per-business cadence override), `onboarding_step`, `onboarding_completed_at`, `google_refresh_token_enc` (AES-256-GCM encrypted, never plaintext), `google_connected_email`, `google_scopes`, `google_connected_at`, `calendar_id` (optional — defaults to `"primary"` when blank), `industry`, `timezone`, `working_hours_start`/`working_hours_end`, `email_signature`, `intake_api_key` (bearer token for `POST /api/intake`, generated automatically on signup), `intake_api_key_created_at`, `created_at`
 
-**Estimates**
-`businessId` (text — Airtable record ID of the owning business), `customerName`, `customerEmail`, `businessName`, `serviceType`, `estimateValue` (number), `dateSent` (date), `status` (single select: Sent, Follow-up 1, Follow-up 2, Booked, Lost), `nextFollowUpDate` (date), `lastContactDate` (date), `notes` (long text), `gmailThreadId` (text), `gmailLastMessageId` (text)
+**users** — `email`, `workspace_id`, `role`, `created_at`. Schema prep for future multi-user/Supabase Auth support (see CLAUDE.md) — not wired into login yet; a business still authenticates directly against its own `workspaces.password_hash`.
 
-**FollowUps**
-`businessId` (text), `estimateId` (text — Airtable record ID of the linked estimate), `message` (long text), `status` (single select: Pending, Approved, Sent, Rejected, Failed), `scheduledDate` (date), `sentAt` (date with time), `calendarEventId` (text — the reminder event's Google Calendar ID, cleared once sent/skipped)
+**leads** (every inbound business inquiry — today, always captured via `POST /api/intake`)
+`workspace_id`, `lead_id` (human-readable unique ID, e.g. `LEAD-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `service`, `message`, `status` (New Inquiry/Converted/Archived), `source` (always `"Website"` today), `created_at`, `last_activity_at` (bumped on every ActivityLog entry for this lead), `ip_address`, `user_agent`, `converted_estimate_id` (set once "Convert to Estimate" creates an Estimate from this lead), `assigned_to` (free text, no team/user roster exists yet), `internal_notes` (a single running log, newest entry first), `updated_at`. AI Lead Intelligence fields (populated automatically by `services/aiInsightsService.ts`, see below): `ai_summary`, `ai_category`, `ai_priority` (High/Medium/Low), `ai_priority_reason`, `ai_opportunity_value_range` (a rough range, never a precise figure), `ai_opportunity_confidence`, `suggested_next_action`, `ai_response_urgency` (Today/24 hours/3 days/1 week), `ai_response_urgency_reason`, `ai_generated_at`, `ai_status` (pending/completed/failed/dismissed).
 
-**Replies**
-`businessId` (text), `estimateId` (text), `gmailMessageId` (text), `gmailThreadId` (text), `fromEmail` (text), `subject` (text), `snippet` (long text), `bodyText` (long text), `receivedAt` (date w/ time), `isRead` (checkbox)
+**estimates** — `workspace_id`, `lead_id` (nullable FK), `customer_name`, `customer_email`, `business_name`, `service_type`, `value`, `status` (Sent/Follow-up 1/Follow-up 2/Booked/Lost), `date_sent`, `next_followup_date`, `last_contact_date`, `notes`, `gmail_thread_id`, `gmail_last_message_id`, `created_at`
 
-**Leads** (every inbound business inquiry — today, always captured via `POST /api/intake`)
-`businessId` (text), `leadId` (text — human-readable unique ID, e.g. `LEAD-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `requestedService`, `message` (long text), `status` (single select: New Inquiry, Converted, Archived), `leadSource` (text, always `"Website"` today), `createdTime` (date w/ time), `lastActivityAt` (date w/ time — bumped on every ActivityLog entry for this lead), `ipAddress` (text), `userAgent` (long text), `convertedEstimateId` (text — set once "Convert to Estimate" creates an Estimate from this lead), `assignedTo` (text — free text, no team/user roster exists yet), `internalNotes` (long text — a single running log, newest entry first). AI Lead Intelligence fields (populated automatically by `services/aiInsightsService.ts`, see below): `aiSummary` (long text), `aiCategory` (text), `aiPriority` (text: High/Medium/Low), `aiPriorityReason` (long text), `aiOpportunityValueRange` (text — a rough range, never a precise figure), `aiOpportunityConfidence` (long text), `suggestedNextAction` (text), `aiResponseUrgency` (text: Today/24 hours/3 days/1 week), `aiResponseUrgencyReason` (long text), `aiGeneratedAt` (date w/ time), `aiStatus` (text: pending/completed/failed/dismissed). Two now-unused fields, `_deprecated_priorityScore` and `_deprecated_suggestedFollowUpTiming`, remain on the table (Airtable's Meta API doesn't support field deletion) but are no longer read or written anywhere.
+**followups** — `workspace_id`, `estimate_id` (FK), `message`, `status` (Pending/Approved/Sent/Rejected/Failed), `scheduled_date`, `sent_at`, `calendar_event_id` (the reminder event's Google Calendar ID, cleared once sent/skipped), `created_at`
 
-**ActivityLog** (durable per-business/per-lead event trail — a Lead's Timeline and part of the dashboard's live activity feed)
-`businessId` (text), `leadId` (text), `type` (text — e.g. `lead.created`, `lead.converted`, `lead.archived`, `lead.assigned`, `lead.note_added`), `description` (text — human-readable, e.g. "New website inquiry received."), `createdAt` (date w/ time)
+**replies** — `workspace_id`, `estimate_id` (FK), `gmail_message_id`, `gmail_thread_id`, `from_email`, `subject`, `snippet`, `body_text`, `received_at`, `is_read`, `created_at`
 
-**Notifications** (in-app alerts for the business owner, surfaced via the header bell)
-`businessId` (text), `leadId` (text), `type` (text), `message` (text), `isRead` (checkbox), `createdAt` (date w/ time)
+**activity_logs** (durable per-workspace/per-lead event trail — a Lead's Timeline and part of the dashboard's live activity feed)
+`workspace_id`, `lead_id` (nullable FK), `action` (e.g. `lead.created`, `lead.converted`, `lead.archived`, `lead.assigned`, `lead.note_added`), `description` (human-readable, e.g. "New website inquiry received."), `metadata` (jsonb, currently unused), `created_at`
 
-`businessId` on Estimates/FollowUps/Replies/Leads/ActivityLog/Notifications is a plain text field, not a linked-record field — matching the existing precedent that `estimateId` on FollowUps is already a plain string. Every tenant-scoped read/write in `services/airtable.ts` takes `businessId` as an explicit parameter and filters by it; direct-id lookups additionally verify the fetched record's `businessId` matches before returning it.
+**notifications** (in-app alerts for the business owner, surfaced via the header bell)
+`workspace_id`, `lead_id` (nullable FK), `type`, `message`, `is_read`, `created_at`
 
-Generate a Personal Access Token at [airtable.com/create/tokens](https://airtable.com/create/tokens) with `data.records:read`, `data.records:write`, and `schema.bases:write` scopes on that base, then set:
+Every tenant-scoped read/write in `services/db.ts`/`services/business.ts` takes `businessId` as an explicit parameter and filters by `workspace_id`; direct-id lookups additionally verify the fetched row's `workspace_id` matches before returning it. RLS is off — this isolation is enforced entirely in application code, since every access goes through the server-only service_role key (see CLAUDE.md).
+
+Set up a project at [supabase.com](https://supabase.com), then:
 
 ```
-AIRTABLE_API_KEY=pat...
-AIRTABLE_BASE_ID=app...
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...      # "publishable" key
+SUPABASE_SERVICE_ROLE_KEY=...          # "secret" key — server only, never expose client-side
 ```
 
-This one Airtable base is shared deployment-level infrastructure across every tenant — not per-business configuration.
+Link the Supabase CLI (`brew install supabase/tap/supabase`, `supabase login`, `supabase link --project-ref <project-ref>`) and apply the schema with `supabase db push` — it walks through every file in `supabase/migrations/` in order. After any schema change, regenerate the TypeScript types: `supabase gen types typescript --linked > types/supabase.ts`.
+
+This one Supabase project is shared deployment-level infrastructure across every tenant — not per-business configuration.
 
 ### Google connection (Gmail + Calendar)
 
@@ -92,7 +94,7 @@ One Google Cloud OAuth client serves every tenant's self-serve consent flow — 
    TOKEN_ENCRYPTION_KEY=<openssl rand -hex 32>
    ```
 
-A business clicks "Connect Google Account" (in onboarding or Settings) → `/api/oauth/google/start` builds a signed state token and redirects to Google's consent screen → `/api/oauth/google/callback` exchanges the code, reads the connected email via the Gmail profile endpoint, encrypts the refresh token (`lib/crypto.ts`, AES-256-GCM) and saves it on the `Businesses` record. `services/gmail.ts`, `services/googleOAuth.ts`, and `services/calendar.ts` are pure transport — no Airtable/orchestration knowledge; `services/followupSender.ts` decrypts the token, refreshes an access token per send (no caching, simplest correct thing for this volume), and clears the connection (prompting reconnect) if Google reports `invalid_grant` (the business revoked access).
+A business clicks "Connect Google Account" (in onboarding or Settings) → `/api/oauth/google/start` builds a signed state token and redirects to Google's consent screen → `/api/oauth/google/callback` exchanges the code, reads the connected email via the Gmail profile endpoint, encrypts the refresh token (`lib/crypto.ts`, AES-256-GCM) and saves it on the `workspaces` row. `services/gmail.ts`, `services/googleOAuth.ts`, and `services/calendar.ts` are pure transport — no database/orchestration knowledge; `services/followupSender.ts` decrypts the token, refreshes an access token per send (no caching, simplest correct thing for this volume), and clears the connection (prompting reconnect) if Google reports `invalid_grant` (the business revoked access).
 
 ### AI Lead Intelligence
 
@@ -102,19 +104,9 @@ GEMINI_API_KEY=...
 ```
 Optional in the sense that the app runs fine without it — leads just stay `aiStatus: "pending"`/"failed" and the Lead Details page shows "Not available" instead of AI insights.
 
-### Supabase (migration in progress)
-
-OmniFollowUp is migrating its backend data layer from Airtable to Supabase, table-by-table, dual-write first — see CLAUDE.md's "Supabase migration" section for the full status and architecture. Set:
-```
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...      # "publishable" key
-SUPABASE_SERVICE_ROLE_KEY=...         # "secret" key — server only, never expose client-side
-```
-Schema lives in `supabase/migrations/*.sql`. The Supabase CLI is linked (`supabase link --project-ref pqdlqlpesmoxklvalwgr`) — apply a new migration with `supabase db push`, and regenerate `types/supabase.ts` afterward with `supabase gen types typescript --linked > types/supabase.ts`. Right now only newly-created Leads are mirrored into Supabase (best-effort, after Airtable's write succeeds) — everything else (Estimates, FollowUps, Replies, Businesses, and every Lead action past creation) is still Airtable-only.
-
 ### Calendar reminders (output-only)
 
-`services/calendarReminders.ts` creates a 15-minute Calendar event (9am `APP_TIMEZONE` on the follow-up's `scheduledDate`, on the business's `calendarId` — "primary" unless overridden) the moment a follow-up is drafted, nudging the owner to go review it in the Follow-up Queue. It's deleted once the follow-up sends or is skipped. This is purely an internal reminder — it never reads the connected calendar's existing events/availability and never creates anything customer-facing. Every call is wrapped so a Calendar API failure is logged and swallowed, never blocking the drafting/sending/skipping action it's attached to.
+`services/calendarReminders.ts` creates a 15-minute Calendar event (9am `APP_TIMEZONE` on the follow-up's `scheduledDate`, on the business's `calendarId` — "primary" unless overridden) the moment a follow-up is drafted, nudging the owner to go review it in the Follow-up Queue. It's deleted once the follow-up sends or is skipped. This is purely an internal reminder — it never reads the connected calendar's existing events/availability and never creates anything customer-facing. Every call is wrapped so a Calendar API failure is logged and swallowed, never blocking the drafting/sending/skipping action it's attached to. (Separately, `services/appointmentBooking.ts` *does* read availability and book real customer-facing appointments — see "Automatic appointment booking" below. That's a deliberate, narrow exception; this file stays output-only.)
 
 ### Reply inbox
 
@@ -143,9 +135,9 @@ Content-Type: application/json
 3. Sends a "New Website Inquiry" notification email (customer details, requested service, full message, submission timestamp, and the Lead ID) to the business's own inbox via its already-connected Gmail account (`services/gmail.ts`) — skipped (logged, not thrown) if Google isn't connected yet.
 4. Runs AI Lead Intelligence (see below), then sends an automatic acknowledgment email to the *customer* — see "Automatic lead acknowledgment" below. This is the one email in the product that sends with no human approval.
 
-Every attempt — success or failure — is logged via `logIntakeAudit` (console + best-effort `/logs/intake/*.jsonl`), independent of whether the Airtable write itself succeeded, so a submission is never silently lost even if it didn't reach the dashboard.
+Every attempt — success or failure — is logged via `logIntakeAudit` (console + best-effort `/logs/intake/*.jsonl`), independent of whether the database write itself succeeded, so a submission is never silently lost even if it didn't reach the dashboard.
 
-New leads show up immediately (live Airtable read, no cache) on the dashboard's **New Leads** card/banner and on `/leads`, where each one can be **Viewed** (full Lead Details page), **Assigned** (free-text, no team roster yet), **Converted to Estimate** (prefills the New Estimate form with the lead's name/email/service/message, then marks the lead `Converted` with `convertedEstimateId` set once the estimate is saved), or **Archived**. Converting is always an explicit human action — nothing here ever auto-creates an Estimate.
+New leads show up immediately (live database read, no cache) on the dashboard's **New Leads** card/banner and on `/leads`, where each one can be **Viewed** (full Lead Details page), **Assigned** (free-text, no team roster yet), **Converted to Estimate** (prefills the New Estimate form with the lead's name/email/service/message, then marks the lead `Converted` with `convertedEstimateId` set once the estimate is saved), or **Archived**. Converting is always an explicit human action — nothing here ever auto-creates an Estimate.
 
 #### Automatic lead acknowledgment (no approval — see CLAUDE.md)
 
@@ -204,7 +196,7 @@ The queue (`/follow-ups`) is the only path to sending an email — the daily cro
 
 1. **Draft** (`Pending`) — Approve, Edit, or Skip.
 2. **Approved** — Edit is still available; **Send Email** is the only new action. Skip is still available to bail out.
-3. `services/followupSender.ts` (`sendApprovedFollowUp`) decrypts the business's Google refresh token, sends via `services/gmail.ts`, then syncs Airtable: FollowUps gets `status: "Sent"` + `sentAt`; the Estimate advances (`Sent` → `Follow-up 1` → `Follow-up 2`, cadence read from the business's own `followUpCadence*Days` fields, falling back to `DEFAULT_FOLLOW_UP_CADENCE_DAYS`) and records the Gmail `threadId`/RFC 822 `Message-Id` so the *next* follow-up replies in the same thread. Follow-up 2 is the last automated stage — after it sends, `nextFollowUpDate` is cleared.
+3. `services/followupSender.ts` (`sendApprovedFollowUp`) decrypts the business's Google refresh token, sends via `services/gmail.ts`, then syncs the database: FollowUps gets `status: "Sent"` + `sentAt`; the Estimate advances (`Sent` → `Follow-up 1` → `Follow-up 2`, cadence read from the business's own `followUpCadence*Days` fields, falling back to `DEFAULT_FOLLOW_UP_CADENCE_DAYS`) and records the Gmail `threadId`/RFC 822 `Message-Id` so the *next* follow-up replies in the same thread. Follow-up 2 is the last automated stage — after it sends, `nextFollowUpDate` is cleared.
 4. If the Gmail send throws, it's retried once. If Google reports `invalid_grant` (access revoked), the connection is cleared immediately and the business is told to reconnect — no point retrying a dead token. Otherwise, if the retry also fails, the FollowUps record is marked **Failed** (the drafted `message` is never touched or lost) and the queue shows **Retry Send**. Every attempt is logged via `logAction`.
 5. It can only run against a follow-up that's `Approved` or `Failed`, and only if the business has a connected Google account — so there's no code path that sends without a human approving first, or without the business having explicitly connected Gmail.
 
@@ -212,15 +204,15 @@ The queue (`/follow-ups`) is the only path to sending an email — the daily cro
 
 Vercel Cron schedules are always UTC, but the target is 8am **America/Toronto**, which shifts between EDT (UTC-4) and EST (UTC-5) across the year. Rather than needing a manual schedule edit twice a year, `vercel.json` fires the endpoint at both **12:00 and 13:00 UTC**, and the route itself (`app/api/follow-ups/generate/route.ts`) checks the actual current hour in `America/Toronto` and no-ops unless it's 8am there — so exactly one of the two invocations does anything on any given day, year-round. Cron only runs once a project is deployed to Vercel; it does nothing in local dev.
 
-Each run loops over every business — one tenant's Airtable error is caught and logged without aborting the run for everyone else — and produces one `DailyRunLog` per business (estimates checked, follow-ups created, errors) that's always printed to the console (the durable record in Vercel's function logs) and, best-effort, written to `/logs/daily-run/<date>-<businessId>.json` for local inspection. That directory write is skipped silently in production, where Vercel's filesystem is read-only outside `/tmp`. The same invocation also runs `services/replyMatcher.ts`'s `runDailyReplySyncJob` for every business, so the response includes both `followUps` and `replySync` logs.
+Each run loops over every business — one tenant's database error is caught and logged without aborting the run for everyone else — and produces one `DailyRunLog` per business (estimates checked, follow-ups created, errors) that's always printed to the console (the durable record in Vercel's function logs) and, best-effort, written to `/logs/daily-run/<date>-<businessId>.json` for local inspection. That directory write is skipped silently in production, where Vercel's filesystem is read-only outside `/tmp`. The same invocation also runs `services/replyMatcher.ts`'s `runDailyReplySyncJob` for every business, so the response includes both `followUps` and `replySync` logs.
 
 To restrict who can trigger the cron endpoint, set `CRON_SECRET` as a project environment variable — Vercel automatically sends it as a bearer token on its own cron requests.
 
-Manual approve/edit/skip/send actions and estimate status changes are also logged to the console via `lib/logger.ts`'s `logAction`, giving a lightweight audit trail without adding new Airtable tables.
+Manual approve/edit/skip/send actions and estimate status changes are also logged to the console via `lib/logger.ts`'s `logAction`, giving a lightweight audit trail without adding new tables.
 
 ## Known limitations at this stage
 
-- **Airtable's 5 req/sec-per-base rate limit is shared across every tenant** (one base for the whole SaaS), and its ~50,000-record cap is likewise shared. Fine for early usage; worth planning an eventual move to a per-tenant-isolated store (e.g. Postgres) if signup volume grows.
+- **One shared Supabase project across every tenant** — connection pool limits and Postgres row counts are shared, not per-business. Fine for early usage; the usual Postgres scaling levers (connection pooling, read replicas, eventually sharding) apply if signup volume grows.
 - **No email verification on signup.**
 - **`gmail.readonly` requires Google's sensitive-scope app verification** before the consent screen works for real external users beyond manually-added test accounts — start that review process well before a public launch.
 - **`TOKEN_ENCRYPTION_KEY` is a single global secret** — losing or rotating it without a re-encryption migration means every business must reconnect Google.
@@ -228,7 +220,6 @@ Manual approve/edit/skip/send actions and estimate status changes are also logge
 - **The intake notification email requires the business to have already connected Google** — if it hasn't, the lead still saves and appears on the dashboard, but no "New Website Inquiry" email goes out (silently skipped, logged).
 - **`assignedTo` on a Lead is free text, not a real assignment** — there's no team/user-member roster in this product yet (each business is a single login). Treat it as a label, not an access-control or notification-routing mechanism.
 - **AI Lead Intelligence (`services/aiInsightsService.ts`) requires `GEMINI_API_KEY`** — without it, every lead's analysis fails gracefully (`aiStatus: "failed"`, no fabricated values) and the Lead Details page shows "Not available." One Gemini call per lead, run synchronously during intake — no batching, retry queue, or cost controls yet beyond the intake rate limiter.
-- **The Supabase migration is mid-flight (dual-write, Lead creation only)** — Airtable is still authoritative and still the only thing any page reads from. A newly created Lead gets mirrored into Supabase best-effort; anything that happens to it afterward (archive/assign/note/convert/AI edit/dismiss/regenerate) does not yet sync, so Supabase's copy goes stale after creation. There's also no DB-level unique constraint on `workspaces.airtable_record_id` yet, so two truly concurrent first-ever intake requests for a brand-new business could theoretically create two workspace rows. See CLAUDE.md's "Supabase migration" section before building on top of the Supabase tables.
 - **The automatic lead acknowledgment email sends with no human review** — deliberately, but worth knowing: anyone who submits the public intake form gets an AI-generated email addressed to whatever address they typed in, from the business's real Gmail account. The intake rate limiter (8 requests/10 min per business+IP) is the only abuse mitigation, same as any public contact-form auto-responder. The prompt (`services/aiInsightsService.ts`'s `generateLeadAcknowledgment`) is constrained to never quote prices, promise specific timing, or invent facts — but it's still unreviewed model output going to a real customer.
 - **Automatic appointment booking (`services/appointmentBooking.ts`) also sends with no human review** — same risk profile as above, plus it creates a real Calendar event and invites whatever email address the lead submitted. Requires the Calendar API enabled on the Google Cloud project (a separate step from the OAuth scope — see "Google connection" above); silently no-ops otherwise. The alternate-time search is a simple greedy scan (30-min increments, business hours, up to 5 days, first 2 open slots found) — not optimized for anything beyond small-business scheduling volume.
 - **Gemini's free tier caps at 20 requests/day** for `gemini-2.5-flash`, and each lead now costs up to 3 calls (analysis, appointment parsing, acknowledgment generation) — roughly 6-7 leads/day before things start failing over to safe defaults (no analysis, no booking, generic acknowledgment; never a crash). A real launch needs a paid Gemini plan.
