@@ -1,4 +1,4 @@
-import type { EstimateStatus, FollowUpStatus } from "@/types";
+import type { EstimateStatus, FollowUpStatus, InquiryStatus } from "@/types";
 
 /** Single deployment-wide timezone — used for the cron's local-hour check and Calendar reminder times. */
 export const APP_TIMEZONE = "America/Toronto";
@@ -90,4 +90,15 @@ export const STATUS_BADGE_VARIANT: Record<EstimateStatus, "default" | "secondary
   "Follow-up 2": "warning",
   Booked: "success",
   Lost: "destructive",
+};
+
+/** Source label recorded on every Inquiry created via POST /api/intake. */
+export const INQUIRY_SOURCE = "Website";
+
+export const INQUIRY_STATUSES: InquiryStatus[] = ["New Inquiry", "Converted", "Archived"];
+
+export const INQUIRY_STATUS_BADGE_VARIANT: Record<InquiryStatus, "default" | "secondary" | "success" | "warning" | "destructive"> = {
+  "New Inquiry": "warning",
+  Converted: "success",
+  Archived: "secondary",
 };

@@ -1,5 +1,5 @@
 import Airtable, { type FieldSet, type Record as AirtableRecord } from "airtable";
-import { AIRTABLE_TABLES, ESTIMATE_FIELDS, FOLLOWUP_FIELDS, REPLY_FIELDS } from "@/config/airtable";
+import { AIRTABLE_TABLES, ESTIMATE_FIELDS, FOLLOWUP_FIELDS, REPLY_FIELDS, INQUIRY_FIELDS } from "@/config/airtable";
 import { OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { env } from "@/lib/env";
 import { todayIso } from "@/lib/date";
@@ -8,12 +8,15 @@ import type {
   EstimateStatus,
   FollowUp,
   FollowUpStatus,
+  Inquiry,
   NewEstimateInput,
   NewFollowUpInput,
+  NewInquiryInput,
   NewReplyInput,
   Reply,
   UpdateEstimateInput,
   UpdateFollowUpInput,
+  UpdateInquiryInput,
 } from "@/types";
 
 function getBase() {
@@ -58,6 +61,26 @@ function toFollowUp(record: AirtableRecord<FieldSet>): FollowUp {
     scheduledDate: (record.get(FOLLOWUP_FIELDS.scheduledDate) as string) ?? "",
     sentAt: (record.get(FOLLOWUP_FIELDS.sentAt) as string) ?? null,
     calendarEventId: (record.get(FOLLOWUP_FIELDS.calendarEventId) as string) ?? null,
+  };
+}
+
+function toInquiry(record: AirtableRecord<FieldSet>): Inquiry {
+  return {
+    id: record.id,
+    businessId: (record.get(INQUIRY_FIELDS.businessId) as string) ?? "",
+    inquiryId: (record.get(INQUIRY_FIELDS.inquiryId) as string) ?? "",
+    name: (record.get(INQUIRY_FIELDS.name) as string) ?? "",
+    email: (record.get(INQUIRY_FIELDS.email) as string) ?? "",
+    phone: (record.get(INQUIRY_FIELDS.phone) as string) ?? "",
+    company: (record.get(INQUIRY_FIELDS.company) as string) ?? "",
+    service: (record.get(INQUIRY_FIELDS.service) as string) ?? "",
+    message: (record.get(INQUIRY_FIELDS.message) as string) ?? "",
+    status: ((record.get(INQUIRY_FIELDS.status) as Inquiry["status"]) ?? "New Inquiry"),
+    source: (record.get(INQUIRY_FIELDS.source) as string) ?? "Website",
+    submittedAt: (record.get(INQUIRY_FIELDS.submittedAt) as string) ?? "",
+    ipAddress: (record.get(INQUIRY_FIELDS.ipAddress) as string) ?? null,
+    userAgent: (record.get(INQUIRY_FIELDS.userAgent) as string) ?? null,
+    convertedEstimateId: (record.get(INQUIRY_FIELDS.convertedEstimateId) as string) ?? null,
   };
 }
 
@@ -258,4 +281,74 @@ export async function markReplyRead(businessId: string, id: string): Promise<Rep
   }
   const record = await getBase()(AIRTABLE_TABLES.replies).update(id, { [REPLY_FIELDS.isRead]: true });
   return toReply(record);
+}
+
+export async function getInquiries(businessId: string): Promise<Inquiry[]> {
+  const records = await getBase()(AIRTABLE_TABLES.inquiries)
+    .select({
+      filterByFormula: `{${INQUIRY_FIELDS.businessId}} = '${escapeFormulaValue(businessId)}'`,
+      sort: [{ field: INQUIRY_FIELDS.submittedAt, direction: "desc" }],
+    })
+    .all();
+  return records.map(toInquiry);
+}
+
+/** Direct-id lookup — ownership verified against the fetched record, same rationale as getEstimate. */
+export async function getInquiry(businessId: string, id: string): Promise<Inquiry | null> {
+  try {
+    const record = await getBase()(AIRTABLE_TABLES.inquiries).find(id);
+    const inquiry = toInquiry(record);
+    return inquiry.businessId === businessId ? inquiry : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Count of unreviewed website inquiries — the live signal behind the dashboard's notification banner and sidebar badge. */
+export async function getNewInquiryCount(businessId: string): Promise<number> {
+  const inquiries = await getInquiries(businessId);
+  return inquiries.filter((i) => i.status === "New Inquiry").length;
+}
+
+/**
+ * Creates an Inquiry from a validated, sanitized website submission. Always
+ * "New Inquiry"/"Website" on creation — status only changes later via
+ * updateInquiry (Convert to Estimate / Archive).
+ */
+export async function createInquiry(
+  businessId: string,
+  inquiryId: string,
+  input: NewInquiryInput
+): Promise<Inquiry> {
+  const record = await getBase()(AIRTABLE_TABLES.inquiries).create({
+    [INQUIRY_FIELDS.businessId]: businessId,
+    [INQUIRY_FIELDS.inquiryId]: inquiryId,
+    [INQUIRY_FIELDS.name]: input.name,
+    [INQUIRY_FIELDS.email]: input.email,
+    [INQUIRY_FIELDS.phone]: input.phone ?? "",
+    [INQUIRY_FIELDS.company]: input.company ?? "",
+    [INQUIRY_FIELDS.service]: input.service ?? "",
+    [INQUIRY_FIELDS.message]: input.message,
+    [INQUIRY_FIELDS.status]: "New Inquiry",
+    [INQUIRY_FIELDS.source]: "Website",
+    [INQUIRY_FIELDS.submittedAt]: new Date().toISOString(),
+    [INQUIRY_FIELDS.ipAddress]: input.ipAddress ?? "",
+    [INQUIRY_FIELDS.userAgent]: input.userAgent ?? "",
+  });
+  return toInquiry(record);
+}
+
+export async function updateInquiry(businessId: string, id: string, input: UpdateInquiryInput): Promise<Inquiry> {
+  const existing = await getInquiry(businessId, id);
+  if (!existing) {
+    throw new Error("Inquiry not found for this business.");
+  }
+
+  const fields: FieldSet = {};
+  if (input.status !== undefined) fields[INQUIRY_FIELDS.status] = input.status;
+  if (input.convertedEstimateId !== undefined)
+    fields[INQUIRY_FIELDS.convertedEstimateId] = input.convertedEstimateId ?? undefined;
+
+  const record = await getBase()(AIRTABLE_TABLES.inquiries).update(id, fields);
+  return toInquiry(record);
 }

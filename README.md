@@ -43,10 +43,10 @@ Everything set during onboarding can be changed later in Settings.
 
 ### Airtable setup
 
-Create a base with four tables:
+Create a base with five tables:
 
 **Businesses** (the tenant root — one record per signed-up business)
-`businessName`, `ownerName`, `ownerEmail`, `passwordHash` (long text), `followUpCadenceSentDays`/`followUpCadenceFollowUp1Days`/`followUpCadenceFollowUp2Days` (number, optional per-business cadence override), `onboardingStep` (number), `onboardingCompletedAt` (date w/ time), `googleRefreshTokenEnc` (long text — AES-256-GCM encrypted, never plaintext), `googleConnectedEmail` (text), `googleScopes` (long text), `googleConnectedAt` (date w/ time), `calendarId` (text, optional — defaults to `"primary"` when blank), `createdAt` (date w/ time)
+`businessName`, `ownerName`, `ownerEmail`, `passwordHash` (long text), `followUpCadenceSentDays`/`followUpCadenceFollowUp1Days`/`followUpCadenceFollowUp2Days` (number, optional per-business cadence override), `onboardingStep` (number), `onboardingCompletedAt` (date w/ time), `googleRefreshTokenEnc` (long text — AES-256-GCM encrypted, never plaintext), `googleConnectedEmail` (text), `googleScopes` (long text), `googleConnectedAt` (date w/ time), `calendarId` (text, optional — defaults to `"primary"` when blank), `createdAt` (date w/ time), `intakeApiKey` (text — bearer token for `POST /api/intake`, generated automatically on signup), `intakeApiKeyCreatedAt` (date w/ time)
 
 **Estimates**
 `businessId` (text — Airtable record ID of the owning business), `customerName`, `customerEmail`, `businessName`, `serviceType`, `estimateValue` (number), `dateSent` (date), `status` (single select: Sent, Follow-up 1, Follow-up 2, Booked, Lost), `nextFollowUpDate` (date), `lastContactDate` (date), `notes` (long text), `gmailThreadId` (text), `gmailLastMessageId` (text)
@@ -56,6 +56,9 @@ Create a base with four tables:
 
 **Replies**
 `businessId` (text), `estimateId` (text), `gmailMessageId` (text), `gmailThreadId` (text), `fromEmail` (text), `subject` (text), `snippet` (long text), `bodyText` (long text), `receivedAt` (date w/ time), `isRead` (checkbox)
+
+**Inquiries** (raw website contact-form submissions, captured via `POST /api/intake`)
+`businessId` (text), `inquiryId` (text — human-readable unique ID, e.g. `INQ-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `service`, `message` (long text), `status` (single select: New Inquiry, Converted, Archived), `source` (text, always `"Website"` today), `submittedAt` (date w/ time), `ipAddress` (text), `userAgent` (long text), `convertedEstimateId` (text — set once "Convert to Estimate" creates an Estimate from this inquiry)
 
 `businessId` on Estimates/FollowUps/Replies is a plain text field, not a linked-record field — matching the existing precedent that `estimateId` on FollowUps is already a plain string. Every tenant-scoped read/write in `services/airtable.ts` takes `businessId` as an explicit parameter and filters by it; direct-id lookups additionally verify the fetched record's `businessId` matches before returning it.
 
@@ -95,6 +98,26 @@ A business clicks "Connect Google Account" (in onboarding or Settings) → `/api
 Sync runs once a day (piggybacked onto the same cron invocation as follow-up drafting — see below) plus on demand via the "Check for new replies" button on `/replies`. There's no real-time push; a 15-minute-or-faster sync would need its own Vercel Cron schedule, which risks exceeding Hobby-plan cron limits, so this stays request-driven for anything more immediate than once a day.
 
 **Known limitation:** a customer reply from a different email address, or one deep in an old part of a long thread, won't be matched — this is a deliberate v1 simplicity tradeoff (loosening the match would risk pulling in messages that aren't actually replies to that estimate), not a bug.
+
+### Website intake (`POST /api/intake`)
+
+Turns OmniFollowUp into the intake point for every inbound website lead, not just estimates you've already sent. A business's own website contact form (or any external form builder) posts directly to this endpoint — no session cookie, since the caller isn't logged in — authenticated by the business's own `intakeApiKey` (Settings → **Website intake API**, generated automatically on signup, copy/reveal/regenerate from there):
+
+```
+POST https://<your-domain>/api/intake
+Authorization: Bearer <intakeApiKey>
+Content-Type: application/json
+
+{ "name": "...", "email": "...", "phone": "...", "company": "...", "service": "...", "message": "..." }
+```
+
+`name`, `email`, and `message` are required; `phone`, `company`, and `service` are optional. `services/intakeService.ts` (all business logic, kept out of the route handler) validates and sanitizes every field (HTML/control-character stripping, length caps, email format), applies a honeypot spam check (an optional hidden `website` field — a non-empty value is silently treated as spam, responding as if it succeeded so a bot doesn't learn it was caught) and a best-effort in-memory rate limit (8 requests / 10 minutes per business+IP — resets on cold start, not a hard security boundary), then:
+
+1. Creates an `Inquiries` record (`status: "New Inquiry"`, a unique `inquiryId`, `source: "Website"`, `submittedAt`, and the requester's IP/User-Agent when available).
+2. Sends a "New Website Inquiry" notification email to the business's own inbox via its already-connected Gmail account (`services/gmail.ts`) — skipped (logged, not thrown) if Google isn't connected yet. Nothing is ever emailed to the customer from this endpoint.
+3. Logs every attempt — success or failure — via `logIntakeAudit` (console + best-effort `/logs/intake/*.jsonl`), independent of whether the Airtable write itself succeeded, so a submission is never silently lost even if it didn't reach the dashboard.
+
+New inquiries show up immediately (live Airtable read, no cache) on the dashboard's **New Website Inquiries** card/banner and on the dedicated `/inquiries` page, where each one can be **Viewed** (full detail), **Converted to Estimate** (prefills the New Estimate form with the inquiry's name/email/service/message, then marks the inquiry `Converted` with `convertedEstimateId` set once the estimate is saved), or **Archived**. Converting is always an explicit human action — nothing here ever auto-creates an Estimate.
 
 ### Analytics (`/analytics`)
 
@@ -142,3 +165,5 @@ Manual approve/edit/skip/send actions and estimate status changes are also logge
 - **No email verification on signup.**
 - **`gmail.readonly` requires Google's sensitive-scope app verification** before the consent screen works for real external users beyond manually-added test accounts — start that review process well before a public launch.
 - **`TOKEN_ENCRYPTION_KEY` is a single global secret** — losing or rotating it without a re-encryption migration means every business must reconnect Google.
+- **The intake rate limiter (`services/intakeService.ts`) is in-memory, per serverless instance** — a best-effort spam deterrent, not a hard limit; it resets on cold start and doesn't share state across concurrent instances. Move to a shared store (e.g. Upstash/Redis) if abuse becomes a real problem.
+- **The intake notification email requires the business to have already connected Google** — if it hasn't, the inquiry still saves and appears on the dashboard, but no "New Website Inquiry" email goes out (silently skipped, logged).

@@ -41,6 +41,10 @@ yarn-error.log*
 /logs/daily-run/*.json
 !/logs/daily-run/.gitkeep
 
+# intake audit logs are local dev artifacts — the durable record on Vercel is the function's console log
+/logs/intake/*.jsonl
+!/logs/intake/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

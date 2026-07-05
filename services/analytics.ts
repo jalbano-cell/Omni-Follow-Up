@@ -1,4 +1,4 @@
-import { getDueFollowUps, getEstimates, getFollowUps, getReplies } from "@/services/airtable";
+import { getDueFollowUps, getEstimates, getFollowUps, getInquiries, getReplies } from "@/services/airtable";
 import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { todayIso } from "@/lib/date";
 import type { EstimateStatus, Reply } from "@/types";
@@ -116,22 +116,23 @@ export async function getUpcomingFollowUps(businessId: string): Promise<Upcoming
 
 export interface ActivityItem {
   id: string;
-  type: "estimate" | "followup" | "reply";
+  type: "estimate" | "followup" | "reply" | "inquiry";
   timestamp: string;
   customerName: string;
   description: string;
 }
 
 /**
- * Merges recent Estimate/FollowUp/Reply timestamps into one feed, newest
- * first. Purely a read-time composition of existing records — no new table,
- * consistent with this file's "computed live" approach.
+ * Merges recent Estimate/FollowUp/Reply/Inquiry timestamps into one feed,
+ * newest first. Purely a read-time composition of existing records — no new
+ * table, consistent with this file's "computed live" approach.
  */
 export async function getRecentActivity(businessId: string, limit = 8): Promise<ActivityItem[]> {
-  const [estimates, followUps, replies] = await Promise.all([
+  const [estimates, followUps, replies, inquiries] = await Promise.all([
     getEstimates(businessId),
     getFollowUps(businessId),
     getReplies(businessId),
+    getInquiries(businessId),
   ]);
   const estimateById = new Map(estimates.map((e) => [e.id, e]));
 
@@ -163,6 +164,15 @@ export async function getRecentActivity(businessId: string, limit = 8): Promise<
       timestamp: reply.receivedAt,
       customerName: estimateById.get(reply.estimateId)?.customerName ?? "Unknown customer",
       description: "Customer replied",
+    });
+  }
+  for (const inquiry of inquiries) {
+    items.push({
+      id: `inquiry-${inquiry.id}`,
+      type: "inquiry",
+      timestamp: inquiry.submittedAt,
+      customerName: inquiry.name,
+      description: "Website inquiry received",
     });
   }
 

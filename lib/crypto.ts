@@ -32,3 +32,8 @@ export function decrypt(packed: string): string {
   const plaintext = Buffer.concat([decipher.update(Buffer.from(ciphertextHex, "hex")), decipher.final()]);
   return plaintext.toString("utf-8");
 }
+
+/** Generates a bearer-token secret (e.g. a business's POST /api/intake key) — random, not derived from anything reversible. */
+export function generateApiKey(): string {
+  return `ofu_live_${randomBytes(24).toString("hex")}`;
+}
