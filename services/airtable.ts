@@ -97,9 +97,16 @@ function toLead(record: AirtableRecord<FieldSet>): Lead {
     assignedTo: (record.get(LEAD_FIELDS.assignedTo) as string) ?? "",
     internalNotes: (record.get(LEAD_FIELDS.internalNotes) as string) ?? "",
     aiSummary: (record.get(LEAD_FIELDS.aiSummary) as string) ?? null,
-    priorityScore: (record.get(LEAD_FIELDS.priorityScore) as number) ?? null,
+    aiCategory: (record.get(LEAD_FIELDS.aiCategory) as string) ?? null,
+    aiPriority: (record.get(LEAD_FIELDS.aiPriority) as Lead["aiPriority"]) ?? null,
+    aiPriorityReason: (record.get(LEAD_FIELDS.aiPriorityReason) as string) ?? null,
+    aiOpportunityValueRange: (record.get(LEAD_FIELDS.aiOpportunityValueRange) as string) ?? null,
+    aiOpportunityConfidence: (record.get(LEAD_FIELDS.aiOpportunityConfidence) as string) ?? null,
     suggestedNextAction: (record.get(LEAD_FIELDS.suggestedNextAction) as string) ?? null,
-    suggestedFollowUpTiming: (record.get(LEAD_FIELDS.suggestedFollowUpTiming) as string) ?? null,
+    aiResponseUrgency: (record.get(LEAD_FIELDS.aiResponseUrgency) as Lead["aiResponseUrgency"]) ?? null,
+    aiResponseUrgencyReason: (record.get(LEAD_FIELDS.aiResponseUrgencyReason) as string) ?? null,
+    aiGeneratedAt: (record.get(LEAD_FIELDS.aiGeneratedAt) as string) ?? null,
+    aiStatus: ((record.get(LEAD_FIELDS.aiStatus) as Lead["aiStatus"]) ?? "pending"),
   };
 }
 
@@ -355,8 +362,9 @@ export async function getNewLeadCount(businessId: string): Promise<number> {
 /**
  * Creates a Lead from a validated, sanitized submission. Always
  * "New Inquiry"/"Website" on creation — status only changes later via
- * updateLead (Convert to Estimate / Archive). AI placeholder fields are left
- * null — see services/leadService.ts's getAiInsightsPlaceholder.
+ * updateLead (Convert to Estimate / Archive). AI fields start empty with
+ * aiStatus "pending" — services/leadService.ts's createLeadFromSubmission
+ * runs the real analysis (services/aiInsightsService.ts) right after.
  */
 export async function createLead(businessId: string, leadId: string, input: NewLeadInput): Promise<Lead> {
   const now = new Date().toISOString();
@@ -377,6 +385,7 @@ export async function createLead(businessId: string, leadId: string, input: NewL
     [LEAD_FIELDS.userAgent]: input.userAgent ?? "",
     [LEAD_FIELDS.assignedTo]: "",
     [LEAD_FIELDS.internalNotes]: "",
+    [LEAD_FIELDS.aiStatus]: "pending",
   });
   return toLead(record);
 }
@@ -394,6 +403,21 @@ export async function updateLead(businessId: string, id: string, input: UpdateLe
   if (input.assignedTo !== undefined) fields[LEAD_FIELDS.assignedTo] = input.assignedTo;
   if (input.internalNotes !== undefined) fields[LEAD_FIELDS.internalNotes] = input.internalNotes;
   if (input.lastActivityAt !== undefined) fields[LEAD_FIELDS.lastActivityAt] = input.lastActivityAt;
+  if (input.aiSummary !== undefined) fields[LEAD_FIELDS.aiSummary] = input.aiSummary ?? "";
+  if (input.aiCategory !== undefined) fields[LEAD_FIELDS.aiCategory] = input.aiCategory ?? "";
+  if (input.aiPriority !== undefined) fields[LEAD_FIELDS.aiPriority] = input.aiPriority ?? "";
+  if (input.aiPriorityReason !== undefined) fields[LEAD_FIELDS.aiPriorityReason] = input.aiPriorityReason ?? "";
+  if (input.aiOpportunityValueRange !== undefined)
+    fields[LEAD_FIELDS.aiOpportunityValueRange] = input.aiOpportunityValueRange ?? "";
+  if (input.aiOpportunityConfidence !== undefined)
+    fields[LEAD_FIELDS.aiOpportunityConfidence] = input.aiOpportunityConfidence ?? "";
+  if (input.suggestedNextAction !== undefined)
+    fields[LEAD_FIELDS.suggestedNextAction] = input.suggestedNextAction ?? "";
+  if (input.aiResponseUrgency !== undefined) fields[LEAD_FIELDS.aiResponseUrgency] = input.aiResponseUrgency ?? "";
+  if (input.aiResponseUrgencyReason !== undefined)
+    fields[LEAD_FIELDS.aiResponseUrgencyReason] = input.aiResponseUrgencyReason ?? "";
+  if (input.aiGeneratedAt !== undefined) fields[LEAD_FIELDS.aiGeneratedAt] = input.aiGeneratedAt ?? undefined;
+  if (input.aiStatus !== undefined) fields[LEAD_FIELDS.aiStatus] = input.aiStatus;
 
   const record = await getBase()(AIRTABLE_TABLES.leads).update(id, fields);
   return toLead(record);

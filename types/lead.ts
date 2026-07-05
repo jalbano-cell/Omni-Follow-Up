@@ -1,5 +1,8 @@
 export type LeadStatus = "New Inquiry" | "Converted" | "Archived";
 
+/** Lifecycle of a Lead's AI analysis — see services/aiInsightsService.ts. */
+export type AiInsightsStatus = "pending" | "completed" | "failed" | "dismissed";
+
 /**
  * A business inquiry — today, always created via POST /api/intake (a website
  * contact form), but the shape is source-agnostic (see `leadSource`) so a
@@ -31,16 +34,46 @@ export interface Lead {
   assignedTo: string;
   /** Free-form internal notes, newest entry first, each prefixed with a timestamp by services/leadService.ts. */
   internalNotes: string;
-  // --- AI placeholders (STEP 9) — always null until a real model is wired up. Never fabricate values for these. ---
+  // --- AI Lead Intelligence — null until services/aiInsightsService.ts's analyzeLead populates them (or
+  // forever, if analysis fails). The business owner can edit or dismiss these; never fabricate a value here. ---
   aiSummary: string | null;
-  priorityScore: number | null;
+  /** e.g. "Website", "SEO", "Automation", "AI Agent", "Restaurant", "General Inquiry" — free text, not a closed enum. */
+  aiCategory: string | null;
+  aiPriority: "High" | "Medium" | "Low" | null;
+  aiPriorityReason: string | null;
+  /** A rough range only, e.g. "$2,000–$4,000" — never a single precise figure. */
+  aiOpportunityValueRange: string | null;
+  /** Explains how confident the range estimate is and why. */
+  aiOpportunityConfidence: string | null;
   suggestedNextAction: string | null;
-  suggestedFollowUpTiming: string | null;
+  aiResponseUrgency: "Today" | "24 hours" | "3 days" | "1 week" | null;
+  aiResponseUrgencyReason: string | null;
+  /** When analysis last completed — null while pending, unset if it has never run. */
+  aiGeneratedAt: string | null;
+  aiStatus: AiInsightsStatus;
 }
 
 export type NewLeadInput = Pick<Lead, "name" | "email" | "message"> &
   Partial<Pick<Lead, "phone" | "company" | "requestedService" | "ipAddress" | "userAgent">>;
 
 export type UpdateLeadInput = Partial<
-  Pick<Lead, "status" | "convertedEstimateId" | "assignedTo" | "internalNotes" | "lastActivityAt">
+  Pick<
+    Lead,
+    | "status"
+    | "convertedEstimateId"
+    | "assignedTo"
+    | "internalNotes"
+    | "lastActivityAt"
+    | "aiSummary"
+    | "aiCategory"
+    | "aiPriority"
+    | "aiPriorityReason"
+    | "aiOpportunityValueRange"
+    | "aiOpportunityConfidence"
+    | "suggestedNextAction"
+    | "aiResponseUrgency"
+    | "aiResponseUrgencyReason"
+    | "aiGeneratedAt"
+    | "aiStatus"
+  >
 >;

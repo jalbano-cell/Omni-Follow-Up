@@ -33,4 +33,8 @@ export const env = {
   get tokenEncryptionKey() {
     return requireEnv("TOKEN_ENCRYPTION_KEY");
   },
+  /** Optional — AI Lead Intelligence degrades to aiStatus="failed" (never fabricated) rather than requiring this. */
+  get geminiApiKey() {
+    return process.env.GEMINI_API_KEY;
+  },
 };

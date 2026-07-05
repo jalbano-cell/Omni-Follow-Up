@@ -10,6 +10,7 @@ import {
   createNotification,
 } from "@/services/airtable";
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
+import { analyzeLead } from "@/services/aiInsightsService";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -73,10 +74,11 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
 /**
  * Creates a Lead and everything that must happen alongside it: an
  * ActivityLog entry ("New website inquiry received."), an in-app
- * Notification, and a best-effort email to the business's own connected
- * Gmail. The Airtable write (createLead) is the one step the caller must
- * treat as authoritative — activity/notification/email are all best-effort
- * side effects that must never turn a saved lead into a failed response.
+ * Notification, a best-effort email to the business's own connected Gmail,
+ * and an automatic AI Lead Intelligence analysis. The Airtable write
+ * (createLead) is the one step the caller must treat as authoritative —
+ * activity/notification/email/analysis are all best-effort side effects
+ * that must never turn a saved lead into a failed response.
  */
 export async function createLeadFromSubmission(business: Business, input: NewLeadInput): Promise<Lead> {
   const leadId = generateLeadId();
@@ -99,6 +101,7 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
   }
 
   await sendLeadNotificationEmail(business, lead);
+  await analyzeLead(business.id, lead);
 
   return lead;
 }
@@ -144,30 +147,82 @@ export async function getNewLeadCount(businessId: string): Promise<number> {
 }
 
 export interface LeadAiInsights {
-  /** False until a real model is wired up — the UI must show this as "coming soon", never fabricate a value. */
-  available: boolean;
+  status: Lead["aiStatus"];
   summary: string | null;
-  priorityScore: number | null;
+  category: string | null;
+  priority: Lead["aiPriority"];
+  priorityReason: string | null;
+  opportunityValueRange: string | null;
+  opportunityConfidence: string | null;
   suggestedNextAction: string | null;
-  suggestedFollowUpTiming: string | null;
+  responseUrgency: Lead["aiResponseUrgency"];
+  responseUrgencyReason: string | null;
+  generatedAt: string | null;
 }
 
-/**
- * STEP 9 placeholder — every Lead is already shaped to carry
- * aiSummary/priorityScore/suggestedNextAction/suggestedFollowUpTiming (see
- * config/airtable.ts's LEAD_FIELDS), so wiring up a real model later is a
- * matter of populating those columns, not a schema change. This function is
- * the single seam a future AI integration replaces — until then it must
- * only ever report "not available," never guess.
- */
-export function getAiInsightsPlaceholder(lead: Lead): LeadAiInsights {
+/** Reads the AI Lead Intelligence fields straight off the Lead record — see services/aiInsightsService.ts for how they're populated. */
+export function toAiInsights(lead: Lead): LeadAiInsights {
   return {
-    available: false,
+    status: lead.aiStatus,
     summary: lead.aiSummary,
-    priorityScore: lead.priorityScore,
+    category: lead.aiCategory,
+    priority: lead.aiPriority,
+    priorityReason: lead.aiPriorityReason,
+    opportunityValueRange: lead.aiOpportunityValueRange,
+    opportunityConfidence: lead.aiOpportunityConfidence,
     suggestedNextAction: lead.suggestedNextAction,
-    suggestedFollowUpTiming: lead.suggestedFollowUpTiming,
+    responseUrgency: lead.aiResponseUrgency,
+    responseUrgencyReason: lead.aiResponseUrgencyReason,
+    generatedAt: lead.aiGeneratedAt,
   };
+}
+
+/** Hides the AI recommendations without deleting them — the business owner can restore them later. */
+export async function dismissAiInsights(businessId: string, id: string): Promise<Lead> {
+  const lead = await updateLead(businessId, id, { aiStatus: "dismissed" });
+  await logLeadActivity(businessId, id, "lead.ai_dismissed", "AI recommendations dismissed.");
+  return lead;
+}
+
+export async function restoreAiInsights(businessId: string, id: string): Promise<Lead> {
+  const lead = await updateLead(businessId, id, { aiStatus: "completed" });
+  await logLeadActivity(businessId, id, "lead.ai_restored", "AI recommendations restored.");
+  return lead;
+}
+
+export type UpdateAiInsightsInput = Partial<
+  Pick<
+    Lead,
+    | "aiCategory"
+    | "aiPriority"
+    | "aiPriorityReason"
+    | "aiOpportunityValueRange"
+    | "aiOpportunityConfidence"
+    | "suggestedNextAction"
+    | "aiResponseUrgency"
+    | "aiResponseUrgencyReason"
+  >
+>;
+
+/** The business owner correcting one or more AI-generated fields by hand — logged as an edit, not a fresh analysis. */
+export async function updateAiInsights(businessId: string, id: string, input: UpdateAiInsightsInput): Promise<Lead> {
+  const lead = await updateLead(businessId, id, input);
+  await logLeadActivity(businessId, id, "lead.ai_edited", "AI recommendations edited.");
+  return lead;
+}
+
+/** Manually re-runs AI Lead Intelligence (e.g. after a prior "failed" run) — same analyzeLead the intake flow calls automatically. */
+export async function regenerateAiInsights(businessId: string, id: string): Promise<Lead> {
+  const lead = await getLead(businessId, id);
+  if (!lead) {
+    throw new Error("Lead not found for this business.");
+  }
+  await analyzeLead(businessId, lead);
+  const updated = await getLead(businessId, id);
+  if (!updated) {
+    throw new Error("Lead not found for this business.");
+  }
+  return updated;
 }
 
 export interface LeadDetail {
@@ -203,6 +258,6 @@ export async function getLeadDetail(businessId: string, id: string): Promise<Lea
     linkedEstimate,
     conversation,
     upcomingFollowUps,
-    aiInsights: getAiInsightsPlaceholder(lead),
+    aiInsights: toAiInsights(lead),
   };
 }

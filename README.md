@@ -58,7 +58,7 @@ Create a base with seven tables:
 `businessId` (text), `estimateId` (text), `gmailMessageId` (text), `gmailThreadId` (text), `fromEmail` (text), `subject` (text), `snippet` (long text), `bodyText` (long text), `receivedAt` (date w/ time), `isRead` (checkbox)
 
 **Leads** (every inbound business inquiry — today, always captured via `POST /api/intake`)
-`businessId` (text), `leadId` (text — human-readable unique ID, e.g. `LEAD-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `requestedService`, `message` (long text), `status` (single select: New Inquiry, Converted, Archived), `leadSource` (text, always `"Website"` today), `createdTime` (date w/ time), `lastActivityAt` (date w/ time — bumped on every ActivityLog entry for this lead), `ipAddress` (text), `userAgent` (long text), `convertedEstimateId` (text — set once "Convert to Estimate" creates an Estimate from this lead), `assignedTo` (text — free text, no team/user roster exists yet), `internalNotes` (long text — a single running log, newest entry first), `aiSummary` (long text), `priorityScore` (number), `suggestedNextAction` (text), `suggestedFollowUpTiming` (text) — the last four are AI placeholders, always null until a real model is wired up (see `services/leadService.ts`'s `getAiInsightsPlaceholder`)
+`businessId` (text), `leadId` (text — human-readable unique ID, e.g. `LEAD-M3F2K1-A9C`), `name`, `email`, `phone`, `company`, `requestedService`, `message` (long text), `status` (single select: New Inquiry, Converted, Archived), `leadSource` (text, always `"Website"` today), `createdTime` (date w/ time), `lastActivityAt` (date w/ time — bumped on every ActivityLog entry for this lead), `ipAddress` (text), `userAgent` (long text), `convertedEstimateId` (text — set once "Convert to Estimate" creates an Estimate from this lead), `assignedTo` (text — free text, no team/user roster exists yet), `internalNotes` (long text — a single running log, newest entry first). AI Lead Intelligence fields (populated automatically by `services/aiInsightsService.ts`, see below): `aiSummary` (long text), `aiCategory` (text), `aiPriority` (text: High/Medium/Low), `aiPriorityReason` (long text), `aiOpportunityValueRange` (text — a rough range, never a precise figure), `aiOpportunityConfidence` (long text), `suggestedNextAction` (text), `aiResponseUrgency` (text: Today/24 hours/3 days/1 week), `aiResponseUrgencyReason` (long text), `aiGeneratedAt` (date w/ time), `aiStatus` (text: pending/completed/failed/dismissed). Two now-unused fields, `_deprecated_priorityScore` and `_deprecated_suggestedFollowUpTiming`, remain on the table (Airtable's Meta API doesn't support field deletion) but are no longer read or written anywhere.
 
 **ActivityLog** (durable per-business/per-lead event trail — a Lead's Timeline and part of the dashboard's live activity feed)
 `businessId` (text), `leadId` (text), `type` (text — e.g. `lead.created`, `lead.converted`, `lead.archived`, `lead.assigned`, `lead.note_added`), `description` (text — human-readable, e.g. "New website inquiry received."), `createdAt` (date w/ time)
@@ -92,6 +92,14 @@ One Google Cloud OAuth client serves every tenant's self-serve consent flow — 
    ```
 
 A business clicks "Connect Google Account" (in onboarding or Settings) → `/api/oauth/google/start` builds a signed state token and redirects to Google's consent screen → `/api/oauth/google/callback` exchanges the code, reads the connected email via the Gmail profile endpoint, encrypts the refresh token (`lib/crypto.ts`, AES-256-GCM) and saves it on the `Businesses` record. `services/gmail.ts`, `services/googleOAuth.ts`, and `services/calendar.ts` are pure transport — no Airtable/orchestration knowledge; `services/followupSender.ts` decrypts the token, refreshes an access token per send (no caching, simplest correct thing for this volume), and clears the connection (prompting reconnect) if Google reports `invalid_grant` (the business revoked access).
+
+### AI Lead Intelligence
+
+Powers `services/aiInsightsService.ts` (see "AI Lead Intelligence" under Lead Details below). Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and set:
+```
+GEMINI_API_KEY=...
+```
+Optional in the sense that the app runs fine without it — leads just stay `aiStatus: "pending"`/"failed" and the Lead Details page shows "Not available" instead of AI insights.
 
 ### Calendar reminders (output-only)
 
@@ -129,7 +137,20 @@ New leads show up immediately (live Airtable read, no cache) on the dashboard's 
 
 #### Lead Details page (`/leads/[id]`)
 
-Contact info, the original message plus any customer replies on the linked estimate's thread ("Conversation"), estimate status (or a Convert prompt if not yet converted), upcoming follow-ups for the linked estimate, internal notes (a running log — add one via the textarea, newest first), a full activity Timeline (every `ActivityLog` entry for this lead), and an **AI Insights** card. The AI card is a STEP-9-style placeholder: every Lead already carries `aiSummary`/`priorityScore`/`suggestedNextAction`/`suggestedFollowUpTiming` columns, but `services/leadService.ts`'s `getAiInsightsPlaceholder` only ever echoes whatever's already stored (always null today) and reports `available: false` — the card shows "Coming soon," never a fabricated value. Wiring up a real model later means replacing that one function, not changing the schema or page.
+Contact info, the original message plus any customer replies on the linked estimate's thread ("Conversation"), estimate status (or a Convert prompt if not yet converted), upcoming follow-ups for the linked estimate, internal notes (a running log — add one via the textarea, newest first), a full activity Timeline (every `ActivityLog` entry for this lead), and an **AI Insights** card.
+
+#### AI Lead Intelligence
+
+`services/aiInsightsService.ts`'s `analyzeLead` runs automatically the moment a lead is created (called from `leadService.ts`'s `createLeadFromSubmission`, right after the notification email), calling Gemini (`gemini-2.5-flash`, structured JSON output) with the lead's name/company/requested service/message. It writes back:
+
+- **Summary** — 2-3 sentences.
+- **Category** — prefers Website/SEO/Automation/AI Agent/Restaurant/General Inquiry but isn't a strictly closed list.
+- **Priority** — High/Medium/Low, with a one-sentence reason.
+- **Estimated opportunity value** — a rough range only (e.g. "$2,000-$4,000"), plus a confidence explanation.
+- **Suggested next action** — e.g. Schedule discovery call / Prepare proposal / Request more information / Refer elsewhere.
+- **Response urgency** — Today/24 hours/3 days/1 week, with a one-sentence reason.
+
+This is analysis and recommendation only — it never sends an email, never contacts the customer, and never changes the lead's status. It's best-effort: any failure (no `GEMINI_API_KEY` set, network error, malformed response) leaves the lead's AI fields untouched and sets `aiStatus: "failed"`, never a guessed value. On the Lead Details page the business owner can **Edit** any field, **Dismiss** the recommendations (hides them, doesn't delete — restorable anytime), or **Regenerate** (re-run analysis from scratch, e.g. after a failure). Every one of those actions is logged as its own ActivityLog entry.
 
 ### Analytics (`/analytics`)
 
@@ -180,4 +201,4 @@ Manual approve/edit/skip/send actions and estimate status changes are also logge
 - **The intake rate limiter (`services/intakeService.ts`) is in-memory, per serverless instance** — a best-effort spam deterrent, not a hard limit; it resets on cold start and doesn't share state across concurrent instances. Move to a shared store (e.g. Upstash/Redis) if abuse becomes a real problem.
 - **The intake notification email requires the business to have already connected Google** — if it hasn't, the lead still saves and appears on the dashboard, but no "New Website Inquiry" email goes out (silently skipped, logged).
 - **`assignedTo` on a Lead is free text, not a real assignment** — there's no team/user-member roster in this product yet (each business is a single login). Treat it as a label, not an access-control or notification-routing mechanism.
-- **The AI fields on a Lead (`aiSummary`, `priorityScore`, `suggestedNextAction`, `suggestedFollowUpTiming`) are placeholders** — always null, `getAiInsightsPlaceholder` never fabricates a value. No model is wired up yet.
+- **AI Lead Intelligence (`services/aiInsightsService.ts`) requires `GEMINI_API_KEY`** — without it, every lead's analysis fails gracefully (`aiStatus: "failed"`, no fabricated values) and the Lead Details page shows "Not available." One Gemini call per lead, run synchronously during intake — no batching, retry queue, or cost controls yet beyond the intake rate limiter.
