@@ -14,15 +14,36 @@ import { createEstimateAction } from "@/app/estimates/actions";
 import { SERVICE_TYPES } from "@/config/constants";
 import { todayIso } from "@/lib/date";
 
-export function EstimateForm({ onboarding = false }: { onboarding?: boolean }) {
+export interface EstimateFormPrefill {
+  inquiryId: string;
+  customerName: string;
+  customerEmail: string;
+  serviceType: string;
+  notes: string;
+}
+
+export function EstimateForm({
+  onboarding = false,
+  prefill,
+}: {
+  onboarding?: boolean;
+  prefill?: EstimateFormPrefill;
+}) {
   return (
     <Card className="max-w-xl py-6">
       <CardContent className="px-6">
         <form action={createEstimateAction} className="flex flex-col gap-5">
           {onboarding && <input type="hidden" name="onboarding" value="1" />}
+          {prefill && <input type="hidden" name="fromInquiry" value={prefill.inquiryId} />}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="customerName">Customer name</Label>
-            <Input id="customerName" name="customerName" placeholder="Jamie Rivera" required />
+            <Input
+              id="customerName"
+              name="customerName"
+              placeholder="Jamie Rivera"
+              defaultValue={prefill?.customerName}
+              required
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -32,6 +53,7 @@ export function EstimateForm({ onboarding = false }: { onboarding?: boolean }) {
               name="customerEmail"
               type="email"
               placeholder="jamie@email.com"
+              defaultValue={prefill?.customerEmail}
               required
             />
           </div>
@@ -39,7 +61,7 @@ export function EstimateForm({ onboarding = false }: { onboarding?: boolean }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="serviceType">Service type</Label>
-              <Select name="serviceType" defaultValue={SERVICE_TYPES[0]} required>
+              <Select name="serviceType" defaultValue={prefill?.serviceType ?? SERVICE_TYPES[0]} required>
                 <SelectTrigger id="serviceType" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -81,7 +103,13 @@ export function EstimateForm({ onboarding = false }: { onboarding?: boolean }) {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea id="notes" name="notes" placeholder="Any context worth remembering..." rows={3} />
+            <Textarea
+              id="notes"
+              name="notes"
+              placeholder="Any context worth remembering..."
+              defaultValue={prefill?.notes}
+              rows={3}
+            />
           </div>
 
           <div className="mt-1 flex justify-end">

@@ -30,6 +30,9 @@ export interface Business {
   /** Appended to the body of every outbound follow-up email when set. */
   emailSignature: string | null;
   createdAt: string;
+  /** Bearer-token secret for POST /api/intake — a website's contact form authenticates with this to identify the tenant. */
+  intakeApiKey: string | null;
+  intakeApiKeyCreatedAt: string | null;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;

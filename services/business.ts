@@ -7,6 +7,7 @@ import {
   DEFAULT_WORKING_HOURS_END,
 } from "@/config/constants";
 import { env } from "@/lib/env";
+import { generateApiKey } from "@/lib/crypto";
 import type { Business, NewBusinessInput, UpdateBusinessInput } from "@/types";
 
 function getBase() {
@@ -36,6 +37,8 @@ function toBusiness(record: AirtableRecord<FieldSet>): Business {
     workingHoursEnd: (record.get(BUSINESS_FIELDS.workingHoursEnd) as number) ?? null,
     emailSignature: (record.get(BUSINESS_FIELDS.emailSignature) as string) ?? null,
     createdAt: (record.get(BUSINESS_FIELDS.createdAt) as string) ?? "",
+    intakeApiKey: (record.get(BUSINESS_FIELDS.intakeApiKey) as string) ?? null,
+    intakeApiKeyCreatedAt: (record.get(BUSINESS_FIELDS.intakeApiKeyCreatedAt) as string) ?? null,
   };
 }
 
@@ -64,12 +67,17 @@ export async function getBusinessByEmail(email: string): Promise<Business | null
 }
 
 export async function createBusiness(input: NewBusinessInput): Promise<Business> {
+  const now = new Date().toISOString();
   const record = await getBase()(AIRTABLE_TABLES.businesses).create({
     [BUSINESS_FIELDS.businessName]: input.businessName,
     [BUSINESS_FIELDS.ownerName]: input.ownerName,
     [BUSINESS_FIELDS.ownerEmail]: input.ownerEmail,
     [BUSINESS_FIELDS.passwordHash]: input.passwordHash,
-    [BUSINESS_FIELDS.createdAt]: new Date().toISOString(),
+    [BUSINESS_FIELDS.createdAt]: now,
+    // Every business gets a working POST /api/intake key from the moment it signs up —
+    // no separate "enable website intake" step to remember.
+    [BUSINESS_FIELDS.intakeApiKey]: generateApiKey(),
+    [BUSINESS_FIELDS.intakeApiKeyCreatedAt]: now,
   });
   return toBusiness(record);
 }
@@ -104,9 +112,33 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.workingHoursEnd !== undefined)
     fields[BUSINESS_FIELDS.workingHoursEnd] = input.workingHoursEnd ?? undefined;
   if (input.emailSignature !== undefined) fields[BUSINESS_FIELDS.emailSignature] = input.emailSignature ?? undefined;
+  if (input.intakeApiKey !== undefined) fields[BUSINESS_FIELDS.intakeApiKey] = input.intakeApiKey ?? undefined;
+  if (input.intakeApiKeyCreatedAt !== undefined)
+    fields[BUSINESS_FIELDS.intakeApiKeyCreatedAt] = input.intakeApiKeyCreatedAt ?? undefined;
 
   const record = await getBase()(AIRTABLE_TABLES.businesses).update(id, fields);
   return toBusiness(record);
+}
+
+/**
+ * Looks up the tenant a POST /api/intake request belongs to by its bearer-token
+ * API key — this is the only way that endpoint identifies a business, since a
+ * public website form has no session cookie to carry a businessId.
+ */
+export async function getBusinessByIntakeApiKey(apiKey: string): Promise<Business | null> {
+  if (!apiKey) return null;
+  const records = await getBase()(AIRTABLE_TABLES.businesses)
+    .select({
+      filterByFormula: `{${BUSINESS_FIELDS.intakeApiKey}} = '${escapeFormulaValue(apiKey)}'`,
+      maxRecords: 1,
+    })
+    .all();
+  return records[0] ? toBusiness(records[0]) : null;
+}
+
+/** Issues a fresh intake API key, invalidating the previous one — used by the Settings "Regenerate key" action. */
+export async function rotateIntakeApiKey(id: string): Promise<Business> {
+  return updateBusiness(id, { intakeApiKey: generateApiKey(), intakeApiKeyCreatedAt: new Date().toISOString() });
 }
 
 /** Persists a freshly-connected (or reconnected) Google account's tokens/scopes. */

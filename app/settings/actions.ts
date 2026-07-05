@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateBusiness, clearGoogleConnection } from "@/services/business";
+import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey } from "@/services/business";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
@@ -88,5 +88,13 @@ export async function disconnectGoogleAction() {
   const businessId = await getCurrentBusinessId();
   await clearGoogleConnection(businessId);
   logAction("settings.google-disconnect", { businessId });
+  revalidatePath("/settings");
+}
+
+/** Issues a fresh POST /api/intake key, invalidating the previous one — any website still using the old key starts getting 401s. */
+export async function rotateIntakeApiKeyAction() {
+  const businessId = await getCurrentBusinessId();
+  await rotateIntakeApiKey(businessId);
+  logAction("settings.intake-key-rotate", { businessId });
   revalidatePath("/settings");
 }

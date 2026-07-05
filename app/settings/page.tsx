@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { IntakeKeyCard } from "@/components/settings/intake-key-card";
 import {
   Select,
   SelectContent,
@@ -37,6 +39,10 @@ export default async function SettingsPage({
   const { googleError } = await searchParams;
   const { email } = await getCurrentSession();
   const business = await requireOnboardedBusiness();
+
+  const host = (await headers()).get("host") ?? "localhost:3000";
+  const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+  const intakeEndpointUrl = `${protocol}://${host}/api/intake`;
 
   const airtableConfigured = Boolean(process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID);
   const googleConnected = Boolean(business.googleRefreshTokenEnc);
@@ -87,6 +93,8 @@ export default async function SettingsPage({
             </form>
           </CardContent>
         </Card>
+
+        <IntakeKeyCard apiKey={business.intakeApiKey} endpointUrl={intakeEndpointUrl} />
 
         <Card className="py-5">
           <CardHeader className="px-5">

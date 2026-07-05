@@ -37,3 +37,46 @@ export async function writeDailyRunLog(log: DailyRunLog): Promise<void> {
 export function logAction(action: string, detail: Record<string, unknown>): void {
   console.log(`[action] ${new Date().toISOString()} ${action}`, detail);
 }
+
+const INTAKE_LOG_DIR = path.join(process.cwd(), "logs", "intake");
+
+export type IntakeAuditResult =
+  | "success"
+  | "invalid_api_key"
+  | "rate_limited"
+  | "spam_blocked"
+  | "validation_failed"
+  | "airtable_failed";
+
+export interface IntakeAuditEntry {
+  timestamp: string;
+  businessId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  source: string;
+  result: IntakeAuditResult;
+  detail?: Record<string, unknown>;
+}
+
+/**
+ * Durable-as-possible record of every POST /api/intake attempt, independent
+ * of Airtable — this must still work when the Airtable write itself fails,
+ * since "log the failure, don't lose the submission" is the whole point.
+ * Always logs to console (captured by Vercel's function logs in production)
+ * and best-effort appends one JSON line per attempt under /logs/intake for
+ * local inspection, mirroring writeDailyRunLog's fallback-write pattern.
+ */
+export async function logIntakeAudit(entry: IntakeAuditEntry): Promise<void> {
+  console.log(
+    `[intake] ${entry.timestamp} business=${entry.businessId ?? "unknown"} ip=${entry.ip ?? "?"} result=${entry.result}`,
+    entry.detail ?? ""
+  );
+
+  try {
+    await fs.mkdir(INTAKE_LOG_DIR, { recursive: true });
+    const filename = `${entry.timestamp.slice(0, 10)}.jsonl`;
+    await fs.appendFile(path.join(INTAKE_LOG_DIR, filename), `${JSON.stringify(entry)}\n`);
+  } catch {
+    // Production filesystems (e.g. Vercel) are read-only outside /tmp — the console line above is the record there.
+  }
+}

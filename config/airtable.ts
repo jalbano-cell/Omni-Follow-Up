@@ -3,6 +3,7 @@ export const AIRTABLE_TABLES = {
   estimates: "Estimates",
   followUps: "FollowUps",
   replies: "Replies",
+  inquiries: "Inquiries",
 } as const;
 
 /** Airtable field names for the Businesses table (tenant root — one record per business). */
@@ -27,6 +28,9 @@ export const BUSINESS_FIELDS = {
   workingHoursEnd: "workingHoursEnd",
   emailSignature: "emailSignature",
   createdAt: "createdAt",
+  /** Bearer-token secret for POST /api/intake — looks up which business a website submission belongs to. */
+  intakeApiKey: "intakeApiKey",
+  intakeApiKeyCreatedAt: "intakeApiKeyCreatedAt",
 } as const;
 
 /** Airtable field names for the Estimates table, kept in one place so schema drift is a one-line fix. */
@@ -69,4 +73,22 @@ export const REPLY_FIELDS = {
   bodyText: "bodyText",
   receivedAt: "receivedAt",
   isRead: "isRead",
+} as const;
+
+/** Airtable field names for the Inquiries table (raw website contact-form submissions). */
+export const INQUIRY_FIELDS = {
+  businessId: "businessId",
+  inquiryId: "inquiryId",
+  name: "name",
+  email: "email",
+  phone: "phone",
+  company: "company",
+  service: "service",
+  message: "message",
+  status: "status",
+  source: "source",
+  submittedAt: "submittedAt",
+  ipAddress: "ipAddress",
+  userAgent: "userAgent",
+  convertedEstimateId: "convertedEstimateId",
 } as const;
