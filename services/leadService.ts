@@ -16,6 +16,7 @@ import { resolveAppointmentBooking } from "@/services/appointmentBooking";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
+import { AUTO_ACKNOWLEDGE_LEAD_SOURCES, type LeadSource } from "@/config/constants";
 import type { ActivityLogEntry, Business, Estimate, FollowUp, Lead, NewLeadInput, Reply } from "@/types";
 
 /**
@@ -87,8 +88,16 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
  * real Calendar event (customer invited) or resolved to open alternate
  * slots, both also done with no human approval, and the acknowledgment
  * reflects whichever outcome resulted.
+ *
+ * Only fires for real-time inbound sources (see AUTO_ACKNOWLEDGE_LEAD_SOURCES)
+ * — a Manual Entry or CSV Import is typically a retroactive record of a lead
+ * that already made contact some other way, where an automatic "we received
+ * your message" email would be surprising or duplicate.
  */
 async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Promise<void> {
+  if (!AUTO_ACKNOWLEDGE_LEAD_SOURCES.includes(lead.leadSource as LeadSource)) {
+    return;
+  }
   if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
     logAction("lead.acknowledgment-skipped", { businessId: business.id, leadId: lead.leadId, reason: "Gmail not connected" });
     return;

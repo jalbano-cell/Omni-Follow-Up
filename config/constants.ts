@@ -92,8 +92,15 @@ export const STATUS_BADGE_VARIANT: Record<EstimateStatus, "default" | "secondary
   Lost: "destructive",
 };
 
-/** Lead source label recorded on every Lead created via POST /api/intake. */
-export const LEAD_SOURCE = "Website";
+/** Every way a Lead can enter the system — kept as a plain string on the Lead record (see types/lead.ts), not a closed DB enum. */
+export const LEAD_SOURCES = ["Website Form", "Gmail", "Manual Entry", "CSV Import", "Webhook"] as const;
+export type LeadSource = (typeof LEAD_SOURCES)[number];
+
+/** What POST /api/intake records when a submission doesn't specify a source. */
+export const DEFAULT_LEAD_SOURCE: LeadSource = "Website Form";
+
+/** Sources where an automatic, real-time customer acknowledgment email makes sense — not for retroactive/batch entries (Manual Entry, CSV Import), where an automated email would be surprising. */
+export const AUTO_ACKNOWLEDGE_LEAD_SOURCES: LeadSource[] = ["Website Form", "Webhook", "Gmail"];
 
 export const LEAD_STATUSES: LeadStatus[] = ["New Inquiry", "Converted", "Archived"];
 

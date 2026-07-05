@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { cn } from "@/lib/utils";
@@ -84,7 +85,14 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
                       {lead.requestedService || "—"}
                     </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(lead.createdTime)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <div className="flex flex-col gap-1">
+                      <span>{formatDate(lead.createdTime)}</span>
+                      <Badge variant="outline" className="w-fit text-[10px]">
+                        {lead.leadSource}
+                      </Badge>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{lead.assignedTo || "—"}</TableCell>
                   <TableCell>
                     <LeadStatusBadge status={lead.status} />

@@ -21,7 +21,7 @@ export interface Lead {
   requestedService: string;
   message: string;
   status: LeadStatus;
-  /** Always "Website" today — kept as a field rather than a literal for future intake sources (e.g. phone, referral). */
+  /** How this lead entered the system — one of config/constants.ts's LEAD_SOURCES, but kept as a free string (not a closed enum) for forward compatibility. */
   leadSource: string;
   createdTime: string;
   /** Bumped on every activity log entry for this lead — lets list views sort/show recency without joining ActivityLog. */
@@ -54,7 +54,7 @@ export interface Lead {
 }
 
 export type NewLeadInput = Pick<Lead, "name" | "email" | "message"> &
-  Partial<Pick<Lead, "phone" | "company" | "requestedService" | "ipAddress" | "userAgent">>;
+  Partial<Pick<Lead, "phone" | "company" | "requestedService" | "ipAddress" | "userAgent" | "leadSource">>;
 
 export type UpdateLeadInput = Partial<
   Pick<
