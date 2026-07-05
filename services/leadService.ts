@@ -10,7 +10,7 @@ import {
   createNotification,
 } from "@/services/airtable";
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
-import { analyzeLead } from "@/services/aiInsightsService";
+import { analyzeLead, generateLeadAcknowledgment } from "@/services/aiInsightsService";
 import { syncLeadCreationToSupabase } from "@/services/supabaseSync";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
@@ -73,15 +73,70 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
 }
 
 /**
+ * Automatic acknowledgment email sent to the CUSTOMER, with no human
+ * approval — an explicit, narrow exception granted for this one email only
+ * (see services/aiInsightsService.ts's generateLeadAcknowledgment for the
+ * safety constraints on its content, and CLAUDE.md's "Sending is
+ * approval-gated" section for why this doesn't contradict that rule).
+ * Requires Gmail connected, same as the owner-notification email — skipped
+ * and logged otherwise, never blocking lead creation.
+ */
+async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Promise<void> {
+  if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
+    logAction("lead.acknowledgment-skipped", { businessId: business.id, leadId: lead.leadId, reason: "Gmail not connected" });
+    return;
+  }
+
+  const content = await generateLeadAcknowledgment(lead, business.businessName);
+  if (!content) {
+    await logLeadActivity(
+      business.id,
+      lead.id,
+      "lead.acknowledgment_failed",
+      "Automatic acknowledgment email could not be generated."
+    );
+    return;
+  }
+
+  try {
+    await sendEmail({
+      refreshToken: decrypt(business.googleRefreshTokenEnc),
+      fromEmail: business.googleConnectedEmail,
+      to: lead.email,
+      subject: content.subject,
+      body: content.body,
+    });
+    await logLeadActivity(
+      business.id,
+      lead.id,
+      "lead.acknowledgment_sent",
+      `Automatic acknowledgment email sent to ${lead.email}.`
+    );
+  } catch (error) {
+    logAction("lead.acknowledgment-send-failed", {
+      businessId: business.id,
+      leadId: lead.leadId,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+    await logLeadActivity(
+      business.id,
+      lead.id,
+      "lead.acknowledgment_failed",
+      "Automatic acknowledgment email failed to send."
+    );
+  }
+}
+
+/**
  * Creates a Lead and everything that must happen alongside it: an
  * ActivityLog entry ("New website inquiry received."), an in-app
  * Notification, a best-effort email to the business's own connected Gmail,
- * an automatic AI Lead Intelligence analysis, and (Airtable -> Supabase
- * migration, Phase 4) a best-effort mirror of the finished Lead into
- * Supabase. The Airtable write (createLead) is the one step the caller must
- * treat as authoritative — activity/notification/email/analysis/Supabase
- * sync are all best-effort side effects that must never turn a saved lead
- * into a failed response.
+ * an automatic AI Lead Intelligence analysis, an automatic (no-approval)
+ * acknowledgment email to the customer, and (Airtable -> Supabase migration,
+ * Phase 4) a best-effort mirror of the finished Lead into Supabase. The
+ * Airtable write (createLead) is the one step the caller must treat as
+ * authoritative — every step after it is a best-effort side effect that must
+ * never turn a saved lead into a failed response.
  */
 export async function createLeadFromSubmission(business: Business, input: NewLeadInput): Promise<Lead> {
   const leadId = generateLeadId();
@@ -105,6 +160,7 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
 
   await sendLeadNotificationEmail(business, lead);
   await analyzeLead(business.id, lead);
+  await sendLeadAcknowledgmentEmail(business, lead);
 
   const finalLead = (await getLead(business.id, lead.id)) ?? lead;
   await syncLeadCreationToSupabase(business, finalLead);

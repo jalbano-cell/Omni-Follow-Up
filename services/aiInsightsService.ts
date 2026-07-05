@@ -79,7 +79,7 @@ function buildPrompt(lead: Lead): string {
   ].join("\n");
 }
 
-async function callGemini(prompt: string): Promise<GeminiInsights> {
+async function callGeminiJson<T>(prompt: string, schema: Record<string, unknown>): Promise<T> {
   const apiKey = env.geminiApiKey;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured.");
@@ -92,7 +92,7 @@ async function callGemini(prompt: string): Promise<GeminiInsights> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", responseSchema: RESPONSE_SCHEMA },
+        generationConfig: { responseMimeType: "application/json", responseSchema: schema },
       }),
     }
   );
@@ -107,7 +107,7 @@ async function callGemini(prompt: string): Promise<GeminiInsights> {
     throw new Error("Gemini returned no content.");
   }
 
-  return JSON.parse(text) as GeminiInsights;
+  return JSON.parse(text) as T;
 }
 
 /**
@@ -120,7 +120,7 @@ async function callGemini(prompt: string): Promise<GeminiInsights> {
  */
 export async function analyzeLead(businessId: string, lead: Lead): Promise<void> {
   try {
-    const insights = await callGemini(buildPrompt(lead));
+    const insights = await callGeminiJson<GeminiInsights>(buildPrompt(lead), RESPONSE_SCHEMA);
     await updateLead(businessId, lead.id, {
       aiSummary: insights.summary,
       aiCategory: insights.category,
@@ -151,5 +151,77 @@ export async function analyzeLead(businessId: string, lead: Lead): Promise<void>
     } catch {
       // Best-effort — if even this write fails the lead just stays "pending".
     }
+  }
+}
+
+/**
+ * Automatic lead acknowledgment email — sent to the CUSTOMER, not the
+ * business owner, with no human review. This is a deliberate, narrow
+ * exception to this codebase's normal rule (see CLAUDE.md's "Sending is
+ * approval-gated" — that rule governs the Follow-up Queue's estimate/
+ * negotiation emails, not this). Because nothing reviews this content before
+ * it goes out, the prompt is written to make the model unable to say
+ * anything that could be wrong: no prices, no commitments, no specific
+ * response-time promises, no invented details — just a short, warm "we got
+ * your message" note personalized only by category/summary framing.
+ */
+const ACKNOWLEDGMENT_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    subject: { type: "STRING", description: "Short email subject line, e.g. \"We received your message\"." },
+    body: { type: "STRING", description: "2-4 sentence plain-text email body, no greeting salutation line needed beyond the first sentence." },
+  },
+  required: ["subject", "body"],
+};
+
+interface AcknowledgmentContent {
+  subject: string;
+  body: string;
+}
+
+function buildAcknowledgmentPrompt(lead: Lead, businessName: string): string {
+  return [
+    `You are writing the body of a short automatic acknowledgment email sent immediately and with NO human review to a customer who just submitted an inquiry through ${businessName}'s website contact form.`,
+    "",
+    "Hard rules, because nobody will proofread this before it sends:",
+    "- Do NOT quote or imply any price, discount, or cost figure.",
+    "- Do NOT promise a specific response time (no \"within 24 hours\", no specific day/time) — only ever say something vague like \"shortly\" or \"soon\".",
+    "- Do NOT invent any fact, detail, or commitment that isn't directly in the customer's message below.",
+    "- Do NOT name a specific person as who will respond — no one has been assigned yet.",
+    "- Keep it to 2-4 sentences: warm, professional, brief.",
+    "- You may reference their request in a short general phrase (e.g. their category of inquiry) so it doesn't feel like a totally generic auto-reply, but stay vague enough to never risk being factually wrong.",
+    "- Do NOT include any sign-off, closing line, or the business name at the end — that's appended separately. End right after the last sentence of the message itself.",
+    "",
+    `Customer name: ${lead.name}`,
+    `Business name: ${businessName}`,
+    `Customer's message: "${lead.message}"`,
+  ].join("\n");
+}
+
+/**
+ * Generates the acknowledgment email's subject/body via Gemini. Returns null
+ * on any failure (missing key, network error, malformed response) — the
+ * caller (services/leadService.ts's sendLeadAcknowledgmentEmail) treats that
+ * as "skip sending," never as license to fall back to placeholder text.
+ *
+ * The sign-off is appended here in code, not left to the model — asking
+ * Gemini to format "— {business}" on its own line produced inconsistent
+ * results (sometimes no line break, sometimes "---" instead of an em dash).
+ * Enforcing it deterministically is more robust than relying on prompt
+ * compliance for something this mechanical.
+ */
+export async function generateLeadAcknowledgment(lead: Lead, businessName: string): Promise<AcknowledgmentContent | null> {
+  try {
+    const content = await callGeminiJson<AcknowledgmentContent>(
+      buildAcknowledgmentPrompt(lead, businessName),
+      ACKNOWLEDGMENT_SCHEMA
+    );
+    return { subject: content.subject, body: `${content.body.trim()}\n\n— ${businessName}` };
+  } catch (error) {
+    logAction("lead.acknowledgment-generate-failed", {
+      leadId: lead.leadId,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+    return null;
   }
 }
