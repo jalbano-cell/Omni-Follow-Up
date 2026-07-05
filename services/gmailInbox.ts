@@ -116,8 +116,56 @@ export async function getThreadMessages(input: { accessToken: string; threadId: 
   return (data.messages ?? []).map(parseMessage);
 }
 
+export interface GmailMessageRef {
+  id: string;
+  threadId: string;
+}
+
+/**
+ * Lists message IDs matching a Gmail search query (e.g. inbox mail from the
+ * last few days, excluding sent/chat) — does NOT fetch full message bodies,
+ * just IDs/threadIds, since services/gmailLeadCapture.ts needs to filter
+ * most of these out (already-known thread/message) before paying for a full
+ * fetch on each one. Query syntax: https://support.google.com/mail/answer/7190
+ */
+export async function listInboxMessageIds(input: { accessToken: string; query: string; maxResults?: number }): Promise<GmailMessageRef[]> {
+  const params = new URLSearchParams({ q: input.query, maxResults: String(input.maxResults ?? 50) });
+  const res = await fetch(`${GMAIL_API}/messages?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${input.accessToken}` },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Gmail message list failed (${res.status}): ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as { messages?: GmailMessageRef[] };
+  return data.messages ?? [];
+}
+
+/** Fetches a single message by ID, parsed into the same normalized shape as getThreadMessages. */
+export async function getMessage(input: { accessToken: string; messageId: string }): Promise<ParsedGmailMessage | null> {
+  const res = await fetch(`${GMAIL_API}/messages/${input.messageId}?format=full`, {
+    headers: { Authorization: `Bearer ${input.accessToken}` },
+  });
+
+  if (res.status === 404) {
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`Gmail message fetch failed (${res.status}): ${await res.text()}`);
+  }
+
+  return parseMessage((await res.json()) as GmailMessage);
+}
+
 /** Extracts the bare email address from a "Display Name <email@example.com>" header value. */
 export function extractEmailAddress(fromHeader: string): string {
   const match = fromHeader.match(/<([^>]+)>/);
   return (match ? match[1] : fromHeader).trim().toLowerCase();
+}
+
+/** Extracts the display name from a "Display Name <email@example.com>" header value, falling back to the bare address when there's no display name. */
+export function extractDisplayName(fromHeader: string): string {
+  const match = fromHeader.match(/^"?([^"<]+)"?\s*<[^>]+>$/);
+  return match ? match[1].trim() : extractEmailAddress(fromHeader);
 }

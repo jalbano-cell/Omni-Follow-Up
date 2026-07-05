@@ -7,36 +7,60 @@ import { Badge } from "@/components/ui/badge";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { cn } from "@/lib/utils";
-import { LEAD_STATUSES } from "@/config/constants";
+import { LEAD_STATUSES, LEAD_SOURCES, type LeadSource } from "@/config/constants";
 import { formatDate } from "@/lib/date";
 import type { Lead, LeadStatus } from "@/types";
 
-const FILTERS: Array<LeadStatus | "All"> = ["All", ...LEAD_STATUSES];
+const STATUS_FILTERS: Array<LeadStatus | "All"> = ["All", ...LEAD_STATUSES];
+const SOURCE_FILTERS: Array<LeadSource | "All"> = ["All", ...LEAD_SOURCES];
 
 export function LeadTable({ leads }: { leads: Lead[] }) {
-  const [filter, setFilter] = useState<LeadStatus | "All">("New Inquiry");
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | "All">("New Inquiry");
+  const [sourceFilter, setSourceFilter] = useState<LeadSource | "All">("All");
 
   const filtered = useMemo(
-    () => (filter === "All" ? leads : leads.filter((l) => l.status === filter)),
-    [leads, filter]
+    () =>
+      leads.filter(
+        (l) =>
+          (statusFilter === "All" || l.status === statusFilter) &&
+          (sourceFilter === "All" || l.leadSource === sourceFilter)
+      ),
+    [leads, statusFilter, sourceFilter]
   );
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {FILTERS.map((status) => (
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {STATUS_FILTERS.map((status) => (
           <button
             key={status}
             type="button"
-            onClick={() => setFilter(status)}
+            onClick={() => setStatusFilter(status)}
             className={cn(
               "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              filter === status
+              statusFilter === status
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             )}
           >
             {status}
+          </button>
+        ))}
+      </div>
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {SOURCE_FILTERS.map((source) => (
+          <button
+            key={source}
+            type="button"
+            onClick={() => setSourceFilter(source)}
+            className={cn(
+              "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+              sourceFilter === source
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border bg-transparent text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            )}
+          >
+            {source}
           </button>
         ))}
       </div>
@@ -46,7 +70,7 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
           <p className="text-sm text-muted-foreground">
             {leads.length === 0
               ? "No leads yet. They'll show up here the moment your contact form submits one."
-              : "No leads with this status."}
+              : "No leads match these filters."}
           </p>
         </div>
       ) : (

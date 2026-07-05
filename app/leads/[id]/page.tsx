@@ -9,6 +9,7 @@ import { LeadTimeline } from "@/components/leads/lead-timeline";
 import { LeadNotes } from "@/components/leads/lead-notes";
 import { AiInsightsCard } from "@/components/leads/ai-insights-card";
 import { PendingAppointmentBanner } from "@/components/leads/pending-appointment-banner";
+import { PossibleDuplicateBanner } from "@/components/leads/possible-duplicate-banner";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
@@ -35,7 +36,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   }
 
   if (!detail) notFound();
-  const { lead, timeline, linkedEstimate, conversation, upcomingFollowUps, aiInsights } = detail;
+  const { lead, timeline, linkedEstimate, conversation, upcomingFollowUps, aiInsights, possibleDuplicateOfLead } = detail;
 
   const contactInfo: Array<[string, string]> = [
     ["Lead ID", lead.leadId],
@@ -64,6 +65,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         Back to leads
       </Link>
 
+      {possibleDuplicateOfLead && <PossibleDuplicateBanner leadId={lead.id} original={possibleDuplicateOfLead} />}
       {pendingAppointmentLabel && <PendingAppointmentBanner leadId={lead.id} label={pendingAppointmentLabel} />}
 
       <PageHeader

@@ -288,6 +288,8 @@ export type Database = {
           converted_estimate_id: string | null
           created_at: string
           email: string
+          gmail_message_id: string | null
+          gmail_thread_id: string | null
           id: string
           internal_notes: string
           ip_address: string | null
@@ -298,6 +300,7 @@ export type Database = {
           pending_appointment_date_time: string | null
           pending_appointment_duration_minutes: number | null
           phone: string
+          possible_duplicate_of_lead_id: string | null
           service: string
           source: string
           status: string
@@ -322,6 +325,8 @@ export type Database = {
           converted_estimate_id?: string | null
           created_at?: string
           email: string
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
           id?: string
           internal_notes?: string
           ip_address?: string | null
@@ -332,6 +337,7 @@ export type Database = {
           pending_appointment_date_time?: string | null
           pending_appointment_duration_minutes?: number | null
           phone?: string
+          possible_duplicate_of_lead_id?: string | null
           service?: string
           source?: string
           status?: string
@@ -356,6 +362,8 @@ export type Database = {
           converted_estimate_id?: string | null
           created_at?: string
           email?: string
+          gmail_message_id?: string | null
+          gmail_thread_id?: string | null
           id?: string
           internal_notes?: string
           ip_address?: string | null
@@ -366,6 +374,7 @@ export type Database = {
           pending_appointment_date_time?: string | null
           pending_appointment_duration_minutes?: number | null
           phone?: string
+          possible_duplicate_of_lead_id?: string | null
           service?: string
           source?: string
           status?: string
@@ -380,6 +389,13 @@ export type Database = {
             columns: ["converted_estimate_id"]
             isOneToOne: false
             referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_possible_duplicate_of_lead_id_fkey"
+            columns: ["possible_duplicate_of_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
@@ -627,6 +643,7 @@ export type Database = {
           industry: string | null
           intake_api_key: string | null
           intake_api_key_created_at: string | null
+          monitor_gmail_inbox: boolean | null
           notify_on_new_lead: boolean | null
           notify_on_reply: boolean | null
           onboarding_completed_at: string | null
@@ -656,6 +673,7 @@ export type Database = {
           industry?: string | null
           intake_api_key?: string | null
           intake_api_key_created_at?: string | null
+          monitor_gmail_inbox?: boolean | null
           notify_on_new_lead?: boolean | null
           notify_on_reply?: boolean | null
           onboarding_completed_at?: string | null
@@ -685,6 +703,7 @@ export type Database = {
           industry?: string | null
           intake_api_key?: string | null
           intake_api_key_created_at?: string | null
+          monitor_gmail_inbox?: boolean | null
           notify_on_new_lead?: boolean | null
           notify_on_reply?: boolean | null
           onboarding_completed_at?: string | null

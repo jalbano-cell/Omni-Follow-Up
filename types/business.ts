@@ -40,6 +40,8 @@ export interface Business {
   /** Both default true when null — see getEffectiveNotifyOnNewLead/getEffectiveNotifyOnReply in services/business.ts. */
   notifyOnNewLead: boolean | null;
   notifyOnReply: boolean | null;
+  /** Opt-in, defaults to false when null (see getEffectiveGmailLeadMonitoring in services/business.ts) — when on, the daily cron scans this business's Gmail inbox for new customer inquiries and creates a Lead (source "Gmail") for each one not already tied to a known Estimate thread. */
+  monitorGmailInbox: boolean | null;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;

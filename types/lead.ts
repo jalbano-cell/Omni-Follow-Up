@@ -60,10 +60,15 @@ export interface Lead {
    */
   pendingAppointmentDateTime: string | null;
   pendingAppointmentDurationMinutes: number | null;
+  /** Set only for leadSource "Gmail" — the originating message/thread, used to dedup repeated inbox scans (services/gmailLeadCapture.ts) and to skip messages that belong to an existing Estimate's reply thread (services/replyMatcher.ts's job instead). */
+  gmailMessageId: string | null;
+  gmailThreadId: string | null;
+  /** Set when this lead is a likely re-submission of an existing one (services/duplicateLeadDetection.ts) — surfaced as a review banner, never silently merged. Null once dismissed or merged. */
+  possibleDuplicateOfLeadId: string | null;
 }
 
 export type NewLeadInput = Pick<Lead, "name" | "email" | "message"> &
-  Partial<Pick<Lead, "phone" | "company" | "requestedService" | "ipAddress" | "userAgent" | "leadSource">>;
+  Partial<Pick<Lead, "phone" | "company" | "requestedService" | "ipAddress" | "userAgent" | "leadSource" | "gmailMessageId" | "gmailThreadId">>;
 
 export type UpdateLeadInput = Partial<
   Pick<
@@ -86,5 +91,6 @@ export type UpdateLeadInput = Partial<
     | "aiStatus"
     | "pendingAppointmentDateTime"
     | "pendingAppointmentDurationMinutes"
+    | "possibleDuplicateOfLeadId"
   >
 >;

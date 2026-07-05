@@ -59,8 +59,15 @@ export interface CsvLeadRow {
   message: string;
 }
 
-/** Maps parsed rows (first row = header) into lead-shaped objects by header name — case-insensitive, column order doesn't matter. Rows missing a name or email are dropped. */
-export function csvRowsToLeads(rows: string[][]): CsvLeadRow[] {
+/** One parsed data row (1-based, header excluded) — `data` is null when the row is missing a required field, with `error` explaining why. */
+export interface CsvImportRow {
+  rowNumber: number;
+  data: CsvLeadRow | null;
+  error: string | null;
+}
+
+/** Maps parsed rows (first row = header) into lead-shaped objects by header name — case-insensitive, column order doesn't matter. Rows missing a name or email come back with `data: null` and an explanatory `error` rather than being silently dropped, so the import summary can report exactly which rows were skipped and why. */
+export function csvRowsToLeads(rows: string[][]): CsvImportRow[] {
   if (rows.length < 2) return [];
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const colIndex = (name: string) => header.indexOf(name);
@@ -72,15 +79,27 @@ export function csvRowsToLeads(rows: string[][]): CsvLeadRow[] {
   const serviceIdx = colIndex("service");
   const messageIdx = colIndex("message");
 
-  return rows
-    .slice(1)
-    .map((row) => ({
-      name: (nameIdx >= 0 ? row[nameIdx] : "")?.trim() ?? "",
-      email: (emailIdx >= 0 ? row[emailIdx] : "")?.trim() ?? "",
-      phone: phoneIdx >= 0 ? row[phoneIdx]?.trim() : undefined,
-      company: companyIdx >= 0 ? row[companyIdx]?.trim() : undefined,
-      service: serviceIdx >= 0 ? row[serviceIdx]?.trim() : undefined,
-      message: (messageIdx >= 0 ? row[messageIdx] : "")?.trim() ?? "",
-    }))
-    .filter((lead) => lead.name && lead.email);
+  return rows.slice(1).map((row, i) => {
+    const name = (nameIdx >= 0 ? row[nameIdx] : "")?.trim() ?? "";
+    const email = (emailIdx >= 0 ? row[emailIdx] : "")?.trim() ?? "";
+    const rowNumber = i + 1;
+
+    if (!name || !email) {
+      const missing = [!name && "name", !email && "email"].filter(Boolean).join(" and ");
+      return { rowNumber, data: null, error: `Missing ${missing}` };
+    }
+
+    return {
+      rowNumber,
+      data: {
+        name,
+        email,
+        phone: phoneIdx >= 0 ? row[phoneIdx]?.trim() : undefined,
+        company: companyIdx >= 0 ? row[companyIdx]?.trim() : undefined,
+        service: serviceIdx >= 0 ? row[serviceIdx]?.trim() : undefined,
+        message: (messageIdx >= 0 ? row[messageIdx] : "")?.trim() ?? "",
+      },
+      error: null,
+    };
+  });
 }

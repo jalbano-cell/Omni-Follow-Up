@@ -40,6 +40,7 @@ function toBusiness(row: WorkspaceRow): Business {
     outboundWebhookUrl: row.outbound_webhook_url,
     notifyOnNewLead: row.notify_on_new_lead,
     notifyOnReply: row.notify_on_reply,
+    monitorGmailInbox: row.monitor_gmail_inbox,
   };
 }
 
@@ -104,6 +105,7 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.outboundWebhookUrl !== undefined) fields.outbound_webhook_url = input.outboundWebhookUrl;
   if (input.notifyOnNewLead !== undefined) fields.notify_on_new_lead = input.notifyOnNewLead;
   if (input.notifyOnReply !== undefined) fields.notify_on_reply = input.notifyOnReply;
+  if (input.monitorGmailInbox !== undefined) fields.monitor_gmail_inbox = input.monitorGmailInbox;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -207,4 +209,9 @@ export function getEffectiveNotifyOnNewLead(business: Pick<Business, "notifyOnNe
 /** Whether an in-app Notification fires when a customer reply arrives — on by default. */
 export function getEffectiveNotifyOnReply(business: Pick<Business, "notifyOnReply">): boolean {
   return business.notifyOnReply ?? true;
+}
+
+/** Whether the daily cron scans this business's Gmail inbox for new customer inquiries (services/gmailLeadCapture.ts) — off by default, since not every business wants inbound email auto-converted into Leads. */
+export function getEffectiveGmailLeadMonitoring(business: Pick<Business, "monitorGmailInbox">): boolean {
+  return business.monitorGmailInbox ?? false;
 }

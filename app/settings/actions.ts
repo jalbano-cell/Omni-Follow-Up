@@ -152,3 +152,12 @@ export async function updateNotificationPreferencesAction(formData: FormData) {
   logAction("settings.notification-preferences-update", { businessId, notifyOnNewLead, notifyOnReply });
   revalidatePath("/settings");
 }
+
+export async function updateGmailLeadMonitoringAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+  const monitorGmailInbox = formData.get("monitorGmailInbox") === "on";
+
+  await updateBusiness(businessId, { monitorGmailInbox });
+  logAction("settings.gmail-lead-monitoring-update", { businessId, monitorGmailInbox });
+  revalidatePath("/settings");
+}

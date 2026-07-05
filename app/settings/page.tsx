@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { IntakeKeyCard } from "@/components/settings/intake-key-card";
+import { LeadSourcesCard } from "@/components/settings/lead-sources-card";
 import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
 import {
   Select,
@@ -26,6 +27,7 @@ import {
   getEffectiveAutoBooking,
   getEffectiveNotifyOnNewLead,
   getEffectiveNotifyOnReply,
+  getEffectiveGmailLeadMonitoring,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
 import { getEffectivePlan } from "@/services/subscriptionService";
@@ -39,6 +41,7 @@ import {
   updateAppointmentPreferencesAction,
   updateWebhookUrlAction,
   updateNotificationPreferencesAction,
+  updateGmailLeadMonitoringAction,
 } from "@/app/settings/actions";
 import { requireOnboardedBusiness, getCurrentSession } from "@/lib/session";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
@@ -57,6 +60,7 @@ export default async function SettingsPage({
   const host = (await headers()).get("host") ?? "localhost:3000";
   const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
   const intakeEndpointUrl = `${protocol}://${host}/api/intake`;
+  const webhookEndpointUrl = `${protocol}://${host}/api/v1/webhooks/leads`;
 
   const databaseConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -71,6 +75,7 @@ export default async function SettingsPage({
   const autoBookAppointments = getEffectiveAutoBooking(business);
   const notifyOnNewLead = getEffectiveNotifyOnNewLead(business);
   const notifyOnReply = getEffectiveNotifyOnReply(business);
+  const monitorGmailInbox = getEffectiveGmailLeadMonitoring(business);
   const emailTemplates = await listEmailTemplates(business.id);
   const plan = await getEffectivePlan(business.id);
 
@@ -133,6 +138,13 @@ export default async function SettingsPage({
         </Card>
 
         <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} />
+
+        <LeadSourcesCard
+          intakeApiKeyPresent={Boolean(business.intakeApiKey)}
+          webhookEndpointUrl={webhookEndpointUrl}
+          gmailConnected={googleConnected}
+          monitorGmailInbox={monitorGmailInbox}
+        />
 
         <IntakeKeyCard apiKey={business.intakeApiKey} endpointUrl={intakeEndpointUrl} />
 
@@ -216,6 +228,28 @@ export default async function SettingsPage({
                 </Button>
               )}
             </div>
+            <form action={updateGmailLeadMonitoringAction} className="mt-4 border-t border-border pt-4">
+              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="monitorGmailInbox"
+                  defaultChecked={monitorGmailInbox}
+                  disabled={!googleConnected}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border disabled:opacity-50"
+                />
+                <span>
+                  <span className="block font-medium text-foreground">Monitor Gmail inbox for new customer inquiries</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Once a day, scans this inbox for messages that aren&apos;t already part of an existing Lead or
+                    Estimate thread and creates a new Lead (source &quot;Gmail&quot;) for each one. Off by default.
+                    {!googleConnected && " Requires Gmail connected above."}
+                  </span>
+                </span>
+              </label>
+              <div className="mt-3">
+                <SubmitButton>Save</SubmitButton>
+              </div>
+            </form>
           </CardContent>
         </Card>
 

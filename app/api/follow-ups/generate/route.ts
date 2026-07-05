@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runDailyFollowUpJob } from "@/services/followupEngine";
 import { runDailyReplySyncJob } from "@/services/replyMatcher";
+import { runDailyGmailLeadCaptureJob } from "@/services/gmailLeadCapture";
 import { getAllActiveBusinesses } from "@/services/business";
 import { APP_TIMEZONE } from "@/config/constants";
 
@@ -26,10 +27,12 @@ function isTargetLocalHour(): boolean {
  * Called by the Vercel Cron Job configured in vercel.json. Detects due
  * follow-ups, drafts messages, and queues them as Pending — never sends
  * anything. Also syncs incoming Gmail replies for every connected business
- * (see services/replyMatcher.ts) — piggybacked onto this same daily
- * invocation rather than its own cron schedule, since Vercel's Hobby plan
- * caps how many/how-often cron jobs can run; the "Check for new replies"
- * button covers anything more immediate. Every run is logged.
+ * (see services/replyMatcher.ts) and, for businesses that opted in, scans
+ * their Gmail inbox for new customer inquiries and creates Leads from them
+ * (see services/gmailLeadCapture.ts) — both piggybacked onto this same
+ * daily invocation rather than their own cron schedule, since Vercel's
+ * Hobby plan caps how many/how-often cron jobs can run; the "Check for new
+ * replies" button covers anything more immediate. Every run is logged.
  *
  * If CRON_SECRET is set, requests must carry `Authorization: Bearer <CRON_SECRET>`,
  * which Vercel automatically attaches to its own cron invocations.
@@ -50,7 +53,8 @@ export async function GET(request: Request) {
   try {
     const [followUpLogs, businesses] = await Promise.all([runDailyFollowUpJob(), getAllActiveBusinesses()]);
     const replySyncLogs = await runDailyReplySyncJob(businesses);
-    return NextResponse.json({ followUps: followUpLogs, replySync: replySyncLogs });
+    const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(businesses);
+    return NextResponse.json({ followUps: followUpLogs, replySync: replySyncLogs, gmailLeadCapture: gmailCaptureLogs });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
