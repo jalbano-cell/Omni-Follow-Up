@@ -1,5 +1,5 @@
 import { sendEmail } from "@/services/gmail";
-import { getEstimate, getFollowUp, updateEstimate, updateFollowUp } from "@/services/airtable";
+import { getEstimate, getFollowUp, updateEstimate, updateFollowUp } from "@/services/db";
 import { getBusinessById, getEffectiveCadenceDays, clearGoogleConnection } from "@/services/business";
 import { clearReminder } from "@/services/calendarReminders";
 import { decrypt } from "@/lib/crypto";
@@ -38,7 +38,7 @@ function bodyWithSignature(message: string, emailSignature: string | null): stri
 }
 
 /**
- * Sends an already-approved follow-up via Gmail and syncs Airtable. This is
+ * Sends an already-approved follow-up via Gmail and syncs the database. This is
  * the ONLY path that ever calls services/gmail.ts — it is invoked exclusively
  * from the Follow-up Queue UI's "Send Email" / "Retry Send" action, never
  * from the daily cron job, so nothing is ever emailed without a human first

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getFollowUp, updateFollowUp } from "@/services/airtable";
+import { getFollowUp, updateFollowUp } from "@/services/db";
 import { getBusinessById } from "@/services/business";
 import { clearReminder } from "@/services/calendarReminders";
 import { generateDueFollowUps } from "@/services/followupEngine";
@@ -42,7 +42,7 @@ export async function editFollowUpMessageAction(id: string, message: string) {
 /**
  * The one and only path that sends an email — requires the follow-up to
  * already be Approved (or Failed, for a retry). Never called from the cron
- * job. See services/followupSender.ts for the retry + Airtable sync logic.
+ * job. See services/followupSender.ts for the retry + database sync logic.
  */
 export async function sendFollowUpAction(id: string): Promise<SendFollowUpResult> {
   const businessId = await getCurrentBusinessId();

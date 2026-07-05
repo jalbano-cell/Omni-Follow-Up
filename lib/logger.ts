@@ -46,7 +46,7 @@ export type IntakeAuditResult =
   | "rate_limited"
   | "spam_blocked"
   | "validation_failed"
-  | "airtable_failed";
+  | "db_failed";
 
 export interface IntakeAuditEntry {
   timestamp: string;
@@ -60,8 +60,8 @@ export interface IntakeAuditEntry {
 
 /**
  * Durable-as-possible record of every POST /api/intake attempt, independent
- * of Airtable — this must still work when the Airtable write itself fails,
- * since "log the failure, don't lose the submission" is the whole point.
+ * of the database — this must still work when the database write itself
+ * fails, since "log the failure, don't lose the submission" is the whole point.
  * Always logs to console (captured by Vercel's function logs in production)
  * and best-effort appends one JSON line per attempt under /logs/intake for
  * local inspection, mirroring writeDailyRunLog's fallback-write pattern.

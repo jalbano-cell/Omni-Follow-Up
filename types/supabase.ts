@@ -1,6 +1,5 @@
 // Generated via `supabase gen types typescript --linked` — do not hand-edit.
 // Regenerate after any schema change (new migration file + apply it, then rerun).
-
 export type Json =
   | string
   | number
@@ -20,7 +19,6 @@ export type Database = {
       activity_logs: {
         Row: {
           action: string
-          airtable_record_id: string | null
           created_at: string
           description: string
           id: string
@@ -30,7 +28,6 @@ export type Database = {
         }
         Insert: {
           action: string
-          airtable_record_id?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -40,7 +37,6 @@ export type Database = {
         }
         Update: {
           action?: string
-          airtable_record_id?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -67,7 +63,6 @@ export type Database = {
       }
       estimates: {
         Row: {
-          airtable_record_id: string | null
           business_name: string
           created_at: string
           customer_email: string
@@ -86,7 +81,6 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          airtable_record_id?: string | null
           business_name?: string
           created_at?: string
           customer_email: string
@@ -105,7 +99,6 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          airtable_record_id?: string | null
           business_name?: string
           created_at?: string
           customer_email?: string
@@ -142,7 +135,6 @@ export type Database = {
       }
       followups: {
         Row: {
-          airtable_record_id: string | null
           calendar_event_id: string | null
           created_at: string
           estimate_id: string
@@ -154,7 +146,6 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          airtable_record_id?: string | null
           calendar_event_id?: string | null
           created_at?: string
           estimate_id: string
@@ -166,7 +157,6 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          airtable_record_id?: string | null
           calendar_event_id?: string | null
           created_at?: string
           estimate_id?: string
@@ -206,7 +196,6 @@ export type Database = {
           ai_response_urgency_reason: string | null
           ai_status: string
           ai_summary: string | null
-          airtable_record_id: string | null
           assigned_to: string
           company: string
           converted_estimate_id: string | null
@@ -239,7 +228,6 @@ export type Database = {
           ai_response_urgency_reason?: string | null
           ai_status?: string
           ai_summary?: string | null
-          airtable_record_id?: string | null
           assigned_to?: string
           company?: string
           converted_estimate_id?: string | null
@@ -272,7 +260,6 @@ export type Database = {
           ai_response_urgency_reason?: string | null
           ai_status?: string
           ai_summary?: string | null
-          airtable_record_id?: string | null
           assigned_to?: string
           company?: string
           converted_estimate_id?: string | null
@@ -313,7 +300,6 @@ export type Database = {
       }
       notifications: {
         Row: {
-          airtable_record_id: string | null
           created_at: string
           id: string
           is_read: boolean
@@ -323,7 +309,6 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          airtable_record_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
@@ -333,7 +318,6 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          airtable_record_id?: string | null
           created_at?: string
           id?: string
           is_read?: boolean
@@ -361,7 +345,6 @@ export type Database = {
       }
       replies: {
         Row: {
-          airtable_record_id: string | null
           body_text: string
           created_at: string
           estimate_id: string
@@ -376,7 +359,6 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          airtable_record_id?: string | null
           body_text?: string
           created_at?: string
           estimate_id: string
@@ -391,7 +373,6 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          airtable_record_id?: string | null
           body_text?: string
           created_at?: string
           estimate_id?: string
@@ -456,7 +437,6 @@ export type Database = {
       }
       workspaces: {
         Row: {
-          airtable_record_id: string | null
           business_name: string
           calendar_id: string | null
           created_at: string
@@ -482,7 +462,6 @@ export type Database = {
           working_hours_start: number | null
         }
         Insert: {
-          airtable_record_id?: string | null
           business_name: string
           calendar_id?: string | null
           created_at?: string
@@ -508,7 +487,6 @@ export type Database = {
           working_hours_start?: number | null
         }
         Update: {
-          airtable_record_id?: string | null
           business_name?: string
           calendar_id?: string | null
           created_at?: string

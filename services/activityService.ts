@@ -1,11 +1,11 @@
-import { createActivityLogEntry, getActivityForLead, getActivityLog, updateLead } from "@/services/airtable";
+import { createActivityLogEntry, getActivityForLead, getActivityLog, updateLead } from "@/services/db";
 import type { ActivityLogEntry } from "@/types";
 
 /**
  * Domain layer over the durable ActivityLog table — this is what gives a
  * Lead its Timeline (services/leadService.ts's getLeadDetail) and feeds the
  * dashboard's "Recent activity" (services/analytics.ts). Kept separate from
- * services/airtable.ts's raw CRUD because logging an activity always also
+ * services/db.ts's raw CRUD because logging an activity always also
  * bumps the parent Lead's lastActivityAt — a two-write invariant that
  * belongs in one place, not repeated at every call site.
  */

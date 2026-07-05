@@ -13,7 +13,7 @@ import {
   MessageSquarePlus,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { AirtableErrorState } from "@/components/layout/airtable-error-state";
+import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { getDashboardStats, getUpcomingFollowUps, getRecentActivity, getFollowUpFunnel } from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
 import { getReplyInbox } from "@/services/replyMatcher";
-import { getEstimates, getLeads } from "@/services/airtable";
+import { getEstimates, getLeads } from "@/services/db";
 import { formatCurrency, formatDate } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
     return (
       <>
         <PageHeader title="Dashboard" description="Your estimate follow-up overview." />
-        <AirtableErrorState message={error instanceof Error ? error.message : "Unknown error"} />
+        <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />
       </>
     );
   }

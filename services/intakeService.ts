@@ -7,7 +7,7 @@ import { logIntakeAudit } from "@/lib/logger";
  * handler so the route is a thin adapter (parse request -> call this -> map
  * result to a status code). This file owns validation/sanitization/rate
  * limiting/spam detection and the audit trail for the *request itself*;
- * everything about what a Lead's arrival should trigger (Airtable write,
+ * everything about what a Lead's arrival should trigger (the database write,
  * activity log, in-app notification, owner email) lives in
  * services/leadService.ts's createLeadFromSubmission, so future non-HTTP
  * entry points can reuse it without going through this file.
@@ -59,7 +59,7 @@ function sanitizeText(value: unknown, maxLength: number, { multiline = false } =
 }
 
 // In-memory sliding-window limiter, scoped per business+IP. Deliberately not
-// backed by Airtable/Redis — it's a best-effort deterrent against a form
+// backed by the database/Redis — it's a best-effort deterrent against a form
 // being hammered, not a hard security boundary, and it resets on cold start /
 // doesn't share state across concurrent serverless instances. Good enough
 // for "protect against spam where practical"; revisit with a shared store
@@ -137,7 +137,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       userAgent: userAgent ?? undefined,
     });
   } catch (error) {
-    // The Airtable write is the one step that must not silently disappear on
+    // The database write is the one step that must not silently disappear on
     // failure — log the full sanitized payload (not just a summary) so the
     // submission is recoverable from Vercel's function logs even though it
     // never made it into the dashboard.
@@ -147,7 +147,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       ip,
       userAgent,
       source: "Website",
-      result: "airtable_failed",
+      result: "db_failed",
       detail: {
         error: error instanceof Error ? error.message : "unknown error",
         payload: { name, email, phone, company, requestedService, message },

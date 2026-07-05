@@ -1,7 +1,7 @@
 import { GOOGLE_CALENDAR_API } from "@/config/google";
 
 /**
- * Thin, dependency-free Google Calendar client — pure transport, no Airtable
+ * Thin, dependency-free Google Calendar client — pure transport, no database
  * or orchestration knowledge, mirroring services/gmail.ts's shape. Reminder
  * events (services/calendarReminders.ts) stay output-only as documented
  * there. listEvents/createEvent-with-attendees below exist specifically for

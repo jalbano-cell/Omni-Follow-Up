@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { EstimateForm, type EstimateFormPrefill } from "@/components/estimates/estimate-form";
-import { getLead } from "@/services/airtable";
+import { getLead } from "@/services/db";
 import { SERVICE_TYPES } from "@/config/constants";
 import { requireOnboardedBusiness } from "@/lib/session";
 

@@ -1,4 +1,4 @@
-import { getDueFollowUps, getEstimates, getFollowUps, getLeads, getReplies } from "@/services/airtable";
+import { getDueFollowUps, getEstimates, getFollowUps, getLeads, getReplies } from "@/services/db";
 import { getRecentActivityLog } from "@/services/activityService";
 import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { todayIso } from "@/lib/date";

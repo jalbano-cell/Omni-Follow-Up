@@ -1,4 +1,4 @@
-import { getEstimates, getReplies, createReply } from "@/services/airtable";
+import { getEstimates, getReplies, createReply } from "@/services/db";
 import { getThreadMessages, extractEmailAddress } from "@/services/gmailInbox";
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { decrypt } from "@/lib/crypto";

@@ -9,12 +9,6 @@ function requireEnv(name: string): string {
 }
 
 export const env = {
-  get airtableApiKey() {
-    return requireEnv("AIRTABLE_API_KEY");
-  },
-  get airtableBaseId() {
-    return requireEnv("AIRTABLE_BASE_ID");
-  },
   get defaultBusinessName() {
     return process.env.DEFAULT_BUSINESS_NAME ?? "Your Business";
   },
@@ -29,7 +23,7 @@ export const env = {
   get googleClientSecret() {
     return requireEnv("GOOGLE_CLIENT_SECRET");
   },
-  /** Encrypts OAuth refresh tokens at rest before writing them to Airtable. */
+  /** Encrypts OAuth refresh tokens at rest before writing them to the database. */
   get tokenEncryptionKey() {
     return requireEnv("TOKEN_ENCRYPTION_KEY");
   },
@@ -37,7 +31,7 @@ export const env = {
   get geminiApiKey() {
     return process.env.GEMINI_API_KEY;
   },
-  /** Supabase migration (in progress) — see lib/supabase.ts and CLAUDE.md's "Supabase migration" section. */
+  /** The database — see lib/supabase.ts. Required; every read/write in the app goes through it. */
   get supabaseUrl() {
     return requireEnv("NEXT_PUBLIC_SUPABASE_URL");
   },

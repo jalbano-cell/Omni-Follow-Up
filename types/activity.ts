@@ -2,7 +2,7 @@
 export interface ActivityLogEntry {
   id: string;
   businessId: string;
-  /** Airtable record id of the related Lead, when this activity is lead-scoped (every entry today is). */
+  /** Database record id of the related Lead, when this activity is lead-scoped (every entry today is). */
   leadId: string;
   /** Machine-readable event key, e.g. "lead.created", "lead.converted", "lead.archived", "lead.assigned", "lead.note_added". */
   type: string;

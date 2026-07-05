@@ -12,7 +12,7 @@ export type AiInsightsStatus = "pending" | "completed" | "failed" | "dismissed";
 export interface Lead {
   id: string;
   businessId: string;
-  /** Human-readable unique ID (e.g. "LEAD-M3F2K1-A9C") shown in the UI, distinct from the Airtable record id. */
+  /** Human-readable unique ID (e.g. "LEAD-M3F2K1-A9C") shown in the UI, distinct from the database record id. */
   leadId: string;
   name: string;
   email: string;

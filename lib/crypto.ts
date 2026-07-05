@@ -10,7 +10,7 @@ function getKey(): Buffer {
 }
 
 /**
- * Encrypts a value for storage in Airtable (which has no field-level
+ * Encrypts a value for storage in the database (which has no field-level
  * encryption) — used for Google OAuth refresh tokens, which are long-lived
  * and high-value. Output packs iv:authTag:ciphertext, all hex, into one string.
  */

@@ -2,7 +2,7 @@
 export interface Notification {
   id: string;
   businessId: string;
-  /** Airtable record id of the related Lead, when applicable (every notification today is lead-scoped). */
+  /** Database record id of the related Lead, when applicable (every notification today is lead-scoped). */
   leadId: string;
   type: string;
   message: string;

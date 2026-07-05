@@ -1,4 +1,4 @@
-import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/airtable";
+import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/db";
 import { getAllActiveBusinesses, getBusinessById } from "@/services/business";
 import { ensureReminderForDraft } from "@/services/calendarReminders";
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
@@ -86,7 +86,7 @@ export async function generateDueFollowUps(businessId: string): Promise<FollowUp
 
 /**
  * The daily automation entry point (called by the Vercel Cron job). Loops
- * over every business, drafting follow-ups for each — one tenant's Airtable
+ * over every business, drafting follow-ups for each — one tenant's database
  * error is caught and logged without aborting the run for everyone else.
  * Never sends anything (see services/gmail.ts / services/followupSender.ts
  * for the separate, human-approval-gated send path).

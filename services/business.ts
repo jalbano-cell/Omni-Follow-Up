@@ -1,123 +1,104 @@
-import Airtable, { type FieldSet, type Record as AirtableRecord } from "airtable";
-import { AIRTABLE_TABLES, BUSINESS_FIELDS } from "@/config/airtable";
+import { getSupabase, insertRow, updateRow, selectById, selectWhere } from "@/lib/supabase";
+import type { Database } from "@/types/supabase";
 import {
   APP_TIMEZONE,
   CALENDAR_REMINDER_HOUR,
   DEFAULT_FOLLOW_UP_CADENCE_DAYS,
   DEFAULT_WORKING_HOURS_END,
 } from "@/config/constants";
-import { env } from "@/lib/env";
 import { generateApiKey } from "@/lib/crypto";
 import type { Business, NewBusinessInput, UpdateBusinessInput } from "@/types";
 
-function getBase() {
-  return new Airtable({ apiKey: env.airtableApiKey }).base(env.airtableBaseId);
-}
+type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
 
-function toBusiness(record: AirtableRecord<FieldSet>): Business {
+function toBusiness(row: WorkspaceRow): Business {
   return {
-    id: record.id,
-    businessName: (record.get(BUSINESS_FIELDS.businessName) as string) ?? "",
-    ownerName: (record.get(BUSINESS_FIELDS.ownerName) as string) ?? "",
-    ownerEmail: (record.get(BUSINESS_FIELDS.ownerEmail) as string) ?? "",
-    passwordHash: (record.get(BUSINESS_FIELDS.passwordHash) as string) ?? "",
-    followUpCadenceSentDays: (record.get(BUSINESS_FIELDS.followUpCadenceSentDays) as number) ?? null,
-    followUpCadenceFollowUp1Days: (record.get(BUSINESS_FIELDS.followUpCadenceFollowUp1Days) as number) ?? null,
-    followUpCadenceFollowUp2Days: (record.get(BUSINESS_FIELDS.followUpCadenceFollowUp2Days) as number) ?? null,
-    onboardingStep: (record.get(BUSINESS_FIELDS.onboardingStep) as number) ?? 0,
-    onboardingCompletedAt: (record.get(BUSINESS_FIELDS.onboardingCompletedAt) as string) ?? null,
-    googleRefreshTokenEnc: (record.get(BUSINESS_FIELDS.googleRefreshTokenEnc) as string) ?? null,
-    googleConnectedEmail: (record.get(BUSINESS_FIELDS.googleConnectedEmail) as string) ?? null,
-    googleScopes: (record.get(BUSINESS_FIELDS.googleScopes) as string) ?? null,
-    googleConnectedAt: (record.get(BUSINESS_FIELDS.googleConnectedAt) as string) ?? null,
-    calendarId: (record.get(BUSINESS_FIELDS.calendarId) as string) ?? null,
-    industry: (record.get(BUSINESS_FIELDS.industry) as string) ?? null,
-    timezone: (record.get(BUSINESS_FIELDS.timezone) as string) ?? null,
-    workingHoursStart: (record.get(BUSINESS_FIELDS.workingHoursStart) as number) ?? null,
-    workingHoursEnd: (record.get(BUSINESS_FIELDS.workingHoursEnd) as number) ?? null,
-    emailSignature: (record.get(BUSINESS_FIELDS.emailSignature) as string) ?? null,
-    createdAt: (record.get(BUSINESS_FIELDS.createdAt) as string) ?? "",
-    intakeApiKey: (record.get(BUSINESS_FIELDS.intakeApiKey) as string) ?? null,
-    intakeApiKeyCreatedAt: (record.get(BUSINESS_FIELDS.intakeApiKeyCreatedAt) as string) ?? null,
+    id: row.id,
+    businessName: row.business_name,
+    ownerName: row.owner_name,
+    ownerEmail: row.owner_email,
+    passwordHash: row.password_hash,
+    followUpCadenceSentDays: row.follow_up_cadence_sent_days,
+    followUpCadenceFollowUp1Days: row.follow_up_cadence_followup1_days,
+    followUpCadenceFollowUp2Days: row.follow_up_cadence_followup2_days,
+    onboardingStep: row.onboarding_step,
+    onboardingCompletedAt: row.onboarding_completed_at,
+    googleRefreshTokenEnc: row.google_refresh_token_enc,
+    googleConnectedEmail: row.google_connected_email,
+    googleScopes: row.google_scopes,
+    googleConnectedAt: row.google_connected_at,
+    calendarId: row.calendar_id,
+    industry: row.industry,
+    timezone: row.timezone,
+    workingHoursStart: row.working_hours_start,
+    workingHoursEnd: row.working_hours_end,
+    emailSignature: row.email_signature,
+    createdAt: row.created_at,
+    intakeApiKey: row.intake_api_key,
+    intakeApiKeyCreatedAt: row.intake_api_key_created_at,
   };
 }
 
-/** Escapes single quotes for safe interpolation into an Airtable filterByFormula string. */
-function escapeFormulaValue(value: string): string {
-  return value.replace(/'/g, "\\'");
-}
-
 export async function getBusinessById(id: string): Promise<Business | null> {
-  try {
-    const record = await getBase()(AIRTABLE_TABLES.businesses).find(id);
-    return toBusiness(record);
-  } catch {
-    return null;
-  }
+  const row = await selectById("workspaces", id);
+  return row ? toBusiness(row) : null;
 }
 
+/** Case-insensitive email lookup — uses the raw client directly since this needs ilike, not the generic equality helpers. */
 export async function getBusinessByEmail(email: string): Promise<Business | null> {
-  const records = await getBase()(AIRTABLE_TABLES.businesses)
-    .select({
-      filterByFormula: `LOWER({${BUSINESS_FIELDS.ownerEmail}}) = '${escapeFormulaValue(email.toLowerCase())}'`,
-      maxRecords: 1,
-    })
-    .all();
-  return records[0] ? toBusiness(records[0]) : null;
+  const { data, error } = await getSupabase()
+    .from("workspaces")
+    .select()
+    .ilike("owner_email", email)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Supabase select on "workspaces" failed: ${error.message}`);
+  return data ? toBusiness(data as WorkspaceRow) : null;
 }
 
 export async function createBusiness(input: NewBusinessInput): Promise<Business> {
   const now = new Date().toISOString();
-  const record = await getBase()(AIRTABLE_TABLES.businesses).create({
-    [BUSINESS_FIELDS.businessName]: input.businessName,
-    [BUSINESS_FIELDS.ownerName]: input.ownerName,
-    [BUSINESS_FIELDS.ownerEmail]: input.ownerEmail,
-    [BUSINESS_FIELDS.passwordHash]: input.passwordHash,
-    [BUSINESS_FIELDS.createdAt]: now,
+  const row = await insertRow("workspaces", {
+    business_name: input.businessName,
+    owner_name: input.ownerName,
+    owner_email: input.ownerEmail,
+    password_hash: input.passwordHash,
     // Every business gets a working POST /api/intake key from the moment it signs up —
     // no separate "enable website intake" step to remember.
-    [BUSINESS_FIELDS.intakeApiKey]: generateApiKey(),
-    [BUSINESS_FIELDS.intakeApiKeyCreatedAt]: now,
+    intake_api_key: generateApiKey(),
+    intake_api_key_created_at: now,
   });
-  return toBusiness(record);
+  return toBusiness(row);
 }
 
 export async function updateBusiness(id: string, input: UpdateBusinessInput): Promise<Business> {
-  const fields: FieldSet = {};
-  if (input.businessName !== undefined) fields[BUSINESS_FIELDS.businessName] = input.businessName;
-  if (input.ownerName !== undefined) fields[BUSINESS_FIELDS.ownerName] = input.ownerName;
-  if (input.ownerEmail !== undefined) fields[BUSINESS_FIELDS.ownerEmail] = input.ownerEmail;
-  if (input.passwordHash !== undefined) fields[BUSINESS_FIELDS.passwordHash] = input.passwordHash;
-  if (input.followUpCadenceSentDays !== undefined)
-    fields[BUSINESS_FIELDS.followUpCadenceSentDays] = input.followUpCadenceSentDays ?? undefined;
+  const fields: Database["public"]["Tables"]["workspaces"]["Update"] = {};
+  if (input.businessName !== undefined) fields.business_name = input.businessName;
+  if (input.ownerName !== undefined) fields.owner_name = input.ownerName;
+  if (input.ownerEmail !== undefined) fields.owner_email = input.ownerEmail;
+  if (input.passwordHash !== undefined) fields.password_hash = input.passwordHash;
+  if (input.followUpCadenceSentDays !== undefined) fields.follow_up_cadence_sent_days = input.followUpCadenceSentDays;
   if (input.followUpCadenceFollowUp1Days !== undefined)
-    fields[BUSINESS_FIELDS.followUpCadenceFollowUp1Days] = input.followUpCadenceFollowUp1Days ?? undefined;
+    fields.follow_up_cadence_followup1_days = input.followUpCadenceFollowUp1Days;
   if (input.followUpCadenceFollowUp2Days !== undefined)
-    fields[BUSINESS_FIELDS.followUpCadenceFollowUp2Days] = input.followUpCadenceFollowUp2Days ?? undefined;
-  if (input.onboardingStep !== undefined) fields[BUSINESS_FIELDS.onboardingStep] = input.onboardingStep;
-  if (input.onboardingCompletedAt !== undefined)
-    fields[BUSINESS_FIELDS.onboardingCompletedAt] = input.onboardingCompletedAt ?? undefined;
-  if (input.googleRefreshTokenEnc !== undefined)
-    fields[BUSINESS_FIELDS.googleRefreshTokenEnc] = input.googleRefreshTokenEnc ?? undefined;
-  if (input.googleConnectedEmail !== undefined)
-    fields[BUSINESS_FIELDS.googleConnectedEmail] = input.googleConnectedEmail ?? undefined;
-  if (input.googleScopes !== undefined) fields[BUSINESS_FIELDS.googleScopes] = input.googleScopes ?? undefined;
-  if (input.googleConnectedAt !== undefined)
-    fields[BUSINESS_FIELDS.googleConnectedAt] = input.googleConnectedAt ?? undefined;
-  if (input.calendarId !== undefined) fields[BUSINESS_FIELDS.calendarId] = input.calendarId ?? undefined;
-  if (input.industry !== undefined) fields[BUSINESS_FIELDS.industry] = input.industry ?? undefined;
-  if (input.timezone !== undefined) fields[BUSINESS_FIELDS.timezone] = input.timezone ?? undefined;
-  if (input.workingHoursStart !== undefined)
-    fields[BUSINESS_FIELDS.workingHoursStart] = input.workingHoursStart ?? undefined;
-  if (input.workingHoursEnd !== undefined)
-    fields[BUSINESS_FIELDS.workingHoursEnd] = input.workingHoursEnd ?? undefined;
-  if (input.emailSignature !== undefined) fields[BUSINESS_FIELDS.emailSignature] = input.emailSignature ?? undefined;
-  if (input.intakeApiKey !== undefined) fields[BUSINESS_FIELDS.intakeApiKey] = input.intakeApiKey ?? undefined;
-  if (input.intakeApiKeyCreatedAt !== undefined)
-    fields[BUSINESS_FIELDS.intakeApiKeyCreatedAt] = input.intakeApiKeyCreatedAt ?? undefined;
+    fields.follow_up_cadence_followup2_days = input.followUpCadenceFollowUp2Days;
+  if (input.onboardingStep !== undefined) fields.onboarding_step = input.onboardingStep;
+  if (input.onboardingCompletedAt !== undefined) fields.onboarding_completed_at = input.onboardingCompletedAt;
+  if (input.googleRefreshTokenEnc !== undefined) fields.google_refresh_token_enc = input.googleRefreshTokenEnc;
+  if (input.googleConnectedEmail !== undefined) fields.google_connected_email = input.googleConnectedEmail;
+  if (input.googleScopes !== undefined) fields.google_scopes = input.googleScopes;
+  if (input.googleConnectedAt !== undefined) fields.google_connected_at = input.googleConnectedAt;
+  if (input.calendarId !== undefined) fields.calendar_id = input.calendarId;
+  if (input.industry !== undefined) fields.industry = input.industry;
+  if (input.timezone !== undefined) fields.timezone = input.timezone;
+  if (input.workingHoursStart !== undefined) fields.working_hours_start = input.workingHoursStart;
+  if (input.workingHoursEnd !== undefined) fields.working_hours_end = input.workingHoursEnd;
+  if (input.emailSignature !== undefined) fields.email_signature = input.emailSignature;
+  if (input.intakeApiKey !== undefined) fields.intake_api_key = input.intakeApiKey;
+  if (input.intakeApiKeyCreatedAt !== undefined) fields.intake_api_key_created_at = input.intakeApiKeyCreatedAt;
 
-  const record = await getBase()(AIRTABLE_TABLES.businesses).update(id, fields);
-  return toBusiness(record);
+  const row = await updateRow("workspaces", id, fields);
+  return toBusiness(row);
 }
 
 /**
@@ -127,13 +108,8 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
  */
 export async function getBusinessByIntakeApiKey(apiKey: string): Promise<Business | null> {
   if (!apiKey) return null;
-  const records = await getBase()(AIRTABLE_TABLES.businesses)
-    .select({
-      filterByFormula: `{${BUSINESS_FIELDS.intakeApiKey}} = '${escapeFormulaValue(apiKey)}'`,
-      maxRecords: 1,
-    })
-    .all();
-  return records[0] ? toBusiness(records[0]) : null;
+  const rows = await selectWhere("workspaces", { intake_api_key: apiKey });
+  return rows[0] ? toBusiness(rows[0]) : null;
 }
 
 /** Issues a fresh intake API key, invalidating the previous one — used by the Settings "Regenerate key" action. */
@@ -174,8 +150,9 @@ export async function completeOnboarding(id: string): Promise<Business> {
 
 /** Every business, for the per-tenant cron loop (follow-up drafting). */
 export async function getAllActiveBusinesses(): Promise<Business[]> {
-  const records = await getBase()(AIRTABLE_TABLES.businesses).select().all();
-  return records.map(toBusiness);
+  const { data, error } = await getSupabase().from("workspaces").select();
+  if (error) throw new Error(`Supabase select on "workspaces" failed: ${error.message}`);
+  return (data ?? []).map((row) => toBusiness(row as WorkspaceRow));
 }
 
 /** Resolves the effective follow-up cadence for a business, filling gaps with the global defaults. */
