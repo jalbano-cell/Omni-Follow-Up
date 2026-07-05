@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { insertRow, updateRow, deleteRow, selectById, selectWhere } from "@/lib/supabase";
 import { OPEN_ESTIMATE_STATUSES } from "@/config/constants";
 import { env } from "@/lib/env";
@@ -41,6 +42,7 @@ function toEstimate(row: EstimateRow): Estimate {
   return {
     id: row.id,
     businessId: row.workspace_id,
+    estimateNumber: row.estimate_number,
     customerName: row.customer_name,
     customerEmail: row.customer_email,
     businessName: row.business_name,
@@ -158,9 +160,17 @@ export async function getEstimate(businessId: string, id: string): Promise<Estim
   return toEstimate(row);
 }
 
+/** Human-readable unique ID (e.g. "EST-M3F2K1-A9C") — same generation shape as leadService.ts's generateLeadId. */
+function generateEstimateNumber(): string {
+  const stamp = Date.now().toString(36).toUpperCase();
+  const rand = randomBytes(3).toString("hex").toUpperCase();
+  return `EST-${stamp}-${rand}`;
+}
+
 export async function createEstimate(businessId: string, input: NewEstimateInput): Promise<Estimate> {
   const row = await insertRow("estimates", {
     workspace_id: businessId,
+    estimate_number: generateEstimateNumber(),
     customer_name: input.customerName,
     customer_email: input.customerEmail,
     business_name: input.businessName ?? env.defaultBusinessName,

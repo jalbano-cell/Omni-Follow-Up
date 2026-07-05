@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { IntakeKeyCard } from "@/components/settings/intake-key-card";
+import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { getEffectiveCadenceDays, getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
+import { listEmailTemplates } from "@/services/emailTemplateService";
 import {
   updateCadenceAction,
   disconnectGoogleAction,
@@ -54,6 +56,7 @@ export default async function SettingsPage({
   const calendarId = getEffectiveCalendarId(business);
   const timezone = getEffectiveTimezone(business);
   const workingHours = getEffectiveWorkingHours(business);
+  const emailTemplates = await listEmailTemplates(business.id);
 
   return (
     <>
@@ -97,6 +100,8 @@ export default async function SettingsPage({
             </form>
           </CardContent>
         </Card>
+
+        <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} />
 
         <IntakeKeyCard apiKey={business.intakeApiKey} endpointUrl={intakeEndpointUrl} />
 

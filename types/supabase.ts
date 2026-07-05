@@ -1,5 +1,3 @@
-// Generated via `supabase gen types typescript --linked` — do not hand-edit.
-// Regenerate after any schema change (new migration file + apply it, then rerun).
 export type Json =
   | string
   | number
@@ -61,6 +59,44 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          subject: string
+          template_key: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          subject: string
+          template_key: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          subject?: string
+          template_key?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estimates: {
         Row: {
           business_name: string
@@ -68,6 +104,7 @@ export type Database = {
           customer_email: string
           customer_name: string
           date_sent: string
+          estimate_number: string
           gmail_last_message_id: string | null
           gmail_thread_id: string | null
           id: string
@@ -86,6 +123,7 @@ export type Database = {
           customer_email: string
           customer_name: string
           date_sent?: string
+          estimate_number: string
           gmail_last_message_id?: string | null
           gmail_thread_id?: string | null
           id?: string
@@ -104,6 +142,7 @@ export type Database = {
           customer_email?: string
           customer_name?: string
           date_sent?: string
+          estimate_number?: string
           gmail_last_message_id?: string | null
           gmail_thread_id?: string | null
           id?: string

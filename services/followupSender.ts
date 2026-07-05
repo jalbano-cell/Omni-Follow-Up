@@ -2,6 +2,7 @@ import { sendEmail } from "@/services/gmail";
 import { getEstimate, getFollowUp, updateEstimate, updateFollowUp } from "@/services/db";
 import { getBusinessById, getEffectiveCadenceDays, clearGoogleConnection } from "@/services/business";
 import { clearReminder } from "@/services/calendarReminders";
+import { getEmailTemplate, renderTemplate, templateKeyForEstimateStage } from "@/services/emailTemplateService";
 import { decrypt } from "@/lib/crypto";
 import { addDays, todayIso } from "@/lib/date";
 import { logAction } from "@/lib/logger";
@@ -29,8 +30,10 @@ function nextStage(
   return { status: current, nextFollowUpDate: null };
 }
 
-function subjectFor(estimate: Estimate): string {
-  return `Your ${estimate.serviceType} estimate from ${estimate.businessName || "us"}`;
+/** Renders the business's (possibly customized) subject template for this estimate's current stage. */
+async function subjectFor(estimate: Estimate): Promise<string> {
+  const template = await getEmailTemplate(estimate.businessId, templateKeyForEstimateStage(estimate.status));
+  return renderTemplate(template, { service: estimate.serviceType, business_name: estimate.businessName || "us" }).subject;
 }
 
 function bodyWithSignature(message: string, emailSignature: string | null): string {
@@ -69,6 +72,8 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
   const refreshToken = decrypt(business.googleRefreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
 
+  const subject = await subjectFor(estimate);
+
   let lastError = "Unknown error";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
@@ -76,7 +81,7 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
         refreshToken,
         fromEmail: business.googleConnectedEmail,
         to: estimate.customerEmail,
-        subject: subjectFor(estimate),
+        subject,
         body: bodyWithSignature(followUp.message, business.emailSignature),
         threadId: estimate.gmailThreadId,
         inReplyToMessageId: estimate.gmailLastMessageId,

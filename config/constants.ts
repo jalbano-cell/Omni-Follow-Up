@@ -1,4 +1,4 @@
-import type { EstimateStatus, FollowUpStatus, LeadStatus } from "@/types";
+import type { EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus } from "@/types";
 
 /** Single deployment-wide timezone — used for the cron's local-hour check and Calendar reminder times. */
 export const APP_TIMEZONE = "America/Toronto";
@@ -102,3 +102,24 @@ export const LEAD_STATUS_BADGE_VARIANT: Record<LeadStatus, "default" | "secondar
   Converted: "success",
   Archived: "secondary",
 };
+
+/** The 4 customizable email templates (services/emailTemplateService.ts) — order matches the lifecycle they fire in. */
+export const EMAIL_TEMPLATE_KEYS: EmailTemplateKey[] = ["acknowledgment", "followup_1", "followup_2", "final_followup"];
+
+export const EMAIL_TEMPLATE_LABELS: Record<EmailTemplateKey, string> = {
+  acknowledgment: "Acknowledgment Email",
+  followup_1: "Follow-up #1",
+  followup_2: "Follow-up #2",
+  final_followup: "Final Follow-up",
+};
+
+/** Every merge variable a template MAY reference — not every template key has all of them populated at render time. */
+export const EMAIL_TEMPLATE_MERGE_VARIABLES = [
+  "customer_name",
+  "company",
+  "service",
+  "estimate_number",
+  "estimate_value",
+  "days_since",
+  "business_name",
+] as const;
