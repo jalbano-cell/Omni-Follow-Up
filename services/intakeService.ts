@@ -1,6 +1,7 @@
 import { getBusinessByIntakeApiKey } from "@/services/business";
 import { createLeadFromSubmission } from "@/services/leadService";
 import { logIntakeAudit } from "@/lib/logger";
+import { DEFAULT_LEAD_SOURCE, type LeadSource } from "@/config/constants";
 
 /**
  * HTTP-facing business logic for POST /api/intake, kept out of the route
@@ -38,6 +39,8 @@ export interface IntakeRequest {
   payload: unknown;
   ip: string | null;
   userAgent: string | null;
+  /** Which entry point this came through — POST /api/intake (the default) or the inbound webhook. Recorded on the Lead and in the audit trail. */
+  source?: LeadSource;
 }
 
 export type IntakeOutcome =
@@ -79,15 +82,16 @@ function isRateLimited(key: string): boolean {
 export async function processIntake(request: IntakeRequest): Promise<IntakeOutcome> {
   const timestamp = new Date().toISOString();
   const { apiKey, ip, userAgent } = request;
+  const source = request.source ?? DEFAULT_LEAD_SOURCE;
 
   const business = apiKey ? await getBusinessByIntakeApiKey(apiKey) : null;
   if (!business) {
-    await logIntakeAudit({ timestamp, businessId: null, ip, userAgent, source: "Website", result: "invalid_api_key" });
+    await logIntakeAudit({ timestamp, businessId: null, ip, userAgent, source, result: "invalid_api_key" });
     return { ok: false, status: 401, error: "Invalid or missing API key." };
   }
 
   if (isRateLimited(`${business.id}:${ip ?? "unknown"}`)) {
-    await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source: "Website", result: "rate_limited" });
+    await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source, result: "rate_limited" });
     return { ok: false, status: 429, error: "Too many submissions. Please try again later." };
   }
 
@@ -95,7 +99,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
 
   // Honeypot: respond as if it succeeded (without creating anything) so a bot doesn't learn it was caught.
   if (typeof raw.website === "string" && raw.website.trim() !== "") {
-    await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source: "Website", result: "spam_blocked" });
+    await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source, result: "spam_blocked" });
     return { ok: true, status: 201, id: "ignored", leadId: "ignored" };
   }
 
@@ -117,7 +121,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       businessId: business.id,
       ip,
       userAgent,
-      source: "Website",
+      source,
       result: "validation_failed",
       detail: { missingFields },
     });
@@ -133,6 +137,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       company,
       requestedService,
       message,
+      leadSource: source,
       ipAddress: ip ?? undefined,
       userAgent: userAgent ?? undefined,
     });
@@ -146,7 +151,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       businessId: business.id,
       ip,
       userAgent,
-      source: "Website",
+      source,
       result: "db_failed",
       detail: {
         error: error instanceof Error ? error.message : "unknown error",
@@ -161,7 +166,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
     businessId: business.id,
     ip,
     userAgent,
-    source: "Website",
+    source,
     result: "success",
     detail: { leadId: lead.leadId },
   });

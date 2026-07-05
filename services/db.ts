@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import { insertRow, updateRow, deleteRow, selectById, selectWhere } from "@/lib/supabase";
-import { OPEN_ESTIMATE_STATUSES } from "@/config/constants";
+import { OPEN_ESTIMATE_STATUSES, DEFAULT_LEAD_SOURCE } from "@/config/constants";
 import { env } from "@/lib/env";
 import { todayIso } from "@/lib/date";
 import type { Database } from "@/types/supabase";
@@ -375,7 +375,7 @@ export async function createLead(businessId: string, leadId: string, input: NewL
     service: input.requestedService ?? "",
     message: input.message,
     status: "New Inquiry",
-    source: "Website",
+    source: input.leadSource ?? DEFAULT_LEAD_SOURCE,
     created_at: now,
     last_activity_at: now,
     ip_address: input.ipAddress ?? "",
