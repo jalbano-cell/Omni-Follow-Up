@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createEstimate, updateEstimate, deleteEstimate, getLeads } from "@/services/db";
 import { markLeadConverted, revertLeadConversion } from "@/services/leadService";
+import { logEstimateActivity } from "@/services/activityService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
 import { addDays } from "@/lib/date";
 import { getCurrentBusinessId } from "@/lib/session";
@@ -39,6 +40,7 @@ export async function createEstimateAction(formData: FormData) {
     dateSent,
     notes,
     nextFollowUpDate: addDays(dateSent, cadence.Sent),
+    leadId: fromLead || undefined,
   });
   logAction("estimate.create", { estimateId: estimate.id, customerName, estimateValue });
 
@@ -68,6 +70,13 @@ export async function updateEstimateStatusAction(id: string, status: EstimateSta
   const businessId = await getCurrentBusinessId();
   await updateEstimate(businessId, id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
   logAction("estimate.status-update", { estimateId: id, status });
+
+  if (status === "Booked") {
+    await logEstimateActivity(businessId, id, "estimate.booked", "Estimate marked as booked.");
+  } else if (status === "Lost") {
+    await logEstimateActivity(businessId, id, "estimate.lost", "Estimate marked as lost.");
+  }
+
   revalidatePath("/");
   revalidatePath("/estimates");
   revalidatePath(`/estimates/${id}`);

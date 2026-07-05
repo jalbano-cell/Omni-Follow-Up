@@ -43,6 +43,7 @@ function toEstimate(row: EstimateRow): Estimate {
     id: row.id,
     businessId: row.workspace_id,
     estimateNumber: row.estimate_number,
+    leadId: row.lead_id,
     customerName: row.customer_name,
     customerEmail: row.customer_email,
     businessName: row.business_name,
@@ -171,6 +172,7 @@ export async function createEstimate(businessId: string, input: NewEstimateInput
   const row = await insertRow("estimates", {
     workspace_id: businessId,
     estimate_number: generateEstimateNumber(),
+    lead_id: input.leadId ?? null,
     customer_name: input.customerName,
     customer_email: input.customerEmail,
     business_name: input.businessName ?? env.defaultBusinessName,

@@ -3,6 +3,7 @@ import { getEstimate, getFollowUp, updateEstimate, updateFollowUp } from "@/serv
 import { getBusinessById, getEffectiveCadenceDays, clearGoogleConnection } from "@/services/business";
 import { clearReminder } from "@/services/calendarReminders";
 import { getEmailTemplate, renderTemplate, templateKeyForEstimateStage } from "@/services/emailTemplateService";
+import { logEstimateActivity } from "@/services/activityService";
 import { decrypt } from "@/lib/crypto";
 import { addDays, todayIso } from "@/lib/date";
 import { logAction } from "@/lib/logger";
@@ -99,6 +100,7 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
         gmailLastMessageId: result.rfc822MessageId ?? estimate.gmailLastMessageId,
       });
       await clearReminder(business, followUp);
+      await logEstimateActivity(businessId, estimate.id, "estimate.followup_sent", `Follow-up email sent to ${estimate.customerEmail}.`);
 
       logAction("follow-up.send.success", {
         followUpId,

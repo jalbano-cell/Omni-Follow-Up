@@ -1,4 +1,4 @@
-import { createActivityLogEntry, getActivityForLead, getActivityLog, updateLead } from "@/services/db";
+import { createActivityLogEntry, getActivityForLead, getActivityLog, getEstimate, updateLead } from "@/services/db";
 import type { ActivityLogEntry } from "@/types";
 
 /**
@@ -22,6 +22,23 @@ export async function logLeadActivity(
     updateLead(businessId, leadId, { lastActivityAt: now }),
   ]);
   return entry;
+}
+
+/**
+ * Logs an estimate-lifecycle event (follow-up approved/sent, reply received,
+ * booked/lost) onto the Timeline of whichever Lead this estimate was
+ * converted from — a no-op if it wasn't converted from a Lead (leadId null),
+ * since there's nowhere to log it.
+ */
+export async function logEstimateActivity(
+  businessId: string,
+  estimateId: string,
+  type: string,
+  description: string
+): Promise<void> {
+  const estimate = await getEstimate(businessId, estimateId);
+  if (!estimate?.leadId) return;
+  await logLeadActivity(businessId, estimate.leadId, type, description);
 }
 
 /** Full timeline for one lead's detail page, newest first. */
