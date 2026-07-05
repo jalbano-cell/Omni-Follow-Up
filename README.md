@@ -101,6 +101,16 @@ GEMINI_API_KEY=...
 ```
 Optional in the sense that the app runs fine without it — leads just stay `aiStatus: "pending"`/"failed" and the Lead Details page shows "Not available" instead of AI insights.
 
+### Supabase (migration in progress)
+
+OmniFollowUp is migrating its backend data layer from Airtable to Supabase, table-by-table, dual-write first — see CLAUDE.md's "Supabase migration" section for the full status and architecture. Set:
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...      # "publishable" key
+SUPABASE_SERVICE_ROLE_KEY=...         # "secret" key — server only, never expose client-side
+```
+Schema lives in `supabase/migrations/*.sql`, applied by hand in the Supabase SQL Editor (no CLI/DDL access wired up). Right now only newly-created Leads are mirrored into Supabase (best-effort, after Airtable's write succeeds) — everything else (Estimates, FollowUps, Replies, Businesses, and every Lead action past creation) is still Airtable-only.
+
 ### Calendar reminders (output-only)
 
 `services/calendarReminders.ts` creates a 15-minute Calendar event (9am `APP_TIMEZONE` on the follow-up's `scheduledDate`, on the business's `calendarId` — "primary" unless overridden) the moment a follow-up is drafted, nudging the owner to go review it in the Follow-up Queue. It's deleted once the follow-up sends or is skipped. This is purely an internal reminder — it never reads the connected calendar's existing events/availability and never creates anything customer-facing. Every call is wrapped so a Calendar API failure is logged and swallowed, never blocking the drafting/sending/skipping action it's attached to.
@@ -202,3 +212,4 @@ Manual approve/edit/skip/send actions and estimate status changes are also logge
 - **The intake notification email requires the business to have already connected Google** — if it hasn't, the lead still saves and appears on the dashboard, but no "New Website Inquiry" email goes out (silently skipped, logged).
 - **`assignedTo` on a Lead is free text, not a real assignment** — there's no team/user-member roster in this product yet (each business is a single login). Treat it as a label, not an access-control or notification-routing mechanism.
 - **AI Lead Intelligence (`services/aiInsightsService.ts`) requires `GEMINI_API_KEY`** — without it, every lead's analysis fails gracefully (`aiStatus: "failed"`, no fabricated values) and the Lead Details page shows "Not available." One Gemini call per lead, run synchronously during intake — no batching, retry queue, or cost controls yet beyond the intake rate limiter.
+- **The Supabase migration is mid-flight (dual-write, Lead creation only)** — Airtable is still authoritative and still the only thing any page reads from. A newly created Lead gets mirrored into Supabase best-effort; anything that happens to it afterward (archive/assign/note/convert/AI edit/dismiss/regenerate) does not yet sync, so Supabase's copy goes stale after creation. There's also no DB-level unique constraint on `workspaces.airtable_record_id` yet, so two truly concurrent first-ever intake requests for a brand-new business could theoretically create two workspace rows. See CLAUDE.md's "Supabase migration" section before building on top of the Supabase tables.
