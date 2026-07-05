@@ -2,10 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createEstimate, updateEstimate, deleteEstimate, getLeads } from "@/services/db";
 import { markLeadConverted, revertLeadConversion } from "@/services/leadService";
 import { logEstimateActivity } from "@/services/activityService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
+import { uploadEstimateAttachment, deleteEstimateAttachment } from "@/services/estimateAttachmentService";
+import { createEstimateShareToken } from "@/lib/auth";
 import { addDays } from "@/lib/date";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
@@ -110,4 +113,38 @@ export async function deleteEstimateAction(id: string) {
   revalidatePath("/estimates");
   revalidatePath("/follow-ups");
   revalidatePath("/replies");
+}
+
+/** Mints a fresh signed link to this estimate's customer portal (app/e/[token]/page.tsx). Regenerating doesn't invalidate a previously shared link early — see lib/auth.ts's createEstimateShareToken. */
+export async function getEstimateShareUrlAction(estimateId: string): Promise<string> {
+  const businessId = await getCurrentBusinessId();
+  const token = await createEstimateShareToken({ estimateId, businessId });
+  const host = (await headers()).get("host") ?? "localhost:3000";
+  const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+  return `${protocol}://${host}/e/${token}`;
+}
+
+export async function uploadEstimateAttachmentAction(estimateId: string, formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Choose a file first.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await uploadEstimateAttachment(businessId, estimateId, {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    buffer,
+  });
+  logAction("estimate.attachment-upload", { estimateId, fileName: file.name });
+  revalidatePath(`/estimates/${estimateId}`);
+}
+
+export async function deleteEstimateAttachmentAction(estimateId: string, attachmentId: string) {
+  const businessId = await getCurrentBusinessId();
+  await deleteEstimateAttachment(businessId, attachmentId);
+  logAction("estimate.attachment-delete", { estimateId, attachmentId });
+  revalidatePath(`/estimates/${estimateId}`);
 }

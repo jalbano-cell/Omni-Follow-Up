@@ -6,10 +6,13 @@ import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { StatusActions } from "@/components/estimates/status-actions";
 import { DeleteEstimateDialog } from "@/components/estimates/delete-estimate-dialog";
+import { EstimateAttachmentsCard } from "@/components/estimates/estimate-attachments-card";
+import { CopyShareLinkButton } from "@/components/estimates/copy-share-link-button";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEstimate, getFollowUpsForEstimate, getRepliesForEstimate } from "@/services/db";
+import { getAttachmentsForEstimate } from "@/services/estimateAttachmentService";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
@@ -26,10 +29,12 @@ export default async function EstimateDetailPage({
   let estimate;
   let followUps;
   let replies;
+  let attachments;
   try {
     estimate = await getEstimate(businessId, id);
     followUps = estimate ? await getFollowUpsForEstimate(businessId, id) : [];
     replies = estimate ? await getRepliesForEstimate(businessId, id) : [];
+    attachments = estimate ? await getAttachmentsForEstimate(businessId, id) : [];
   } catch (error) {
     return <DatabaseErrorState message={error instanceof Error ? error.message : "Unknown error"} />;
   }
@@ -61,6 +66,7 @@ export default async function EstimateDetailPage({
         action={
           <div className="flex items-center gap-2">
             <StatusBadge status={estimate.status} />
+            <CopyShareLinkButton estimateId={estimate.id} />
             <DeleteEstimateDialog estimateId={estimate.id} customerName={estimate.customerName} />
           </div>
         }
@@ -144,6 +150,8 @@ export default async function EstimateDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <EstimateAttachmentsCard estimateId={estimate.id} attachments={attachments} />
     </>
   );
 }

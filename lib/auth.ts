@@ -67,3 +67,38 @@ export async function verifyOAuthStateToken(token: string | null | undefined): P
     return null;
   }
 }
+
+export interface EstimateSharePayload {
+  estimateId: string;
+  businessId: string;
+}
+
+const ESTIMATE_SHARE_DURATION = "90d";
+
+/**
+ * Signed, stateless link a business shares with its customer (the "view my
+ * estimate" portal, see app/e/[token]/page.tsx) — same jose mechanics as the
+ * OAuth state token, just a different payload and a much longer expiry since
+ * a customer might reasonably open the link weeks later. No revocation
+ * mechanism exists for this or any other token in this file: a link is valid
+ * until it expires, full stop — regenerating the estimate's link (a new
+ * token) doesn't invalidate the old one early.
+ */
+export async function createEstimateShareToken(payload: EstimateSharePayload): Promise<string> {
+  return new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(ESTIMATE_SHARE_DURATION)
+    .sign(getSecretKey());
+}
+
+export async function verifyEstimateShareToken(token: string | null | undefined): Promise<EstimateSharePayload | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, getSecretKey());
+    if (typeof payload.estimateId !== "string" || typeof payload.businessId !== "string") return null;
+    return { estimateId: payload.estimateId, businessId: payload.businessId };
+  } catch {
+    return null;
+  }
+}
