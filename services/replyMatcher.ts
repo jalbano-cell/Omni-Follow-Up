@@ -1,7 +1,8 @@
-import { getEstimates, getReplies, createReply } from "@/services/db";
+import { getEstimates, getReplies, createReply, createNotification } from "@/services/db";
 import { getThreadMessages, extractEmailAddress } from "@/services/gmailInbox";
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { logEstimateActivity } from "@/services/activityService";
+import { getEffectiveNotifyOnReply } from "@/services/business";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
 import type { Business, ReplyInboxItem } from "@/types";
@@ -60,6 +61,23 @@ export async function syncRepliesForBusiness(business: Business): Promise<ReplyS
           receivedAt: message.receivedAt,
         });
         await logEstimateActivity(business.id, estimate.id, "estimate.reply_received", "Customer replied.");
+
+        if (getEffectiveNotifyOnReply(business) && estimate.leadId) {
+          try {
+            await createNotification(business.id, {
+              leadId: estimate.leadId,
+              type: "estimate.reply_received",
+              message: `${estimate.customerName} replied on the ${estimate.serviceType} estimate.`,
+            });
+          } catch (error) {
+            logAction("reply.notify-inapp-failed", {
+              businessId: business.id,
+              estimateId: estimate.id,
+              error: error instanceof Error ? error.message : "unknown error",
+            });
+          }
+        }
+
         knownMessageIds.add(message.gmailMessageId);
         created += 1;
       }

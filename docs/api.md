@@ -58,8 +58,22 @@ Response: `200 { "estimates": [Estimate, ...] }`.
 ### `POST /api/v1/webhooks/leads`
 Exactly `POST /api/v1/leads` under a URL that reads more naturally for webhook-style integrations (Zapier, a form builder's "webhook" action, etc). See above.
 
+## Webhooks (outbound)
+
+Set a **Webhook URL** in Settings and OmniFollowUp will `POST` a JSON payload to it on these events (see `services/webhookDispatcher.ts`):
+
+- `lead.created` — fires whenever a lead is created, from any source
+- `estimate.booked` — an estimate's status changes to Booked (from the app or the customer portal)
+- `estimate.lost` — an estimate's status changes to Lost (from the app or the customer portal)
+
+Payload shape:
+```json
+{ "event": "estimate.booked", "businessId": "...", "timestamp": "2026-07-05T12:00:00.000Z", "data": { "...event-specific fields..." } }
+```
+
+Best-effort, fire-and-forget: a 5-second timeout, no retries, no request signing. A failing or slow webhook endpoint never blocks or slows down the action that triggered it — failures are logged server-side only. This is the opposite direction from the inbound `/api/v1/webhooks/leads` above (that receives leads from your systems; this notifies your systems of what happened here).
+
 ## Notes
 
 - All responses include permissive CORS headers (`Access-Control-Allow-Origin: *`) — every route also implements `OPTIONS` for preflight.
 - There's no request signing beyond the bearer key, no per-route rate limiting distinct from the intake endpoint's, and no API versioning strategy beyond the `/v1/` prefix yet — treat this as a v1 in the literal sense.
-- Outbound webhooks (OmniFollowUp calling *your* URL on events like a new lead or a booked estimate) are a separate, opposite-direction feature — see the "Webhook URL" setting in Settings.

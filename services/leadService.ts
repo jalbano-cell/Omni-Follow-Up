@@ -13,7 +13,8 @@ import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
 import { analyzeLead } from "@/services/automation/leadClassifier";
 import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/services/emailBuilder";
 import { resolveAppointmentBooking, bookRecommendedAppointment } from "@/services/appointmentBooking";
-import { getBusinessById } from "@/services/business";
+import { getBusinessById, getEffectiveNotifyOnNewLead } from "@/services/business";
+import { dispatchWebhookEvent } from "@/services/webhookDispatcher";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -35,8 +36,11 @@ function generateLeadId(): string {
   return `LEAD-${stamp}-${rand}`;
 }
 
-/** Best-effort notification to the business's own inbox — never blocks lead creation from succeeding. */
+/** Best-effort notification to the business's own inbox — never blocks lead creation from succeeding. Skipped entirely if the owner has turned it off (Settings > Notification Preferences). */
 async function sendLeadNotificationEmail(business: Business, lead: Lead): Promise<void> {
+  if (!getEffectiveNotifyOnNewLead(business)) {
+    return;
+  }
   if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
     logAction("lead.notify-email-skipped", { businessId: business.id, leadId: lead.leadId, reason: "Gmail not connected" });
     return;
@@ -252,6 +256,14 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
   await sendLeadNotificationEmail(business, lead);
   await analyzeLead(business.id, lead);
   await sendLeadAcknowledgmentEmail(business, lead);
+  await dispatchWebhookEvent(business, "lead.created", {
+    leadId: lead.leadId,
+    name: lead.name,
+    email: lead.email,
+    company: lead.company,
+    requestedService: lead.requestedService,
+    source: lead.leadSource,
+  });
 
   return lead;
 }

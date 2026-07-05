@@ -37,6 +37,9 @@ function toBusiness(row: WorkspaceRow): Business {
     intakeApiKey: row.intake_api_key,
     intakeApiKeyCreatedAt: row.intake_api_key_created_at,
     autoBookAppointments: row.auto_book_appointments,
+    outboundWebhookUrl: row.outbound_webhook_url,
+    notifyOnNewLead: row.notify_on_new_lead,
+    notifyOnReply: row.notify_on_reply,
   };
 }
 
@@ -98,6 +101,9 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.intakeApiKey !== undefined) fields.intake_api_key = input.intakeApiKey;
   if (input.intakeApiKeyCreatedAt !== undefined) fields.intake_api_key_created_at = input.intakeApiKeyCreatedAt;
   if (input.autoBookAppointments !== undefined) fields.auto_book_appointments = input.autoBookAppointments;
+  if (input.outboundWebhookUrl !== undefined) fields.outbound_webhook_url = input.outboundWebhookUrl;
+  if (input.notifyOnNewLead !== undefined) fields.notify_on_new_lead = input.notifyOnNewLead;
+  if (input.notifyOnReply !== undefined) fields.notify_on_reply = input.notifyOnReply;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -191,4 +197,14 @@ export function getEffectiveWorkingHours(
 /** Whether a requested appointment books automatically (true) or only produces a reviewable recommendation (false, the default) — see services/appointmentBooking.ts. */
 export function getEffectiveAutoBooking(business: Pick<Business, "autoBookAppointments">): boolean {
   return business.autoBookAppointments ?? false;
+}
+
+/** Whether the owner-notification email fires for a new lead — on by default. */
+export function getEffectiveNotifyOnNewLead(business: Pick<Business, "notifyOnNewLead">): boolean {
+  return business.notifyOnNewLead ?? true;
+}
+
+/** Whether an in-app Notification fires when a customer reply arrives — on by default. */
+export function getEffectiveNotifyOnReply(business: Pick<Business, "notifyOnReply">): boolean {
+  return business.notifyOnReply ?? true;
 }

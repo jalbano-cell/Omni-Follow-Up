@@ -24,6 +24,8 @@ import {
   getEffectiveTimezone,
   getEffectiveWorkingHours,
   getEffectiveAutoBooking,
+  getEffectiveNotifyOnNewLead,
+  getEffectiveNotifyOnReply,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
 import {
@@ -34,6 +36,8 @@ import {
   updateScheduleAction,
   updateEmailSignatureAction,
   updateAppointmentPreferencesAction,
+  updateWebhookUrlAction,
+  updateNotificationPreferencesAction,
 } from "@/app/settings/actions";
 import { requireOnboardedBusiness, getCurrentSession } from "@/lib/session";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
@@ -64,6 +68,8 @@ export default async function SettingsPage({
   const timezone = getEffectiveTimezone(business);
   const workingHours = getEffectiveWorkingHours(business);
   const autoBookAppointments = getEffectiveAutoBooking(business);
+  const notifyOnNewLead = getEffectiveNotifyOnNewLead(business);
+  const notifyOnReply = getEffectiveNotifyOnReply(business);
   const emailTemplates = await listEmailTemplates(business.id);
 
   return (
@@ -260,6 +266,63 @@ export default async function SettingsPage({
                     Off by default — leaves a reviewable recommendation on the Lead instead, with an Approve button.
                   </span>
                 </span>
+              </label>
+              <SubmitButton>Save preferences</SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Webhook URL</CardTitle>
+            <CardDescription>
+              We&apos;ll POST a JSON payload here on key events (new lead, estimate booked/lost) — best-effort, no
+              retries. See docs/api.md for the payload shape.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <form action={updateWebhookUrlAction} className="flex flex-col gap-1.5">
+              <Label htmlFor="outboundWebhookUrl" className="text-xs">
+                Webhook URL
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="outboundWebhookUrl"
+                  name="outboundWebhookUrl"
+                  type="url"
+                  placeholder="https://example.com/webhooks/omnifollowup"
+                  defaultValue={business.outboundWebhookUrl ?? ""}
+                />
+                <SubmitButton>Save</SubmitButton>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Notification preferences</CardTitle>
+            <CardDescription>Which events email or notify you in-app.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-5">
+            <form action={updateNotificationPreferencesAction} className="flex flex-col gap-3">
+              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="notifyOnNewLead"
+                  defaultChecked={notifyOnNewLead}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border"
+                />
+                <span className="font-medium text-foreground">Email me when a new lead arrives</span>
+              </label>
+              <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="notifyOnReply"
+                  defaultChecked={notifyOnReply}
+                  className="mt-0.5 size-4 shrink-0 rounded border-border"
+                />
+                <span className="font-medium text-foreground">Notify me in-app when a customer replies</span>
               </label>
               <SubmitButton>Save preferences</SubmitButton>
             </form>
