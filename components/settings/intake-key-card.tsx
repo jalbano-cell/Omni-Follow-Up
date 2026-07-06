@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Eye, EyeOff, Copy, RefreshCw } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -37,15 +37,15 @@ export function IntakeKeyCard({ apiKey, endpointUrl }: { apiKey: string | null; 
   const snippet = SNIPPET.replace("ENDPOINT_URL", endpointUrl).replace("API_KEY", apiKey ?? "API_KEY");
 
   return (
-    <Card className="py-5">
-      <CardHeader className="px-5">
+    <>
+      <CardHeader className="px-0">
         <CardTitle className="text-base">Website intake API</CardTitle>
         <CardDescription>
           Point your website&apos;s contact form at this endpoint — every submission appears on{" "}
           <span className="font-medium text-foreground">Leads</span> within seconds.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 px-5">
+      <CardContent className="flex flex-col gap-4 px-0">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="intake-endpoint" className="text-xs">
             Endpoint
@@ -115,6 +115,6 @@ export function IntakeKeyCard({ apiKey, endpointUrl }: { apiKey: string | null; 
           </pre>
         </div>
       </CardContent>
-    </Card>
+    </>
   );
 }

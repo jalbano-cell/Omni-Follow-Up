@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Pencil, Check, RotateCcw, Eye } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -143,18 +143,18 @@ export function EmailTemplatesCard({
   businessName: string;
 }) {
   return (
-    <Card className="py-5">
-      <CardHeader className="px-5">
+    <>
+      <CardHeader className="px-0">
         <CardTitle className="text-base">Email templates</CardTitle>
         <CardDescription>
           Customize the acknowledgment and follow-up emails sent to customers. Preview before saving.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 px-5">
+      <CardContent className="flex flex-col gap-3 px-0">
         {templates.map((template) => (
           <TemplateItem key={template.key} template={template} businessName={businessName} />
         ))}
       </CardContent>
-    </Card>
+    </>
   );
 }
