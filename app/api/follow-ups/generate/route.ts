@@ -13,12 +13,17 @@ const TARGET_LOCAL_HOUR = 8;
 /**
  * Vercel Cron schedules are always UTC, but each business's own effective
  * timezone (`getEffectiveTimezone` — falls back to APP_TIMEZONE when unset)
- * shifts between standard/daylight time across the year. vercel.json
- * schedules this route at every UTC hour that lands on 8am local for some
- * timezone in TIMEZONE_OPTIONS (config/constants.ts) across both DST states
- * — an invocation that doesn't land on 8am for a given business just skips
- * that business, so every business still gets its jobs run once a day at
- * 8am its own local time, without a manual DST-season update.
+ * shifts between standard/daylight time across the year. This filter is
+ * written generically (any business whose local time is 8am right now gets
+ * processed), but vercel.json can only actually schedule 2 UTC hours/day on
+ * Vercel's Hobby plan (a single cron entry firing more than once/day fails
+ * to deploy at all — this repo hit that the hard way) — so in practice only
+ * Eastern-time businesses (12:00/13:00 UTC, covering both DST states) ever
+ * land on 8am local exactly. A business in one of TIMEZONE_OPTIONS'
+ * (config/constants.ts) other zones will just never match and never get
+ * this cron's jobs run — full multi-timezone coverage needs either a Pro
+ * plan (more/more-frequent cron invocations) or a different trigger
+ * mechanism entirely, not a code change here.
  */
 function isTargetLocalHour(timezone: string): boolean {
   const hour = new Intl.DateTimeFormat("en-US", {
