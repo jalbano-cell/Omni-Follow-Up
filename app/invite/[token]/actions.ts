@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getTeamMemberByInviteToken, acceptInvite, isInviteAcceptable } from "@/services/userService";
+import { getTeamMemberByInviteToken, acceptInvite, claimWorkspaceOwnership, isInviteAcceptable } from "@/services/userService";
 import { hashPassword } from "@/lib/password";
 import { passwordProblem } from "@/lib/passwordPolicy";
 import { SESSION_COOKIE_NAME, createSessionToken } from "@/lib/auth";
@@ -26,10 +26,39 @@ export async function acceptInviteAction(token: string, formData: FormData) {
   }
 
   const passwordHash = await hashPassword(password);
+  const cookieStore = await cookies();
+
+  // An owner-role claim (services/userService.ts's createOwnerClaim, from
+  // app/admin/actions.ts's provisionNewWorkspaceAction) is a one-time claim
+  // on a brand-new workspace, not a teammate joining an existing one:
+  // promote the password onto the workspace itself and sign a normal owner
+  // session (no userId/role) — after this the `users` row is gone and the
+  // workspace is indistinguishable from one created via /signup.
+  if (member.role === "owner") {
+    const business = await claimWorkspaceOwnership(member, passwordHash);
+    logAction("auth.workspace-claimed", { businessId: business.id });
+
+    cookieStore.set(
+      SESSION_COOKIE_NAME,
+      await createSessionToken({
+        businessId: business.id,
+        email: business.ownerEmail,
+        tokenVersion: business.sessionTokenVersion,
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      }
+    );
+    redirect("/onboarding/gmail");
+  }
+
   const accepted = await acceptInvite(member.id, passwordHash);
   logAction("auth.invite-accepted", { businessId: accepted.workspaceId, memberId: accepted.id });
 
-  const cookieStore = await cookies();
   cookieStore.set(
     SESSION_COOKIE_NAME,
     await createSessionToken({

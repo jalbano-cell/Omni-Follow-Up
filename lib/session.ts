@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getBusinessById, hasActiveEntitlement } from "@/services/business";
 import { getTeamMemberById } from "@/services/userService";
+import { env } from "@/lib/env";
 import type { Business, SessionPayload } from "@/types";
 
 /**
@@ -119,6 +120,25 @@ export async function requireOwner(): Promise<Business> {
   const business = await requireOnboardedBusiness();
   const session = await getCurrentSession();
   if (session.role === "member") {
+    redirect("/");
+  }
+  return business;
+}
+
+/**
+ * Guard for /admin — the agency's own provisioning tool (creating/activating
+ * client workspaces, see app/admin/actions.ts). Gated to exactly one
+ * workspace, identified by `ADMIN_WORKSPACE_ID` (env.adminWorkspaceId) — not
+ * a role or permissions system, since there's no concept of "admin user"
+ * anywhere else in this app. Composes on top of requireOwner(), so a team
+ * member of the admin workspace still can't reach this even if invited.
+ * Unreachable by any customer workspace no matter what: this is an equality
+ * check against one specific workspace id, not a flag a customer could ever
+ * set on their own row.
+ */
+export async function requireAdmin(): Promise<Business> {
+  const business = await requireOwner();
+  if (!env.adminWorkspaceId || business.id !== env.adminWorkspaceId) {
     redirect("/");
   }
   return business;

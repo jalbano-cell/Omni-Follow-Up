@@ -27,7 +27,8 @@ export default async function InvitePage({
           <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">OmniFollowUp</h1>
           {acceptable && business ? (
             <p className="text-sm text-muted-foreground">
-              Join <span className="font-medium text-foreground">{business.businessName}</span> on OmniFollowUp
+              {member!.role === "owner" ? "Activate" : "Join"}{" "}
+              <span className="font-medium text-foreground">{business.businessName}</span> on OmniFollowUp
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">Invite link</p>

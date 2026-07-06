@@ -54,4 +54,15 @@ export const env = {
   get gmailPushSecret(): string | undefined {
     return process.env.GMAIL_PUSH_SECRET || undefined;
   },
+  /**
+   * The `workspaces.id` of the agency's own workspace — the one workspace
+   * whose owner session can reach /admin (lib/session.ts's requireAdmin).
+   * Not a customer-facing concept: there's no admin-user table or role
+   * system, just this single deployment-level value, same pattern as
+   * CRON_SECRET/GMAIL_PUSH_SECRET. Optional so the app still runs (with
+   * /admin unreachable by anyone) before this is configured.
+   */
+  get adminWorkspaceId(): string | undefined {
+    return process.env.ADMIN_WORKSPACE_ID || undefined;
+  },
 };

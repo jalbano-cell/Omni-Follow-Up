@@ -1,9 +1,9 @@
 import { randomBytes } from "crypto";
 import { getSupabase, insertRow, updateRow, selectWhere, selectById, deleteRow } from "@/lib/supabase";
-import { getBusinessByEmail, getBusinessById } from "@/services/business";
+import { getBusinessByEmail, getBusinessById, updateBusiness } from "@/services/business";
 import { PLAN_MAX_USERS } from "@/config/constants";
 import type { Database } from "@/types/supabase";
-import type { TeamMember } from "@/types";
+import type { Business, TeamMember } from "@/types";
 
 /**
  * Team members (multi-user support) — a `TeamMember` is distinct from the
@@ -123,6 +123,59 @@ export async function inviteTeamMember(
     invite_token_expires_at: new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString(),
   });
   return toTeamMember(row);
+}
+
+/**
+ * Creates the one-time claim link for a brand-new agency-provisioned
+ * workspace (app/admin/actions.ts's provisionNewWorkspaceAction) — reuses
+ * the exact same invite-token/expiry mechanics and the exact same
+ * app/invite/[token] accept page as inviteTeamMember above, but with
+ * role: "owner" instead of "member". This `users` row is transient: it only
+ * ever exists to carry the claim token from creation to acceptance —
+ * claimWorkspaceOwnership (below) deletes it the moment it's used, so it
+ * never becomes a permanent second "owner shape" alongside
+ * workspaces.password_hash. No seat-cap check here (unlike inviteTeamMember)
+ * since this is the workspace's own inaugural owner, not an additional seat
+ * on top of one; the email-collision guard still applies, since the agency
+ * could still typo an email that's already tied to a different account.
+ */
+export async function createOwnerClaim(
+  workspaceId: string,
+  input: { email: string; name: string }
+): Promise<TeamMember> {
+  const [existingBusiness, existingMember] = await Promise.all([
+    getBusinessByEmail(input.email),
+    getTeamMemberByEmail(input.email),
+  ]);
+  if (existingBusiness || existingMember) {
+    throw new TeamMemberEmailInUseError();
+  }
+
+  const inviteToken = `inv_${randomBytes(24).toString("hex")}`;
+  const row = await insertRow("users", {
+    workspace_id: workspaceId,
+    email: input.email,
+    name: input.name,
+    role: "owner",
+    invite_token: inviteToken,
+    invite_token_expires_at: new Date(Date.now() + INVITE_TOKEN_TTL_MS).toISOString(),
+  });
+  return toTeamMember(row);
+}
+
+/**
+ * Promotes an accepted owner-claim (see createOwnerClaim) onto the workspace
+ * itself — sets the real password_hash on `workspaces` (overwriting the
+ * unguessable placeholder from services/business.ts's createBusinessForAgency)
+ * — then deletes the transient `users` row. After this, the workspace is
+ * indistinguishable from one created through normal self-serve signup: the
+ * owner always authenticates via workspaces.password_hash, never a `users`
+ * row, exactly like every other workspace in this app.
+ */
+export async function claimWorkspaceOwnership(member: TeamMember, passwordHash: string): Promise<Business> {
+  const business = await updateBusiness(member.workspaceId, { passwordHash });
+  await deleteRow("users", member.id, { workspace_id: member.workspaceId } as Partial<UserRow>);
+  return business;
 }
 
 /** Whether an invite token is still valid to accept — unknown, already-accepted, or expired tokens all fail this. */

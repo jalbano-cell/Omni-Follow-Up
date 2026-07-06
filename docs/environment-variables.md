@@ -14,6 +14,7 @@ Reference for every environment variable this app reads. `.env.example` is the s
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase "secret" key — server-only, bypasses RLS. Never send to the client. |
 | `GMAIL_PUBSUB_TOPIC` | No | Full Cloud Pub/Sub topic name for Gmail push notifications (real-time reply sync, `services/gmailWatch.ts`). Optional — silently no-ops when unset; the daily cron/manual sync still works either way. |
 | `GMAIL_PUSH_SECRET` | No | Shared secret verifying `POST /api/webhooks/gmail-push` requests, appended as a query param on the Pub/Sub push subscription's endpoint URL. Required only alongside `GMAIL_PUBSUB_TOPIC`. |
+| `ADMIN_WORKSPACE_ID` | No | The `workspaces.id` (uuid) of the agency's own workspace — only that workspace's owner session can reach `/admin` (`lib/session.ts`'s `requireAdmin`). Leave unset and `/admin` is unreachable by anyone. |
 
 ## No longer used
 

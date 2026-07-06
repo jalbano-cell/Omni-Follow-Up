@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { getSupabase, insertRow, updateRow, selectById, selectWhere } from "@/lib/supabase";
 import type { Database } from "@/types/supabase";
 import {
@@ -7,6 +8,7 @@ import {
   DEFAULT_WORKING_HOURS_END,
 } from "@/config/constants";
 import { generateApiKey } from "@/lib/crypto";
+import { hashPassword } from "@/lib/password";
 import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspacePlan, WorkspaceStatus } from "@/types";
 
 type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
@@ -81,6 +83,39 @@ export async function createBusiness(input: NewBusinessInput): Promise<Business>
     // no separate "enable website intake" step to remember.
     intake_api_key: generateApiKey(),
     intake_api_key_created_at: now,
+  });
+  return toBusiness(row);
+}
+
+/**
+ * Agency-provisioned workspace (app/admin/actions.ts's provisionNewWorkspaceAction)
+ * — same shape as createBusiness, but plan/status are set explicitly (status
+ * 'active' immediately, since the agency is provisioning this after an
+ * external invoice) instead of relying on the schema defaults ('grow'/'inactive')
+ * meant for self-serve signups. There's no real password yet — the client
+ * hasn't claimed the workspace — so password_hash gets an unguessable random
+ * value nobody will ever type correctly (same "unusable placeholder" idea as
+ * app/login/actions.ts's DUMMY_HASH_PROMISE), which
+ * services/userService.ts's claimWorkspaceOwnership overwrites for real once
+ * the client accepts their claim invite.
+ */
+export async function createBusinessForAgency(input: {
+  businessName: string;
+  ownerName: string;
+  ownerEmail: string;
+  plan: WorkspacePlan;
+}): Promise<Business> {
+  const now = new Date().toISOString();
+  const placeholderPasswordHash = await hashPassword(randomBytes(32).toString("hex"));
+  const row = await insertRow("workspaces", {
+    business_name: input.businessName,
+    owner_name: input.ownerName,
+    owner_email: input.ownerEmail,
+    password_hash: placeholderPasswordHash,
+    intake_api_key: generateApiKey(),
+    intake_api_key_created_at: now,
+    plan: input.plan,
+    status: "active",
   });
   return toBusiness(row);
 }

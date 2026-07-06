@@ -20,11 +20,21 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // The login/signup/onboarding screens, and the public customer portal
-  // (/e/[token] — no session, a customer viewing their own estimate), render
-  // their own full-page layout — no sidebar/nav chrome meant for a logged-in
-  // business owner.
-  if (pathname === "/login" || pathname === "/signup" || pathname.startsWith("/onboarding") || pathname.startsWith("/e/")) {
+  // The login/signup/onboarding screens, the public customer portal
+  // (/e/[token] — no session, a customer viewing their own estimate), the
+  // team/workspace invite-claim page (/invite/[token] — no session yet
+  // either), and the account-paused lockout page (a session exists but
+  // shouldn't see nav links to pages it's locked out of) all render their
+  // own full-page layout — no sidebar/nav chrome meant for a logged-in,
+  // active business owner.
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/account-paused" ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/e/") ||
+    pathname.startsWith("/invite/")
+  ) {
     return <>{children}</>;
   }
 
