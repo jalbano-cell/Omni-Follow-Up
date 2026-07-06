@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Copy } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -50,15 +50,15 @@ export function LeadSourcesCard({
   ];
 
   return (
-    <Card className="py-5">
-      <CardHeader className="px-5">
+    <>
+      <CardHeader className="px-0">
         <CardTitle className="text-base">Lead sources</CardTitle>
         <CardDescription>
           Gmail is your primary source. These are optional, advanced ways a lead can also enter OmniFollowUp — all
           funnel into the same pipeline.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 px-5">
+      <CardContent className="flex flex-col gap-4 px-0">
         <ul className="flex flex-col gap-2">
           {rows.map((row) => (
             <li key={row.label} className="flex items-center gap-2.5 rounded-lg border border-border px-4 py-2.5">
@@ -94,6 +94,6 @@ export function LeadSourcesCard({
           </p>
         </div>
       </CardContent>
-    </Card>
+    </>
   );
 }
