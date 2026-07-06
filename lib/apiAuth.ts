@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getBusinessByIntakeApiKey } from "@/services/business";
+import { getBusinessByIntakeApiKey, hasActiveEntitlement } from "@/services/business";
 import { processIntake } from "@/services/intakeService";
-import { checkFeatureGate } from "@/services/subscriptionService";
 import type { Business } from "@/types";
 import type { LeadSource } from "@/config/constants";
 
@@ -44,20 +43,18 @@ export function unauthorized(): NextResponse {
 /**
  * Gates the "read/manage your existing data" side of the public API — GET
  * /api/v1/leads, PATCH /api/v1/leads/:id, GET+POST /api/v1/estimates —
- * behind the Pro plan's `publicApi` feature. Returns a ready-to-return 403
- * NextResponse if this business's plan doesn't include it, or null if the
- * route should proceed. Deliberately NOT applied to POST /api/v1/leads or
+ * behind the workspace's agency-assigned entitlement (services/business.ts's
+ * hasActiveEntitlement; no longer a Billing-plan feature flag). Returns a
+ * ready-to-return 403 NextResponse if the workspace isn't active, or null if
+ * the route should proceed. Deliberately NOT applied to POST /api/v1/leads or
  * /api/v1/webhooks/leads (identical handler, see handleLeadIntakeRequest) —
- * creating a lead is a basic inbound channel every plan gets, same tier as
- * POST /api/intake; gating creation there too would just push Free-plan
- * integrators onto the identical /api/v1/webhooks/leads route instead of
- * actually restricting anything.
+ * unchanged from before this change, creating a lead is a basic inbound
+ * channel that was never gated even under the old Free plan.
  */
-export async function requirePublicApiFeature(business: Business): Promise<NextResponse | null> {
-  const allowed = await checkFeatureGate(business.id, "publicApi");
-  if (allowed) return null;
+export function requirePublicApiFeature(business: Business): NextResponse | null {
+  if (hasActiveEntitlement(business)) return null;
   return NextResponse.json(
-    { error: "The public API requires the Pro plan. Upgrade in Settings to enable it." },
+    { error: "This account isn't active. Contact your account team to enable API access." },
     { status: 403, headers: API_CORS_HEADERS }
   );
 }

@@ -26,7 +26,8 @@ export function TeamCard({
   ownerName: string;
   ownerEmail: string;
   members: TeamMember[];
-  maxUsers: number;
+  /** Null means unlimited (config/constants.ts's PLAN_MAX_USERS). */
+  maxUsers: number | null;
   inviteBaseUrl: string;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -34,7 +35,7 @@ export function TeamCard({
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
 
   const seatsUsed = 1 + members.length;
-  const atCap = seatsUsed >= maxUsers;
+  const atCap = maxUsers !== null && seatsUsed >= maxUsers;
 
   function invite(formData: FormData) {
     startTransition(async () => {
@@ -62,8 +63,11 @@ export function TeamCard({
       <CardHeader className="px-0">
         <CardTitle className="text-base">Team</CardTitle>
         <CardDescription>
-          {seatsUsed} of {maxUsers} seat{maxUsers === 1 ? "" : "s"} used. Invited members share full access to
-          estimates, leads, follow-ups, replies, and analytics — Settings (this page) stays owner-only.
+          {maxUsers === null
+            ? `${seatsUsed} seat${seatsUsed === 1 ? "" : "s"} used (unlimited).`
+            : `${seatsUsed} of ${maxUsers} seat${maxUsers === 1 ? "" : "s"} used.`}{" "}
+          Invited members share full access to estimates, leads, follow-ups, replies, and analytics — Settings
+          (this page) stays owner-only.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-0">

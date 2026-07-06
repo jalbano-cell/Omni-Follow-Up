@@ -12,12 +12,12 @@ Reference for every environment variable this app reads. `.env.example` is the s
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase "publishable" key — safe client-side (nothing here currently uses it client-side, but it's not secret). |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase "secret" key — server-only, bypasses RLS. Never send to the client. |
-| `BILLING_SECRET_KEY` | Yes (for Pro-plan billing) | Authenticates every Billing API call (`services/billingService.ts`). A restricted key (`rk_...`) scoped to Checkout/Billing Portal/Subscriptions/Prices/Products is safer than the full secret key. Test-mode (`sk_test_...`/test `rk_...`) and live-mode keys are entirely separate Billing universes — switching modes recreates the Pro Price automatically (see `ensureProBillingPrice`). |
-| `BILLING_WEBHOOK_SECRET` | Yes (for Pro-plan billing) | Verifies `POST /api/webhooks/billing` genuinely came from Billing (HMAC signature). From the Dashboard's webhook endpoint settings (or `billing listen` for local dev) — a different secret from the API key. |
+| `GMAIL_PUBSUB_TOPIC` | No | Full Cloud Pub/Sub topic name for Gmail push notifications (real-time reply sync, `services/gmailWatch.ts`). Optional — silently no-ops when unset; the daily cron/manual sync still works either way. |
+| `GMAIL_PUSH_SECRET` | No | Shared secret verifying `POST /api/webhooks/gmail-push` requests, appended as a query param on the Pub/Sub push subscription's endpoint URL. Required only alongside `GMAIL_PUBSUB_TOPIC`. |
 
 ## No longer used
 
-`AIRTABLE_API_KEY`/`AIRTABLE_BASE_ID` (retired when the app fully migrated to Supabase) and `GEMINI_API_KEY` (retired when AI Lead Intelligence was replaced with a deterministic rule engine — see `CLAUDE.md`'s "No AI/LLM dependency" note) — if you see either referenced in old commit messages or docs, they're historical.
+`AIRTABLE_API_KEY`/`AIRTABLE_BASE_ID` (retired when the app fully migrated to Supabase), `GEMINI_API_KEY` (retired when AI Lead Intelligence was replaced with a deterministic rule engine — see `CLAUDE.md`'s "No AI/LLM dependency" note), and `BILLING_SECRET_KEY`/`BILLING_WEBHOOK_SECRET` (retired when billing became agency-provisioned instead of Billing-gated — see `CLAUDE.md`'s "Access & entitlement" section, migration `0015_workspace_entitlements.sql`) — if you see any of these referenced in old commit messages or docs, they're historical.
 
 ## Where these are read
 

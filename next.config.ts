@@ -3,8 +3,7 @@ import type { NextConfig } from "next";
 /**
  * Baseline security response headers applied to every route. These are the
  * high-value, framework-safe ones — they don't rely on nonces and won't break
- * Next.js's inline hydration scripts, Billing Checkout redirects, or Supabase
- * calls:
+ * Next.js's inline hydration scripts or Supabase calls:
  *
  *  - Strict-Transport-Security: force HTTPS for a year (browsers ignore it on
  *    plain HTTP / localhost, so it's inert in dev).

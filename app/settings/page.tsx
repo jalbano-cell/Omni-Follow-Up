@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { IntakeKeyCard } from "@/components/settings/intake-key-card";
 import { LeadSourcesCard } from "@/components/settings/lead-sources-card";
 import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
-import { BillingCard } from "@/components/settings/billing-card";
+import { PlanCard } from "@/components/settings/plan-card";
 import { TeamCard } from "@/components/settings/team-card";
 import { SettingsAccordion } from "@/components/settings/settings-accordion";
 import { SettingsSection } from "@/components/settings/settings-section";
@@ -46,7 +46,6 @@ import {
   getEffectiveGmailLeadMonitoring,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
-import { getEffectivePlan, getSubscription, getLeadsThisMonthUsage } from "@/services/subscriptionService";
 import { getTeamMembersForBusiness } from "@/services/userService";
 import {
   updateCadenceAction,
@@ -61,16 +60,16 @@ import {
   updateGmailLeadMonitoringAction,
 } from "@/app/settings/actions";
 import { requireOwner, getCurrentSession } from "@/lib/session";
-import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
+import { SERVICE_TYPES, TIMEZONE_OPTIONS, PLAN_MAX_USERS } from "@/config/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ googleError?: string; checkout?: "success" | "cancelled" }>;
+  searchParams: Promise<{ googleError?: string }>;
 }) {
-  const { googleError, checkout } = await searchParams;
+  const { googleError } = await searchParams;
   const { email } = await getCurrentSession();
   const business = await requireOwner();
 
@@ -90,9 +89,6 @@ export default async function SettingsPage({
   const notifyOnReply = getEffectiveNotifyOnReply(business);
   const monitorGmailInbox = getEffectiveGmailLeadMonitoring(business);
   const emailTemplates = await listEmailTemplates(business.id);
-  const plan = await getEffectivePlan(business.id);
-  const subscription = await getSubscription(business.id);
-  const leadsUsedThisMonth = await getLeadsThisMonthUsage(business.id);
   const teamMembers = await getTeamMembersForBusiness(business.id);
 
   return (
@@ -212,8 +208,8 @@ export default async function SettingsPage({
           </div>
         </SettingsSection>
 
-        <SettingsSection value="billing" icon={CreditCard} title="Billing" description="Subscription and usage">
-          <BillingCard plan={plan} subscription={subscription} leadsUsedThisMonth={leadsUsedThisMonth} checkoutStatus={checkout} />
+        <SettingsSection value="plan" icon={CreditCard} title="Plan" description="Your account's plan and status">
+          <PlanCard plan={business.plan} status={business.status} />
         </SettingsSection>
 
         <SettingsSection value="team" icon={Users} title="Team" description="Invite teammates to share this workspace">
@@ -221,7 +217,7 @@ export default async function SettingsPage({
             ownerName={business.ownerName}
             ownerEmail={business.ownerEmail}
             members={teamMembers}
-            maxUsers={plan.maxUsers}
+            maxUsers={PLAN_MAX_USERS[business.plan]}
             inviteBaseUrl={inviteBaseUrl}
           />
         </SettingsSection>

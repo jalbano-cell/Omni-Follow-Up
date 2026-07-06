@@ -6,13 +6,12 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 // webhooks) has its own per-business API-key auth, /e/[token] (the
 // customer portal) authenticates via its own signed share token,
 // /invite/[token] (accepting a team invite, services/userService.ts)
-// authenticates via its own one-time DB-backed token, the Billing webhook
-// authenticates via an HMAC signature over the raw body, and the Gmail push
+// authenticates via its own one-time DB-backed token, and the Gmail push
 // webhook authenticates via a shared secret query token — all of these are
 // called with no session cookie (Vercel Cron, a third-party website's
 // contact form, an external integration, a customer's browser, an invited
-// teammate who has no account yet, Billing, Google Cloud Pub/Sub) and must
-// stay reachable without one.
+// teammate who has no account yet, Google Cloud Pub/Sub) and must stay
+// reachable without one.
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
@@ -21,7 +20,6 @@ const PUBLIC_PATHS = [
   "/api/v1",
   "/e",
   "/invite",
-  "/api/webhooks/billing",
   "/api/webhooks/gmail-push",
 ];
 

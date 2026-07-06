@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
-import { getBusinessById } from "@/services/business";
+import { getBusinessById, hasActiveEntitlement } from "@/services/business";
 import { getTeamMemberById } from "@/services/userService";
 import type { Business, SessionPayload } from "@/types";
 
@@ -83,6 +83,14 @@ function onboardingStepPath(step: number): string {
  * everything except the onboarding wizard itself). Redirects to whichever
  * step the business hasn't finished yet instead of letting it hit a page
  * that expects a fully-configured business.
+ *
+ * Checks entitlement (services/business.ts's hasActiveEntitlement) FIRST,
+ * before onboarding — access is agency-provisioned, not self-serve, so a
+ * brand-new signup (which defaults to status 'inactive') should land on
+ * /account-paused rather than being let into the onboarding wizard before
+ * the agency has actually provisioned it. There's no free/fallback tier to
+ * drop back to in this model: not-active means a full lockout, not just
+ * losing individual features.
  */
 export async function requireOnboardedBusiness(): Promise<Business> {
   const resolved = await resolveValidatedSession();
@@ -90,6 +98,9 @@ export async function requireOnboardedBusiness(): Promise<Business> {
     redirect("/login");
   }
   const { business } = resolved;
+  if (!hasActiveEntitlement(business)) {
+    redirect("/account-paused");
+  }
   if (!business.onboardingCompletedAt) {
     redirect(onboardingStepPath(business.onboardingStep));
   }

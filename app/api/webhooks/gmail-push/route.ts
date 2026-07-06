@@ -22,11 +22,11 @@ interface GmailWatchPayload {
  * Receives Cloud Pub/Sub push deliveries for Gmail's users.watch notifications
  * (services/gmailWatch.ts registers the watch; services/gmailWatchSync.ts does
  * the actual reply-sync work). Public, unauthenticated-by-session endpoint,
- * same category as /api/intake and /api/webhooks/billing — authenticated
- * instead by a shared secret in the query string (`?token=`), which is set
- * when creating the Pub/Sub push subscription's endpoint URL. Pub/Sub retries
- * on any non-2xx response, so a bad/unrecognized message still gets a 200 to
- * avoid a retry storm — only a missing/wrong token is rejected.
+ * same category as /api/intake — authenticated instead by a shared secret in
+ * the query string (`?token=`), which is set when creating the Pub/Sub push
+ * subscription's endpoint URL. Pub/Sub retries on any non-2xx response, so a
+ * bad/unrecognized message still gets a 200 to avoid a retry storm — only a
+ * missing/wrong token is rejected.
  */
 export async function POST(request: Request) {
   const token = new URL(request.url).searchParams.get("token");

@@ -7,7 +7,7 @@ import {
   DEFAULT_WORKING_HOURS_END,
 } from "@/config/constants";
 import { generateApiKey } from "@/lib/crypto";
-import type { Business, NewBusinessInput, UpdateBusinessInput } from "@/types";
+import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspacePlan, WorkspaceStatus } from "@/types";
 
 type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
 
@@ -48,6 +48,8 @@ function toBusiness(row: WorkspaceRow): Business {
     sessionTokenVersion: row.session_token_version ?? 0,
     gmailWatchHistoryId: row.gmail_watch_history_id ?? null,
     gmailWatchExpiration: row.gmail_watch_expiration ?? null,
+    plan: row.plan as WorkspacePlan,
+    status: row.status as WorkspaceStatus,
   };
 }
 
@@ -116,6 +118,8 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.sessionTokenVersion !== undefined) fields.session_token_version = input.sessionTokenVersion;
   if (input.gmailWatchHistoryId !== undefined) fields.gmail_watch_history_id = input.gmailWatchHistoryId;
   if (input.gmailWatchExpiration !== undefined) fields.gmail_watch_expiration = input.gmailWatchExpiration;
+  if (input.plan !== undefined) fields.plan = input.plan;
+  if (input.status !== undefined) fields.status = input.status;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -269,4 +273,16 @@ export function getEffectiveNotifyOnReply(business: Pick<Business, "notifyOnRepl
 /** Whether the daily cron scans this business's Gmail inbox for new customer inquiries (services/gmailLeadCapture.ts) — turned on automatically the moment Google is connected (services/business.ts's saveGoogleConnection); null only for a business that's never connected Google or has explicitly turned it back off. */
 export function getEffectiveGmailLeadMonitoring(business: Pick<Business, "monitorGmailInbox">): boolean {
   return business.monitorGmailInbox ?? false;
+}
+
+/**
+ * The one access gate for the whole app — agency-assigned (Settings, not
+ * self-serve), not derived from Billing. `status !== 'active'` (a brand-new
+ * signup defaults to 'inactive' until provisioned, or an agency can flip a
+ * workspace to 'suspended') means a full lockout via
+ * lib/session.ts's requireOnboardedBusiness, not just losing individual
+ * features — there's no free/fallback tier to drop back to in this model.
+ */
+export function hasActiveEntitlement(business: Pick<Business, "status">): boolean {
+  return business.status === "active";
 }

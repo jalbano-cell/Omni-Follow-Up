@@ -5,12 +5,10 @@ Every external I/O and unit of business logic lives in `/services`. Pages/API ro
 ## Data access
 
 - **`db.ts`** — the central CRUD layer for Leads/Estimates/FollowUps/Replies/ActivityLog/Notifications. Every tenant-owned function takes `businessId` explicitly; direct-id lookups verify `workspace_id` ownership on the fetched row.
-- **`business.ts`** — `workspaces` CRUD, plus every `getEffectiveX(business)` helper (cadence, calendar id, timezone, working hours, auto-booking, notification prefs) that resolves a nullable per-business override against its default.
+- **`business.ts`** — `workspaces` CRUD, every `getEffectiveX(business)` helper (cadence, calendar id, timezone, working hours, auto-booking, notification prefs) that resolves a nullable per-business override against its default, and `hasActiveEntitlement` (the one access gate — see CLAUDE.md's "Access & entitlement" section).
 - **`activityService.ts`** — the only way an `activity_logs` row gets written. `logLeadActivity` (direct) and `logEstimateActivity` (Phase 2 — resolves an Estimate's `lead_id` back-link, no-ops if none). Always also bumps the Lead's `last_activity_at`.
 - **`emailTemplateService.ts`** (Phase 1) — get/list/upsert/reset for the 4 customizable email templates, plus `templateKeyForEstimateStage`. Re-exports the pure `services/emailTemplates/render.ts` (merge-variable substitution + sample data — deliberately dependency-free so it's safe to import into a client component for live previews).
 - **`estimateAttachmentService.ts`** (Phase 4) — Supabase Storage upload/list/delete/signed-download-URL for estimate attachments, plus `deleteAttachmentsForEstimate` (called from `db.ts`'s `deleteEstimate` so files aren't orphaned).
-- **`subscriptionService.ts`** — `getEffectivePlan`, `checkFeatureGate` (enforced — see `lib/apiAuth.ts`'s `requirePublicApiFeature`, `app/settings/actions.ts`'s webhook-URL gate, `services/webhookDispatcher.ts`), `getLeadsThisMonthUsage` (computed live, no counter table), `assertLeadLimitNotExceeded` (throws `LeadLimitExceededError`, called once at the top of `leadService.ts`'s `createLeadFromSubmission` so every lead source is capped identically).
-- **`billingService.ts`** — the only file that calls the Billing API. `ensureProBillingPrice` (lazily creates/self-heals the Pro Product+Price, remembered on the `plans` row), `createCheckoutSession`/`createBillingPortalSession` (both Billing-hosted redirect flows), and the webhook-driven sync functions `handleCheckoutSessionCompleted`/`syncSubscriptionFromBilling`/`handleInvoicePaymentFailed` called from `app/api/webhooks/billing/route.ts`. `lib/billing.ts` is the pure client singleton (mirrors `lib/supabase.ts`).
 
 ## Lead lifecycle
 

@@ -1,12 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey, getBusinessById } from "@/services/business";
+import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey } from "@/services/business";
 import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplateService";
-import { checkFeatureGate } from "@/services/subscriptionService";
-import { createCheckoutSession, createBillingPortalSession } from "@/services/billingService";
 import { inviteTeamMember, removeTeamMember, TeamMemberLimitExceededError, TeamMemberEmailInUseError } from "@/services/userService";
 import { requireOwner } from "@/lib/session";
 import { logAction } from "@/lib/logger";
@@ -17,41 +13,6 @@ import type { EmailTemplateKey } from "@/types";
 async function getCurrentBusinessId(): Promise<string> {
   const business = await requireOwner();
   return business.id;
-}
-
-async function getSettingsBaseUrl(): Promise<string> {
-  const host = (await headers()).get("host") ?? "localhost:3000";
-  const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
-  return `${protocol}://${host}/settings`;
-}
-
-export async function upgradeToProAction() {
-  const businessId = await getCurrentBusinessId();
-  const business = await getBusinessById(businessId);
-  if (!business) {
-    throw new Error("Business not found.");
-  }
-
-  const baseUrl = await getSettingsBaseUrl();
-  const checkoutUrl = await createCheckoutSession(business, {
-    successUrl: `${baseUrl}?checkout=success`,
-    cancelUrl: `${baseUrl}?checkout=cancelled`,
-  });
-  logAction("billing.checkout-started", { businessId });
-  redirect(checkoutUrl);
-}
-
-export async function manageBillingAction() {
-  const businessId = await getCurrentBusinessId();
-  const business = await getBusinessById(businessId);
-  if (!business) {
-    throw new Error("Business not found.");
-  }
-
-  const baseUrl = await getSettingsBaseUrl();
-  const portalUrl = await createBillingPortalSession(business, { returnUrl: baseUrl });
-  logAction("billing.billing-portal-opened", { businessId });
-  redirect(portalUrl);
 }
 
 export async function updateBusinessProfileAction(formData: FormData) {
@@ -176,15 +137,17 @@ export async function updateAppointmentPreferencesAction(formData: FormData) {
   revalidatePath("/settings");
 }
 
+// Note: no entitlement check needed here — requireOwner() (via getCurrentBusinessId())
+// already redirects to /account-paused before this point if the workspace isn't
+// active, unlike services/webhookDispatcher.ts's own check, which guards a later
+// dispatch that isn't behind that same gate (e.g. from the customer-facing
+// portal in app/e/actions.ts).
 export async function updateWebhookUrlAction(formData: FormData) {
   const businessId = await getCurrentBusinessId();
   const url = String(formData.get("outboundWebhookUrl") ?? "").trim();
 
   if (url && !/^https?:\/\//i.test(url)) {
     throw new Error("Webhook URL must start with http:// or https://");
-  }
-  if (url && !(await checkFeatureGate(businessId, "webhooks"))) {
-    throw new Error("Outbound webhooks require the Pro plan. Upgrade above to enable this.");
   }
 
   await updateBusiness(businessId, { outboundWebhookUrl: url || null });

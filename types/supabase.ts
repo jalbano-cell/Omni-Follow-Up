@@ -455,39 +455,6 @@ export type Database = {
           },
         ]
       }
-      plans: {
-        Row: {
-          created_at: string
-          features: Json
-          id: string
-          max_leads_per_month: number | null
-          max_users: number
-          name: string
-          price_cents: number
-          billing_price_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          features?: Json
-          id: string
-          max_leads_per_month?: number | null
-          max_users?: number
-          name: string
-          price_cents?: number
-          billing_price_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          features?: Json
-          id?: string
-          max_leads_per_month?: number | null
-          max_users?: number
-          name?: string
-          price_cents?: number
-          billing_price_id?: string | null
-        }
-        Relationships: []
-      }
       replies: {
         Row: {
           body_text: string
@@ -541,57 +508,6 @@ export type Database = {
           },
           {
             foreignKeyName: "replies_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      subscriptions: {
-        Row: {
-          created_at: string
-          current_period_end: string | null
-          id: string
-          plan_id: string
-          status: string
-          billing_customer_id: string | null
-          billing_subscription_id: string | null
-          updated_at: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          current_period_end?: string | null
-          id?: string
-          plan_id: string
-          status?: string
-          billing_customer_id?: string | null
-          billing_subscription_id?: string | null
-          updated_at?: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          current_period_end?: string | null
-          id?: string
-          plan_id?: string
-          status?: string
-          billing_customer_id?: string | null
-          billing_subscription_id?: string | null
-          updated_at?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscriptions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -678,7 +594,9 @@ export type Database = {
           owner_email: string
           owner_name: string
           password_hash: string
+          plan: string
           session_token_version: number
+          status: string
           timezone: string | null
           working_hours_end: number | null
           working_hours_start: number | null
@@ -711,7 +629,9 @@ export type Database = {
           owner_email: string
           owner_name: string
           password_hash: string
+          plan?: string
           session_token_version?: number
+          status?: string
           timezone?: string | null
           working_hours_end?: number | null
           working_hours_start?: number | null
@@ -744,7 +664,9 @@ export type Database = {
           owner_email?: string
           owner_name?: string
           password_hash?: string
+          plan?: string
           session_token_version?: number
+          status?: string
           timezone?: string | null
           working_hours_end?: number | null
           working_hours_start?: number | null

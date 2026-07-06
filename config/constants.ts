@@ -1,4 +1,15 @@
-import type { EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus } from "@/types";
+import type { EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus, WorkspacePlan } from "@/types";
+
+/** Seat cap (owner + team members, services/userService.ts) per agency-assigned plan tier. Null means no cap. */
+export const PLAN_MAX_USERS: Record<WorkspacePlan, number | null> = {
+  grow: 1,
+  transform: null,
+};
+
+export const PLAN_LABELS: Record<WorkspacePlan, string> = {
+  grow: "Grow",
+  transform: "Transform",
+};
 
 /** Fallback timezone for a business that hasn't set its own (`getEffectiveTimezone` in services/business.ts). */
 export const APP_TIMEZONE = "America/Toronto";

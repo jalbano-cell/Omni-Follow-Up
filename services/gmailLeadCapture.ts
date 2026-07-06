@@ -3,7 +3,6 @@ import { listInboxMessageIds, getMessage, extractEmailAddress, extractDisplayNam
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { createLeadFromSubmission } from "@/services/leadService";
 import { getEffectiveGmailLeadMonitoring } from "@/services/business";
-import { LeadLimitExceededError } from "@/services/subscriptionService";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
 import type { Business } from "@/types";
@@ -79,8 +78,6 @@ export async function captureLeadsFromGmailForBusiness(business: Business): Prom
       created += 1;
     } catch (error) {
       errors.push(`message ${candidate.id}: ${error instanceof Error ? error.message : "unknown error"}`);
-      // Once the plan's monthly lead limit is hit it stays hit for every remaining message this scan.
-      if (error instanceof LeadLimitExceededError) break;
     }
   }
 

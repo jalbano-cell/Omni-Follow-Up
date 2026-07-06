@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { getSupabase, insertRow, updateRow, selectWhere, selectById, deleteRow } from "@/lib/supabase";
-import { getEffectivePlan } from "@/services/subscriptionService";
-import { getBusinessByEmail } from "@/services/business";
+import { getBusinessByEmail, getBusinessById } from "@/services/business";
+import { PLAN_MAX_USERS } from "@/config/constants";
 import type { Database } from "@/types/supabase";
 import type { TeamMember } from "@/types";
 
@@ -79,9 +79,10 @@ export class TeamMemberEmailInUseError extends Error {
  * Creates a pending invite row with a signed token (services/business.ts's
  * generateApiKey precedent — a random opaque secret, not a JWT, since it's a
  * one-time-use link with its own DB-backed expiry/revocation rather than a
- * stateless claim). Throws TeamMemberLimitExceededError if the plan's
- * maxUsers cap (the owner plus every invited-or-accepted row counts, so a
- * still-pending invite already occupies a seat) is already met. Counts
+ * stateless claim). Throws TeamMemberLimitExceededError if the agency-assigned
+ * plan's seat cap (config/constants.ts's PLAN_MAX_USERS — the owner plus every
+ * invited-or-accepted row counts, so a still-pending invite already occupies a
+ * seat) is already met; a null cap (e.g. "transform") means unlimited. Counts
  * pending invites too, not just accepted ones — otherwise a business could
  * send unlimited invites and blow past the cap the instant they're all
  * accepted at once.
@@ -90,11 +91,15 @@ export async function inviteTeamMember(
   businessId: string,
   input: { email: string; name: string }
 ): Promise<TeamMember> {
-  const plan = await getEffectivePlan(businessId);
+  const business = await getBusinessById(businessId);
+  if (!business) {
+    throw new Error(`Business not found: ${businessId}`);
+  }
+  const maxUsers = PLAN_MAX_USERS[business.plan];
   const existingMembers = await getTeamMembersForBusiness(businessId);
   const seatsUsed = 1 + existingMembers.length; // +1 for the workspace owner, who has no `users` row
-  if (seatsUsed >= plan.maxUsers) {
-    throw new TeamMemberLimitExceededError(plan.maxUsers);
+  if (maxUsers !== null && seatsUsed >= maxUsers) {
+    throw new TeamMemberLimitExceededError(maxUsers);
   }
 
   // An email can only ever be one kind of account (owner or member) — reject
