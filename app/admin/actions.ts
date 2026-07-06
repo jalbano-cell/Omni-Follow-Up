@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createBusinessForAgency, updateBusiness } from "@/services/business";
 import { createOwnerClaim, TeamMemberEmailInUseError } from "@/services/userService";
+import { buildOnboardingWelcomeEmail } from "@/services/emailTemplates/onboardingWelcome";
 import { requireAdmin } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import type { WorkspacePlan, WorkspaceStatus } from "@/types";
@@ -22,13 +23,17 @@ async function getAdminBaseUrl(): Promise<string> {
  * one-time claim link (services/userService.ts's createOwnerClaim — same
  * token/expiry mechanics and the same /invite/[token] accept page as a team
  * invite, but promotes the client to real workspace owner on acceptance
- * rather than adding them as a teammate). Gated by requireAdmin() — only
+ * rather than adding them as a teammate) plus the rendered handoff email
+ * (services/emailTemplates/onboardingWelcome.ts) for the admin to copy and
+ * send manually — there's no automatic send here, since the client hasn't
+ * connected Gmail yet (this app only ever sends through a business's own
+ * connected Gmail, never a system sender). Gated by requireAdmin() — only
  * reachable by the one workspace named in ADMIN_WORKSPACE_ID.
  */
 export async function provisionNewWorkspaceAction(
   formData: FormData
-): Promise<{ error?: string; claimUrl?: string }> {
-  await requireAdmin();
+): Promise<{ error?: string; claimUrl?: string; emailSubject?: string; emailBody?: string }> {
+  const adminBusiness = await requireAdmin();
 
   const businessName = String(formData.get("businessName") ?? "").trim();
   const ownerName = String(formData.get("ownerName") ?? "").trim();
@@ -60,8 +65,16 @@ export async function provisionNewWorkspaceAction(
   logAction("admin.workspace-provisioned", { businessId: business.id, plan });
 
   const baseUrl = await getAdminBaseUrl();
+  const claimUrl = `${baseUrl}/invite/${claim.inviteToken}`;
+  const email = buildOnboardingWelcomeEmail({
+    ownerName,
+    businessName,
+    claimUrl,
+    agencyOwnerName: adminBusiness.ownerName,
+  });
+
   revalidatePath("/admin");
-  return { claimUrl: `${baseUrl}/invite/${claim.inviteToken}` };
+  return { claimUrl, emailSubject: email.subject, emailBody: email.body };
 }
 
 /**

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { provisionNewWorkspaceAction } from "@/app/admin/actions";
@@ -15,15 +16,16 @@ import type { WorkspacePlan } from "@/types";
 
 const PLAN_OPTIONS: WorkspacePlan[] = ["grow", "transform"];
 
-async function copyToClipboard(value: string) {
+async function copyToClipboard(value: string, label: string) {
   await navigator.clipboard.writeText(value);
-  toast.success("Claim link copied");
+  toast.success(`${label} copied`);
 }
 
 export function ProvisionWorkspaceForm() {
   const [, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [email, setEmail] = useState<{ subject: string; body: string } | null>(null);
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -33,7 +35,8 @@ export function ProvisionWorkspaceForm() {
         return;
       }
       setClaimUrl(result.claimUrl ?? null);
-      toast.success("Workspace created — copy the claim link below and send it to the client.");
+      setEmail(result.emailSubject && result.emailBody ? { subject: result.emailSubject, body: result.emailBody } : null);
+      toast.success("Workspace created — copy the link or email below and send it to the client.");
       formRef.current?.reset();
     });
   }
@@ -82,11 +85,30 @@ export function ProvisionWorkspaceForm() {
                 variant="outline"
                 size="icon"
                 aria-label="Copy claim link"
-                onClick={() => copyToClipboard(claimUrl)}
+                onClick={() => copyToClipboard(claimUrl, "Claim link")}
               >
                 <Copy className="size-3.5" />
               </Button>
             </div>
+          </div>
+        )}
+
+        {email && (
+          <div className="flex flex-col gap-1.5 border-t border-border pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Onboarding email — copy and send from your own inbox</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => copyToClipboard(`Subject: ${email.subject}\n\n${email.body}`, "Email")}
+              >
+                <Copy className="size-3.5" />
+                Copy email
+              </Button>
+            </div>
+            <Input readOnly value={email.subject} className="text-xs font-medium" aria-label="Email subject" />
+            <Textarea readOnly value={email.body} rows={12} className="text-xs" aria-label="Email body" />
           </div>
         )}
       </CardContent>
