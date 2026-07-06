@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { createBusinessForAgency, updateBusiness } from "@/services/business";
-import { createOwnerClaim, TeamMemberEmailInUseError } from "@/services/userService";
+import { createBusinessForAgency, getBusinessByEmail, updateBusiness } from "@/services/business";
+import { createOwnerClaim, getTeamMemberByEmail, TeamMemberEmailInUseError } from "@/services/userService";
 import { buildOnboardingWelcomeEmail } from "@/services/emailTemplates/onboardingWelcome";
 import { requireAdmin } from "@/lib/session";
 import { logAction } from "@/lib/logger";
@@ -48,6 +48,20 @@ export async function provisionNewWorkspaceAction(
   }
   if (!PLAN_VALUES.includes(plan)) {
     return { error: "Invalid plan selection." };
+  }
+
+  // Check for a collision BEFORE inserting — createBusinessForAgency has no
+  // guard of its own (workspaces.owner_email has a unique index), so without
+  // this a resubmit or a re-provision of an email that already has an
+  // account crashes with an unhandled duplicate-key error instead of a clean
+  // message. createOwnerClaim below has its own copy of this same check,
+  // but that runs *after* the insert — too late to prevent this exact crash.
+  const [existingBusiness, existingMember] = await Promise.all([
+    getBusinessByEmail(ownerEmail),
+    getTeamMemberByEmail(ownerEmail),
+  ]);
+  if (existingBusiness || existingMember) {
+    return { error: "That email is already associated with an OmniFollowUp account." };
   }
 
   const business = await createBusinessForAgency({ businessName, ownerName, ownerEmail, plan });
