@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Copy } from "lucide-react";
+import { Copy, Send } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { provisionNewWorkspaceAction } from "@/app/admin/actions";
+import { provisionNewWorkspaceAction, sendOnboardingWelcomeEmailAction } from "@/app/admin/actions";
 import { PLAN_LABELS } from "@/config/constants";
 import type { WorkspacePlan } from "@/types";
 
@@ -21,23 +21,61 @@ async function copyToClipboard(value: string, label: string) {
   toast.success(`${label} copied`);
 }
 
+interface Provisioned {
+  claimUrl: string;
+  subject: string;
+  body: string;
+  ownerName: string;
+  ownerEmail: string;
+  businessName: string;
+  canSendEmail: boolean;
+}
+
 export function ProvisionWorkspaceForm() {
   const [, startTransition] = useTransition();
+  const [isSending, startSendTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
-  const [claimUrl, setClaimUrl] = useState<string | null>(null);
-  const [email, setEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [result, setResult] = useState<Provisioned | null>(null);
+  const [sent, setSent] = useState(false);
 
   function submit(formData: FormData) {
     startTransition(async () => {
-      const result = await provisionNewWorkspaceAction(formData);
-      if (result.error) {
-        toast.error(result.error);
+      const res = await provisionNewWorkspaceAction(formData);
+      if (res.error) {
+        toast.error(res.error);
         return;
       }
-      setClaimUrl(result.claimUrl ?? null);
-      setEmail(result.emailSubject && result.emailBody ? { subject: result.emailSubject, body: result.emailBody } : null);
-      toast.success("Workspace created — copy the link or email below and send it to the client.");
+      setSent(false);
+      setResult({
+        claimUrl: res.claimUrl!,
+        subject: res.emailSubject!,
+        body: res.emailBody!,
+        ownerName: res.ownerName!,
+        ownerEmail: res.ownerEmail!,
+        businessName: res.businessName!,
+        canSendEmail: res.canSendEmail ?? false,
+      });
+      toast.success("Workspace created — copy the link/email below or send it directly.");
       formRef.current?.reset();
+    });
+  }
+
+  function sendEmail() {
+    if (!result) return;
+    startSendTransition(async () => {
+      const formData = new FormData();
+      formData.set("businessName", result.businessName);
+      formData.set("ownerName", result.ownerName);
+      formData.set("ownerEmail", result.ownerEmail);
+      formData.set("claimUrl", result.claimUrl);
+
+      const res = await sendOnboardingWelcomeEmailAction(formData);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setSent(true);
+      toast.success(`Sent to ${result.ownerEmail}`);
     });
   }
 
@@ -75,17 +113,17 @@ export function ProvisionWorkspaceForm() {
           <SubmitButton>Create workspace</SubmitButton>
         </form>
 
-        {claimUrl && (
+        {result && (
           <div className="flex flex-col gap-1.5 border-t border-border pt-4">
             <Label className="text-xs">Claim link — send this to the client</Label>
             <div className="flex gap-2">
-              <Input readOnly value={claimUrl} className="font-mono text-xs" />
+              <Input readOnly value={result.claimUrl} className="font-mono text-xs" />
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 aria-label="Copy claim link"
-                onClick={() => copyToClipboard(claimUrl, "Claim link")}
+                onClick={() => copyToClipboard(result.claimUrl, "Claim link")}
               >
                 <Copy className="size-3.5" />
               </Button>
@@ -93,22 +131,35 @@ export function ProvisionWorkspaceForm() {
           </div>
         )}
 
-        {email && (
+        {result && (
           <div className="flex flex-col gap-1.5 border-t border-border pt-4">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Onboarding email — copy and send from your own inbox</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => copyToClipboard(`Subject: ${email.subject}\n\n${email.body}`, "Email")}
-              >
-                <Copy className="size-3.5" />
-                Copy email
-              </Button>
+              <Label className="text-xs">Onboarding email</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(`Subject: ${result.subject}\n\n${result.body}`, "Email")}
+                >
+                  <Copy className="size-3.5" />
+                  Copy email
+                </Button>
+                {result.canSendEmail && (
+                  <Button type="button" size="sm" disabled={isSending || sent} onClick={sendEmail}>
+                    <Send className="size-3.5" />
+                    {sent ? "Sent" : isSending ? "Sending…" : "Send email"}
+                  </Button>
+                )}
+              </div>
             </div>
-            <Input readOnly value={email.subject} className="text-xs font-medium" aria-label="Email subject" />
-            <Textarea readOnly value={email.body} rows={12} className="text-xs" aria-label="Email body" />
+            {!result.canSendEmail && (
+              <p className="text-xs text-muted-foreground">
+                Connect your own Gmail in Settings to send this directly from here — for now, copy it above.
+              </p>
+            )}
+            <Input readOnly value={result.subject} className="text-xs font-medium" aria-label="Email subject" />
+            <Textarea readOnly value={result.body} rows={12} className="text-xs" aria-label="Email body" />
           </div>
         )}
       </CardContent>

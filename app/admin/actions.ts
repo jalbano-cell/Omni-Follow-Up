@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { createBusinessForAgency, getBusinessByEmail, updateBusiness } from "@/services/business";
 import { createOwnerClaim, getTeamMemberByEmail, TeamMemberEmailInUseError } from "@/services/userService";
 import { buildOnboardingWelcomeEmail } from "@/services/emailTemplates/onboardingWelcome";
+import { sendEmail } from "@/services/gmail";
+import { decrypt } from "@/lib/crypto";
 import { requireAdmin } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import type { WorkspacePlan, WorkspaceStatus } from "@/types";
@@ -30,9 +32,17 @@ async function getAdminBaseUrl(): Promise<string> {
  * connected Gmail, never a system sender). Gated by requireAdmin() — only
  * reachable by the one workspace named in ADMIN_WORKSPACE_ID.
  */
-export async function provisionNewWorkspaceAction(
-  formData: FormData
-): Promise<{ error?: string; claimUrl?: string; emailSubject?: string; emailBody?: string }> {
+export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
+  error?: string;
+  claimUrl?: string;
+  emailSubject?: string;
+  emailBody?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  businessName?: string;
+  /** Whether sendOnboardingWelcomeEmailAction can actually send this — the admin's own workspace needs Gmail connected. */
+  canSendEmail?: boolean;
+}> {
   const adminBusiness = await requireAdmin();
 
   const businessName = String(formData.get("businessName") ?? "").trim();
@@ -88,7 +98,62 @@ export async function provisionNewWorkspaceAction(
   });
 
   revalidatePath("/admin");
-  return { claimUrl, emailSubject: email.subject, emailBody: email.body };
+  return {
+    claimUrl,
+    emailSubject: email.subject,
+    emailBody: email.body,
+    ownerName,
+    ownerEmail,
+    businessName,
+    canSendEmail: Boolean(adminBusiness.googleRefreshTokenEnc),
+  };
+}
+
+/**
+ * Sends the onboarding welcome email through the agency's OWN connected
+ * Gmail (services/gmail.ts — the same per-tenant sender every other email in
+ * this app uses, just with the admin's workspace as the sender instead of
+ * the new client's, since the client has no Gmail connection yet). A
+ * deliberate button click, not fired automatically on every provision — a
+ * real send to a real client's inbox warranted an explicit action rather
+ * than firing silently. Re-renders the email from its canonical inputs
+ * rather than trusting client-supplied subject/body text, so this action
+ * stays scoped to "send the onboarding email for this workspace," not
+ * "send arbitrary text through my Gmail."
+ */
+export async function sendOnboardingWelcomeEmailAction(formData: FormData): Promise<{ error?: string }> {
+  const adminBusiness = await requireAdmin();
+
+  if (!adminBusiness.googleRefreshTokenEnc || !adminBusiness.googleConnectedEmail) {
+    return { error: "Connect your own Gmail in Settings first, then you can send this directly." };
+  }
+
+  const businessName = String(formData.get("businessName") ?? "").trim();
+  const ownerName = String(formData.get("ownerName") ?? "").trim();
+  const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase();
+  const claimUrl = String(formData.get("claimUrl") ?? "").trim();
+
+  if (!businessName || !ownerName || !ownerEmail || !claimUrl) {
+    return { error: "Missing workspace details — try provisioning again." };
+  }
+
+  const email = buildOnboardingWelcomeEmail({ ownerName, businessName, claimUrl, agencyOwnerName: adminBusiness.ownerName });
+
+  try {
+    await sendEmail({
+      refreshToken: decrypt(adminBusiness.googleRefreshTokenEnc),
+      fromEmail: adminBusiness.googleConnectedEmail,
+      to: ownerEmail,
+      subject: email.subject,
+      body: email.body,
+    });
+  } catch (error) {
+    logAction("admin.onboarding-email-send-failed", { ownerEmail, error: error instanceof Error ? error.message : "unknown error" });
+    return { error: "Failed to send — check your Gmail connection in Settings and try again, or copy the email above instead." };
+  }
+
+  logAction("admin.onboarding-email-sent", { ownerEmail });
+  return {};
 }
 
 /**
