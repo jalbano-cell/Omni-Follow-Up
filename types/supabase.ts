@@ -161,6 +161,7 @@ export type Database = {
           next_followup_date: string | null
           notes: string
           service_type: string
+          share_token_version: number
           status: string
           value: number
           workspace_id: string
@@ -180,6 +181,7 @@ export type Database = {
           next_followup_date?: string | null
           notes?: string
           service_type?: string
+          share_token_version?: number
           status?: string
           value?: number
           workspace_id: string
@@ -199,6 +201,7 @@ export type Database = {
           next_followup_date?: string | null
           notes?: string
           service_type?: string
+          share_token_version?: number
           status?: string
           value?: number
           workspace_id?: string
@@ -655,6 +658,7 @@ export type Database = {
           owner_email: string
           owner_name: string
           password_hash: string
+          session_token_version: number
           timezone: string | null
           working_hours_end: number | null
           working_hours_start: number | null
@@ -685,6 +689,7 @@ export type Database = {
           owner_email: string
           owner_name: string
           password_hash: string
+          session_token_version?: number
           timezone?: string | null
           working_hours_end?: number | null
           working_hours_start?: number | null
@@ -715,6 +720,7 @@ export type Database = {
           owner_email?: string
           owner_name?: string
           password_hash?: string
+          session_token_version?: number
           timezone?: string | null
           working_hours_end?: number | null
           working_hours_start?: number | null

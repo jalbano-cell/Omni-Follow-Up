@@ -47,6 +47,17 @@ export default async function CustomerPortalPage({ params }: { params: Promise<{
     return <PortalMessage title="Estimate not found" description="This estimate may have been removed." />;
   }
 
+  // Reject a link that's been reset since it was shared (see
+  // resetEstimateShareLinkAction) — an older token can't outlive its revocation.
+  if ((payload.shareTokenVersion ?? 0) !== estimate.shareTokenVersion) {
+    return (
+      <PortalMessage
+        title="This link is no longer valid"
+        description="A newer link has been issued. Contact the business directly for an up-to-date copy of your estimate."
+      />
+    );
+  }
+
   const attachments = await getAttachmentsForEstimate(business.id, estimate.id);
   const attachmentsWithUrls = await Promise.all(
     attachments.map(async (attachment) => ({

@@ -9,6 +9,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; from?: string }>;
 }) {
   const { error, from } = await searchParams;
+  const rateLimited = error === "rate";
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-background px-4">
@@ -18,7 +19,7 @@ export default async function LoginPage({
           <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">OmniFollowUp</h1>
           <p className="text-sm text-muted-foreground">Sign in to continue</p>
         </div>
-        <LoginForm hasError={error === "1"} redirectTo={from ?? "/"} />
+        <LoginForm hasError={error === "1"} rateLimited={rateLimited} redirectTo={from ?? "/"} />
       </div>
     </div>
   );

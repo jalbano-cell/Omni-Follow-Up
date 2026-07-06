@@ -4,6 +4,8 @@ import { runDailyReplySyncJob } from "@/services/replyMatcher";
 import { runDailyGmailLeadCaptureJob } from "@/services/gmailLeadCapture";
 import { getAllActiveBusinesses } from "@/services/business";
 import { APP_TIMEZONE } from "@/config/constants";
+import { safeCompare } from "@/lib/timingSafe";
+import { getBearerToken } from "@/lib/apiAuth";
 
 const TARGET_LOCAL_HOUR = 8;
 
@@ -39,11 +41,16 @@ function isTargetLocalHour(): boolean {
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Fail closed in production: an unset CRON_SECRET there would leave this
+  // job-triggering endpoint (Gmail scans, reply syncs) open to anyone who
+  // finds the URL. In dev we allow it unset for convenience.
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Server misconfigured: CRON_SECRET is required." }, { status: 500 });
     }
+  } else if (!safeCompare(getBearerToken(request), cronSecret)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (!isTargetLocalHour()) {

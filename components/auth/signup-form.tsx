@@ -39,7 +39,7 @@ export function SignupForm({ error }: { error?: string }) {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                minLength={8}
+                minLength={10}
                 className="pr-9"
               />
               <button
@@ -51,6 +51,7 @@ export function SignupForm({ error }: { error?: string }) {
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">At least 10 characters, with letters and numbers.</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -60,7 +61,7 @@ export function SignupForm({ error }: { error?: string }) {
               name="confirmPassword"
               type={showPassword ? "text" : "password"}
               required
-              minLength={8}
+              minLength={10}
             />
           </div>
 

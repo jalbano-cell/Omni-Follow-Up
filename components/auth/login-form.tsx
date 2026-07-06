@@ -9,7 +9,15 @@ import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { loginAction } from "@/app/login/actions";
 
-export function LoginForm({ hasError, redirectTo }: { hasError: boolean; redirectTo: string }) {
+export function LoginForm({
+  hasError,
+  rateLimited = false,
+  redirectTo,
+}: {
+  hasError: boolean;
+  rateLimited?: boolean;
+  redirectTo: string;
+}) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -17,6 +25,12 @@ export function LoginForm({ hasError, redirectTo }: { hasError: boolean; redirec
       <CardContent className="px-6">
         <form action={loginAction} className="flex flex-col gap-4">
           <input type="hidden" name="from" value={redirectTo} />
+
+          {rateLimited && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              Too many attempts. Please wait a few minutes and try again.
+            </p>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">Email</Label>

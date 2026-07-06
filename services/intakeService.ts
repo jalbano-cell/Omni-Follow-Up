@@ -1,7 +1,8 @@
 import { getBusinessByIntakeApiKey } from "@/services/business";
 import { createLeadFromSubmission } from "@/services/leadService";
 import { LeadLimitExceededError } from "@/services/subscriptionService";
-import { logIntakeAudit } from "@/lib/logger";
+import { logIntakeAudit, maskEmail, maskPhone } from "@/lib/logger";
+import { rateLimit } from "@/lib/rateLimit";
 import { DEFAULT_LEAD_SOURCE, type LeadSource } from "@/config/constants";
 
 /**
@@ -63,22 +64,13 @@ function sanitizeText(value: unknown, maxLength: number, { multiline = false } =
   return cleaned.slice(0, maxLength);
 }
 
-// In-memory sliding-window limiter, scoped per business+IP. Deliberately not
-// backed by the database/Redis — it's a best-effort deterrent against a form
-// being hammered, not a hard security boundary, and it resets on cold start /
-// doesn't share state across concurrent serverless instances. Good enough
-// for "protect against spam where practical"; revisit with a shared store
-// (Upstash/Redis) if abuse ever gets past it.
+// Per business+IP spam deterrent, via the shared in-memory limiter
+// (lib/rateLimit.ts) — see that file for the best-effort/serverless caveats.
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 8;
-const rateLimitHits = new Map<string, number[]>();
 
-function isRateLimited(key: string): boolean {
-  const now = Date.now();
-  const hits = (rateLimitHits.get(key) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  hits.push(now);
-  rateLimitHits.set(key, hits);
-  return hits.length > RATE_LIMIT_MAX;
+async function isRateLimited(key: string): Promise<boolean> {
+  return (await rateLimit(`intake:${key}`, { max: RATE_LIMIT_MAX, windowMs: RATE_LIMIT_WINDOW_MS })).limited;
 }
 
 export async function processIntake(request: IntakeRequest): Promise<IntakeOutcome> {
@@ -92,7 +84,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
     return { ok: false, status: 401, error: "Invalid or missing API key." };
   }
 
-  if (isRateLimited(`${business.id}:${ip ?? "unknown"}`)) {
+  if (await isRateLimited(`${business.id}:${ip ?? "unknown"}`)) {
     await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source, result: "rate_limited" });
     return { ok: false, status: 429, error: "Too many submissions. Please try again later." };
   }
@@ -162,7 +154,9 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
       result: "db_failed",
       detail: {
         error: error instanceof Error ? error.message : "unknown error",
-        payload: { name, email, phone, company, requestedService, message },
+        // Recovery aid, but direct identifiers are masked so a failed
+        // submission isn't a harvestable email/phone sitting in log retention.
+        payload: { name, email: maskEmail(email), phone: maskPhone(phone), company, requestedService, message },
       },
     });
     return { ok: false, status: 502, error: "Could not save your inquiry right now. Please try again shortly." };
