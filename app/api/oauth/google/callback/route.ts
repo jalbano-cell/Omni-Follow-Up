@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyOAuthStateToken } from "@/lib/auth";
 import { exchangeCodeForTokens, getGoogleAccountEmail } from "@/services/googleOAuth";
 import { saveGoogleConnection, markOnboardingStep } from "@/services/business";
+import { ensureGmailWatch } from "@/services/gmailWatchSync";
 import { encrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
 
@@ -34,12 +35,16 @@ export async function GET(request: NextRequest) {
     }
 
     const connectedEmail = await getGoogleAccountEmail(tokens.accessToken);
-    await saveGoogleConnection(state.businessId, {
+    const business = await saveGoogleConnection(state.businessId, {
       encryptedRefreshToken: encrypt(tokens.refreshToken),
       connectedEmail,
       scopes: tokens.scope,
     });
     await markOnboardingStep(state.businessId, 1);
+    // Best-effort, same as Calendar reminders — a Pub/Sub/Gmail hiccup here must
+    // never block finishing the connect flow; the daily cron's renewal job
+    // (piggybacked in app/api/follow-ups/generate/route.ts) will retry it.
+    await ensureGmailWatch(business);
 
     logAction("auth.google-connected", { businessId: state.businessId, connectedEmail });
     return NextResponse.redirect(new URL(state.returnTo, request.url));

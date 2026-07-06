@@ -2,16 +2,21 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { getBusinessById } from "@/services/business";
+import { getTeamMemberById } from "@/services/userService";
 import type { Business, SessionPayload } from "@/types";
 
 /**
- * Verifies the cookie's JWT AND that it hasn't been revoked: the token's
- * tokenVersion must still match the business's current session_token_version
- * (logout/password-change bump it — see services/business.ts). This is the
- * one place that check happens; middleware only does the signature/expiry
- * check (it's Edge and can't read the DB), so authorization for anything that
- * touches data flows through here. Returns the business too, since we had to
- * load it anyway, so callers like requireOnboardedBusiness don't re-fetch.
+ * Verifies the cookie's JWT AND that it hasn't been revoked. For the
+ * workspace owner (no `userId` in the token), the tokenVersion must match
+ * the business's current session_token_version. For a team member
+ * (services/userService.ts), it must instead match that member's own,
+ * independent session_token_version (migration 0014) — the member's own row
+ * is also re-checked to exist and still be accepted, so a removed member's
+ * token stops validating immediately rather than just once it expires.
+ * Middleware only does the signature/expiry check (it's Edge and can't read
+ * the DB), so authorization for anything that touches data flows through
+ * here. Returns the business too, since we had to load it anyway, so callers
+ * like requireOnboardedBusiness don't re-fetch.
  */
 async function resolveValidatedSession(): Promise<{ session: SessionPayload; business: Business } | null> {
   const cookieStore = await cookies();
@@ -20,8 +25,15 @@ async function resolveValidatedSession(): Promise<{ session: SessionPayload; bus
 
   const business = await getBusinessById(session.businessId);
   if (!business) return null;
-  if ((session.tokenVersion ?? 0) !== business.sessionTokenVersion) return null;
 
+  if (session.userId) {
+    const member = await getTeamMemberById(session.userId);
+    if (!member || member.workspaceId !== business.id || !member.acceptedAt) return null;
+    if ((session.tokenVersion ?? 0) !== member.sessionTokenVersion) return null;
+    return { session, business };
+  }
+
+  if ((session.tokenVersion ?? 0) !== business.sessionTokenVersion) return null;
   return { session, business };
 }
 
@@ -80,6 +92,23 @@ export async function requireOnboardedBusiness(): Promise<Business> {
   const { business } = resolved;
   if (!business.onboardingCompletedAt) {
     redirect(onboardingStepPath(business.onboardingStep));
+  }
+  return business;
+}
+
+/**
+ * Guard for Settings — billing, the Google connection, API keys, outbound
+ * webhooks, and team management are all workspace-owner-only; an invited
+ * team member (session.role === "member") gets redirected to the dashboard
+ * rather than reaching any of it. Everything else in the app (estimates,
+ * leads, follow-ups, replies, analytics) is shared by every team member —
+ * this is the one, deliberately narrow permission boundary the product has.
+ */
+export async function requireOwner(): Promise<Business> {
+  const business = await requireOnboardedBusiness();
+  const session = await getCurrentSession();
+  if (session.role === "member") {
+    redirect("/");
   }
   return business;
 }

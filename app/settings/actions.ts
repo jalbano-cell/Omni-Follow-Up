@@ -7,10 +7,17 @@ import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey, getBusinessB
 import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplateService";
 import { checkFeatureGate } from "@/services/subscriptionService";
 import { createCheckoutSession, createBillingPortalSession } from "@/services/billingService";
-import { getCurrentBusinessId } from "@/lib/session";
+import { inviteTeamMember, removeTeamMember, TeamMemberLimitExceededError, TeamMemberEmailInUseError } from "@/services/userService";
+import { requireOwner } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
 import type { EmailTemplateKey } from "@/types";
+
+/** Every Settings action is owner-only (lib/session.ts's requireOwner) — Server Actions are directly callable independent of which page rendered the form, so the page-level redirect in app/settings/page.tsx isn't sufficient on its own. */
+async function getCurrentBusinessId(): Promise<string> {
+  const business = await requireOwner();
+  return business.id;
+}
 
 async function getSettingsBaseUrl(): Promise<string> {
   const host = (await headers()).get("host") ?? "localhost:3000";
@@ -201,5 +208,38 @@ export async function updateGmailLeadMonitoringAction(formData: FormData) {
 
   await updateBusiness(businessId, { monitorGmailInbox });
   logAction("settings.gmail-lead-monitoring-update", { businessId, monitorGmailInbox });
+  revalidatePath("/settings");
+}
+
+export async function inviteTeamMemberAction(formData: FormData): Promise<{ error?: string }> {
+  const businessId = await getCurrentBusinessId();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const name = String(formData.get("name") ?? "").trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Enter a valid email address." };
+  }
+  if (!name) {
+    return { error: "Name is required." };
+  }
+
+  try {
+    const member = await inviteTeamMember(businessId, { email, name });
+    logAction("settings.team-invite", { businessId, memberId: member.id });
+  } catch (error) {
+    if (error instanceof TeamMemberLimitExceededError || error instanceof TeamMemberEmailInUseError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/settings");
+  return {};
+}
+
+export async function removeTeamMemberAction(memberId: string) {
+  const businessId = await getCurrentBusinessId();
+  await removeTeamMember(businessId, memberId);
+  logAction("settings.team-remove", { businessId, memberId });
   revalidatePath("/settings");
 }

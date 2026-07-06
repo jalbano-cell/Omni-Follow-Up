@@ -12,6 +12,7 @@ import {
   Webhook,
   CheckCircle2,
   XCircle,
+  Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ import { IntakeKeyCard } from "@/components/settings/intake-key-card";
 import { LeadSourcesCard } from "@/components/settings/lead-sources-card";
 import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
 import { BillingCard } from "@/components/settings/billing-card";
+import { TeamCard } from "@/components/settings/team-card";
 import { SettingsAccordion } from "@/components/settings/settings-accordion";
 import { SettingsSection } from "@/components/settings/settings-section";
 import {
@@ -45,6 +47,7 @@ import {
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
 import { getEffectivePlan, getSubscription, getLeadsThisMonthUsage } from "@/services/subscriptionService";
+import { getTeamMembersForBusiness } from "@/services/userService";
 import {
   updateCadenceAction,
   disconnectGoogleAction,
@@ -57,7 +60,7 @@ import {
   updateNotificationPreferencesAction,
   updateGmailLeadMonitoringAction,
 } from "@/app/settings/actions";
-import { requireOnboardedBusiness, getCurrentSession } from "@/lib/session";
+import { requireOwner, getCurrentSession } from "@/lib/session";
 import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
 
 export const dynamic = "force-dynamic";
@@ -69,12 +72,13 @@ export default async function SettingsPage({
 }) {
   const { googleError, checkout } = await searchParams;
   const { email } = await getCurrentSession();
-  const business = await requireOnboardedBusiness();
+  const business = await requireOwner();
 
   const host = (await headers()).get("host") ?? "localhost:3000";
   const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
   const intakeEndpointUrl = `${protocol}://${host}/api/intake`;
   const webhookEndpointUrl = `${protocol}://${host}/api/v1/webhooks/leads`;
+  const inviteBaseUrl = `${protocol}://${host}`;
 
   const googleConnected = Boolean(business.googleRefreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
@@ -89,6 +93,7 @@ export default async function SettingsPage({
   const plan = await getEffectivePlan(business.id);
   const subscription = await getSubscription(business.id);
   const leadsUsedThisMonth = await getLeadsThisMonthUsage(business.id);
+  const teamMembers = await getTeamMembersForBusiness(business.id);
 
   return (
     <>
@@ -209,6 +214,16 @@ export default async function SettingsPage({
 
         <SettingsSection value="billing" icon={CreditCard} title="Billing" description="Subscription and usage">
           <BillingCard plan={plan} subscription={subscription} leadsUsedThisMonth={leadsUsedThisMonth} checkoutStatus={checkout} />
+        </SettingsSection>
+
+        <SettingsSection value="team" icon={Users} title="Team" description="Invite teammates to share this workspace">
+          <TeamCard
+            ownerName={business.ownerName}
+            ownerEmail={business.ownerEmail}
+            members={teamMembers}
+            maxUsers={plan.maxUsers}
+            inviteBaseUrl={inviteBaseUrl}
+          />
         </SettingsSection>
 
         <SettingsSection

@@ -32,6 +32,30 @@ describe("session tokens", () => {
     expect(await verifySessionToken(undefined)).toBeNull();
     expect(await verifySessionToken("")).toBeNull();
   });
+
+  it("round-trips a team-member session's userId/role (services/userService.ts)", async () => {
+    const token = await createSessionToken({
+      businessId: "biz-1",
+      email: "member@b.com",
+      tokenVersion: 1,
+      userId: "user-1",
+      role: "member",
+    });
+    const payload = await verifySessionToken(token);
+    expect(payload).toEqual({
+      businessId: "biz-1",
+      email: "member@b.com",
+      tokenVersion: 1,
+      userId: "user-1",
+      role: "member",
+    });
+  });
+
+  it("an owner session (no userId) round-trips without one", async () => {
+    const token = await createSessionToken({ businessId: "biz-1", email: "owner@b.com", tokenVersion: 0 });
+    const payload = await verifySessionToken(token);
+    expect(payload?.userId).toBeUndefined();
+  });
 });
 
 describe("estimate share tokens", () => {

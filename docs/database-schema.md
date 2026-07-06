@@ -8,9 +8,9 @@ Everything per-business configuration lives here: `business_name`, `owner_name`,
 
 Every "effective X" nullable field follows the same pattern: a `getEffectiveX(business)` helper in `services/business.ts` resolves the real value with a fallback default — never read the raw nullable column directly outside that file.
 
-## `users`
+## `users` (team members)
 
-Phase-6-of-the-original-migration prep — not wired into auth yet. The app still authenticates against `workspaces.password_hash` directly (single login per business, no team/multi-user roster).
+An invited teammate, distinct from the workspace's own owner login (`workspaces.password_hash`, unchanged). `email`, `workspace_id`, `role` (`'owner'` default value is unused in practice — every row the app creates is `'member'`; the actual owner login has no `users` row at all), `password_hash` (null until the invite is accepted), `name`, `invite_token`/`invite_token_expires_at` (7-day, cleared on acceptance), `accepted_at`, and its own `session_token_version` (migration 0014, independent of `workspaces.session_token_version` so one login's logout can't revoke another's). See CLAUDE.md's "Team members" section and `services/userService.ts`.
 
 ## `leads`
 

@@ -46,6 +46,8 @@ function toBusiness(row: WorkspaceRow): Business {
     // read as undefined and the revocation check in lib/session.ts would fail
     // every authenticated request into a login loop.
     sessionTokenVersion: row.session_token_version ?? 0,
+    gmailWatchHistoryId: row.gmail_watch_history_id ?? null,
+    gmailWatchExpiration: row.gmail_watch_expiration ?? null,
   };
 }
 
@@ -112,6 +114,8 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.notifyOnReply !== undefined) fields.notify_on_reply = input.notifyOnReply;
   if (input.monitorGmailInbox !== undefined) fields.monitor_gmail_inbox = input.monitorGmailInbox;
   if (input.sessionTokenVersion !== undefined) fields.session_token_version = input.sessionTokenVersion;
+  if (input.gmailWatchHistoryId !== undefined) fields.gmail_watch_history_id = input.gmailWatchHistoryId;
+  if (input.gmailWatchExpiration !== undefined) fields.gmail_watch_expiration = input.gmailWatchExpiration;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -170,6 +174,34 @@ export async function clearGoogleConnection(id: string): Promise<Business> {
     googleConnectedEmail: null,
     googleScopes: null,
     googleConnectedAt: null,
+    // The old watch registration is tied to a token we no longer have — no point
+    // calling Gmail's stop API with it, it'll expire on its own within 7 days.
+    gmailWatchHistoryId: null,
+    gmailWatchExpiration: null,
+  });
+}
+
+/**
+ * Resolves the business a Gmail push notification belongs to, by the Gmail
+ * address it fires for (services/gmailWatchSync.ts). Case-insensitive since
+ * Gmail addresses are case-insensitive; uses ilike like getBusinessByEmail.
+ */
+export async function getBusinessByGoogleEmail(email: string): Promise<Business | null> {
+  const { data, error } = await getSupabase()
+    .from("workspaces")
+    .select()
+    .ilike("google_connected_email", email)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Supabase select on "workspaces" failed: ${error.message}`);
+  return data ? toBusiness(data as WorkspaceRow) : null;
+}
+
+/** Persists the historyId/expiration from a fresh services/gmailWatch.ts startWatch() call. */
+export async function saveGmailWatch(id: string, input: { historyId: string; expiration: string }): Promise<Business> {
+  return updateBusiness(id, {
+    gmailWatchHistoryId: input.historyId,
+    gmailWatchExpiration: input.expiration,
   });
 }
 

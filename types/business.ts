@@ -44,6 +44,10 @@ export interface Business {
   monitorGmailInbox: boolean | null;
   /** Monotonic counter embedded in each session JWT (lib/auth.ts); bumping it revokes every outstanding session for this business (logout, password change). Defaults to 0. */
   sessionTokenVersion: number;
+  /** Gmail push notifications (services/gmailWatchSync.ts) — historyId from the most recent users.watch call; null when never registered or cleared on disconnect. */
+  gmailWatchHistoryId: string | null;
+  /** When the current watch registration expires (~7 days from creation); services/gmailWatchSync.ts renews it before then. */
+  gmailWatchExpiration: string | null;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;

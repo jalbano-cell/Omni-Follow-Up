@@ -46,4 +46,20 @@ export const env = {
   get billingWebhookSecret() {
     return requireEnv("BILLING_WEBHOOK_SECRET");
   },
+  /**
+   * Full Cloud Pub/Sub topic name (e.g. "projects/<project>/topics/gmail-replies")
+   * that services/gmailWatch.ts registers Gmail push notifications against.
+   * Optional, unlike the getters above — Gmail push (real-time reply sync) is an
+   * enhancement on top of the daily cron/manual sync, not a hard dependency, so
+   * services/gmailWatchSync.ts silently no-ops (logged) when this isn't set
+   * rather than breaking Google account connection for anyone who hasn't set up
+   * Pub/Sub yet.
+   */
+  get gmailPubsubTopic(): string | undefined {
+    return process.env.GMAIL_PUBSUB_TOPIC || undefined;
+  },
+  /** Shared secret appended as a query param to the Pub/Sub push subscription's endpoint URL — verified (constant-time) by app/api/webhooks/gmail-push/route.ts, since Pub/Sub push has no per-request HMAC of its own. Optional, same reasoning as gmailPubsubTopic. */
+  get gmailPushSecret(): string | undefined {
+    return process.env.GMAIL_PUSH_SECRET || undefined;
+  },
 };

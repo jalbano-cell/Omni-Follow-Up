@@ -41,6 +41,8 @@ export async function verifySessionToken(token: string | null | undefined): Prom
       businessId: payload.businessId,
       email: payload.email,
       tokenVersion: typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0,
+      userId: typeof payload.userId === "string" ? payload.userId : undefined,
+      role: payload.role === "member" ? "member" : payload.role === "owner" ? "owner" : undefined,
     };
   } catch {
     return null;

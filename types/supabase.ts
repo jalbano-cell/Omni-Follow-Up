@@ -601,24 +601,42 @@ export type Database = {
       }
       users: {
         Row: {
+          accepted_at: string | null
           created_at: string
           email: string
           id: string
+          invite_token: string | null
+          invite_token_expires_at: string | null
+          name: string | null
+          password_hash: string | null
           role: string
+          session_token_version: number
           workspace_id: string
         }
         Insert: {
+          accepted_at?: string | null
           created_at?: string
           email: string
           id?: string
+          invite_token?: string | null
+          invite_token_expires_at?: string | null
+          name?: string | null
+          password_hash?: string | null
           role?: string
+          session_token_version?: number
           workspace_id: string
         }
         Update: {
+          accepted_at?: string | null
           created_at?: string
           email?: string
           id?: string
+          invite_token?: string | null
+          invite_token_expires_at?: string | null
+          name?: string | null
+          password_hash?: string | null
           role?: string
+          session_token_version?: number
           workspace_id?: string
         }
         Relationships: [
@@ -641,6 +659,8 @@ export type Database = {
           follow_up_cadence_followup1_days: number | null
           follow_up_cadence_followup2_days: number | null
           follow_up_cadence_sent_days: number | null
+          gmail_watch_expiration: string | null
+          gmail_watch_history_id: string | null
           google_connected_at: string | null
           google_connected_email: string | null
           google_refresh_token_enc: string | null
@@ -672,6 +692,8 @@ export type Database = {
           follow_up_cadence_followup1_days?: number | null
           follow_up_cadence_followup2_days?: number | null
           follow_up_cadence_sent_days?: number | null
+          gmail_watch_expiration?: string | null
+          gmail_watch_history_id?: string | null
           google_connected_at?: string | null
           google_connected_email?: string | null
           google_refresh_token_enc?: string | null
@@ -703,6 +725,8 @@ export type Database = {
           follow_up_cadence_followup1_days?: number | null
           follow_up_cadence_followup2_days?: number | null
           follow_up_cadence_sent_days?: number | null
+          gmail_watch_expiration?: string | null
+          gmail_watch_history_id?: string | null
           google_connected_at?: string | null
           google_connected_email?: string | null
           google_refresh_token_enc?: string | null

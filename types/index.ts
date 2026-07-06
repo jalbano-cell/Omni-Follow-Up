@@ -9,3 +9,4 @@ export * from "./notification";
 export * from "./emailTemplate";
 export * from "./estimateAttachment";
 export * from "./subscription";
+export * from "./teamMember";

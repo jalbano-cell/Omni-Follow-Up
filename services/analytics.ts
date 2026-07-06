@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { getDueFollowUps, getEstimates, getFollowUps, getLeads, getReplies } from "@/services/db";
 import { getRecentActivityLog } from "@/services/activityService";
 import { ACTIONABLE_FOLLOWUP_STATUSES, ESTIMATE_STATUSES, OPEN_ESTIMATE_STATUSES, LEAD_SOURCES } from "@/config/constants";
@@ -35,14 +36,25 @@ export async function getDashboardStats(businessId: string): Promise<DashboardSt
   };
 }
 
+/**
+ * How long the four /analytics-page functions below (funnel, lead-source
+ * breakdown, revenue trend, reply metrics) may serve a stale result before
+ * recomputing — Next.js's Data Cache (`unstable_cache`), not a snapshot
+ * table, per CLAUDE.md's "reach for a short-TTL cache before a new table"
+ * guidance. The live dashboard's stats/queue/activity functions further down
+ * this file deliberately stay uncached — those drive actionable items (what
+ * needs a follow-up right now), where a minute of staleness is the wrong
+ * tradeoff; the analytics page is a trend view where it isn't.
+ */
+const ANALYTICS_CACHE_SECONDS = 60;
+
 export interface FollowUpFunnelItem {
   status: EstimateStatus;
   count: number;
   value: number;
 }
 
-/** Estimate counts/value per pipeline stage, in Sent -> Follow-up 1 -> Follow-up 2 -> Booked/Lost order. */
-export async function getFollowUpFunnel(businessId: string): Promise<FollowUpFunnelItem[]> {
+async function computeFollowUpFunnel(businessId: string): Promise<FollowUpFunnelItem[]> {
   const estimates = await getEstimates(businessId);
   return ESTIMATE_STATUSES.map((status) => {
     const matching = estimates.filter((e) => e.status === status);
@@ -54,13 +66,17 @@ export async function getFollowUpFunnel(businessId: string): Promise<FollowUpFun
   });
 }
 
+/** Estimate counts/value per pipeline stage, in Sent -> Follow-up 1 -> Follow-up 2 -> Booked/Lost order. */
+export const getFollowUpFunnel = unstable_cache(computeFollowUpFunnel, ["analytics-follow-up-funnel"], {
+  revalidate: ANALYTICS_CACHE_SECONDS,
+});
+
 export interface LeadSourceBreakdownItem {
   source: string;
   count: number;
 }
 
-/** Lead counts per source, in config/constants.ts's LEAD_SOURCES order — every listed source appears even at zero, plus one "Other" bucket for any legacy/unlisted value already stored on a Lead (leadSource is a free string, not a closed enum). */
-export async function getLeadSourceBreakdown(businessId: string): Promise<LeadSourceBreakdownItem[]> {
+async function computeLeadSourceBreakdown(businessId: string): Promise<LeadSourceBreakdownItem[]> {
   const leads = await getLeads(businessId);
   const known: readonly string[] = LEAD_SOURCES;
 
@@ -77,19 +93,18 @@ export async function getLeadSourceBreakdown(businessId: string): Promise<LeadSo
   return items;
 }
 
+/** Lead counts per source, in config/constants.ts's LEAD_SOURCES order — every listed source appears even at zero, plus one "Other" bucket for any legacy/unlisted value already stored on a Lead (leadSource is a free string, not a closed enum). */
+export const getLeadSourceBreakdown = unstable_cache(computeLeadSourceBreakdown, ["analytics-lead-source-breakdown"], {
+  revalidate: ANALYTICS_CACHE_SECONDS,
+});
+
 export interface RevenueTrendPoint {
   /** "2026-01" */
   month: string;
   bookedRevenue: number;
 }
 
-/**
- * Booked revenue per month for the last `months` months. Uses lastContactDate
- * as a proxy for "when it was booked" — there's no dedicated bookedAt field,
- * but marking an estimate Booked always updates lastContactDate (see
- * app/estimates/actions.ts's updateEstimateStatusAction).
- */
-export async function getRevenueTrend(businessId: string, months = 6): Promise<RevenueTrendPoint[]> {
+async function computeRevenueTrend(businessId: string, months = 6): Promise<RevenueTrendPoint[]> {
   const estimates = await getEstimates(businessId);
   const booked = estimates.filter((e) => e.status === "Booked" && e.lastContactDate);
 
@@ -105,6 +120,16 @@ export async function getRevenueTrend(businessId: string, months = 6): Promise<R
   }
   return points;
 }
+
+/**
+ * Booked revenue per month for the last `months` months. Uses lastContactDate
+ * as a proxy for "when it was booked" — there's no dedicated bookedAt field,
+ * but marking an estimate Booked always updates lastContactDate (see
+ * app/estimates/actions.ts's updateEstimateStatusAction).
+ */
+export const getRevenueTrend = unstable_cache(computeRevenueTrend, ["analytics-revenue-trend"], {
+  revalidate: ANALYTICS_CACHE_SECONDS,
+});
 
 export interface UpcomingFollowUp {
   id: string;
@@ -218,13 +243,7 @@ export interface ReplyMetrics {
   avgDaysToFirstReply: number | null;
 }
 
-/**
- * Reply rate among estimates that have had at least one email sent (i.e.
- * have a gmailThreadId), plus the average days between sending and the
- * first customer reply. Inherits services/replyMatcher.ts's thread-based
- * matching limitations — a reply from a different address won't count.
- */
-export async function getReplyMetrics(businessId: string): Promise<ReplyMetrics> {
+async function computeReplyMetrics(businessId: string): Promise<ReplyMetrics> {
   const [estimates, replies] = await Promise.all([getEstimates(businessId), getReplies(businessId)]);
   const estimatesWithThread = estimates.filter((e) => !!e.gmailThreadId);
 
@@ -261,3 +280,13 @@ export async function getReplyMetrics(businessId: string): Promise<ReplyMetrics>
     avgDaysToFirstReply: daysCount > 0 ? Math.round((daysSum / daysCount) * 10) / 10 : null,
   };
 }
+
+/**
+ * Reply rate among estimates that have had at least one email sent (i.e.
+ * have a gmailThreadId), plus the average days between sending and the
+ * first customer reply. Inherits services/replyMatcher.ts's thread-based
+ * matching limitations — a reply from a different address won't count.
+ */
+export const getReplyMetrics = unstable_cache(computeReplyMetrics, ["analytics-reply-metrics"], {
+  revalidate: ANALYTICS_CACHE_SECONDS,
+});

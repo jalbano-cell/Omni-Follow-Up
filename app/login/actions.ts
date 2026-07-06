@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getBusinessByEmail, bumpSessionTokenVersion } from "@/services/business";
+import { getTeamMemberByEmail, bumpMemberSessionTokenVersion } from "@/services/userService";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { SESSION_COOKIE_NAME, createSessionToken, verifySessionToken } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
@@ -40,30 +41,46 @@ export async function loginAction(formData: FormData) {
     redirect(`/login?error=rate&from=${encodeURIComponent(from)}`);
   }
 
+  // A business owner's email (workspaces.password_hash) and an invited team
+  // member's email (users.password_hash, services/userService.ts) are two
+  // separate account kinds sharing one login form. Only one path can apply
+  // per email — an owner match takes priority in the vanishingly unlikely
+  // case both existed for the same address — but exactly one verifyPassword
+  // call happens either way (against whichever hash applies, or the dummy
+  // hash), so which path exists (or whether either does) isn't observable
+  // via timing.
   const business = email ? await getBusinessByEmail(email) : null;
-  // Always run a verification (dummy hash when there's no account) to keep
-  // response time independent of whether the email exists.
-  const passwordOk = await verifyPassword(password, business?.passwordHash ?? (await DUMMY_HASH_PROMISE));
+  const member = !business && email ? await getTeamMemberByEmail(email) : null;
+  // A pending (not-yet-accepted) invite has no password_hash yet — not usable to log in.
+  const memberUsable = member && member.acceptedAt && member.passwordHash ? member : null;
 
-  if (!business || !passwordOk) {
+  const targetHash = business?.passwordHash ?? memberUsable?.passwordHash ?? (await DUMMY_HASH_PROMISE);
+  const passwordOk = await verifyPassword(password, targetHash);
+
+  if (!passwordOk || (!business && !memberUsable)) {
     logAction("auth.login-failed", { email });
     redirect(`/login?error=1&from=${encodeURIComponent(from)}`);
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(
-    SESSION_COOKIE_NAME,
-    await createSessionToken({ businessId: business.id, email: business.ownerEmail, tokenVersion: business.sessionTokenVersion }),
-    {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    }
-  );
+  const sessionToken = business
+    ? await createSessionToken({ businessId: business.id, email: business.ownerEmail, tokenVersion: business.sessionTokenVersion })
+    : await createSessionToken({
+        businessId: memberUsable!.workspaceId,
+        email: memberUsable!.email,
+        tokenVersion: memberUsable!.sessionTokenVersion,
+        userId: memberUsable!.id,
+        role: "member",
+      });
+  cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
 
-  logAction("auth.login-success", { businessId: business.id });
+  logAction("auth.login-success", { businessId: business ? business.id : memberUsable!.workspaceId, role: business ? "owner" : "member" });
   redirect(from || "/");
 }
 
@@ -75,7 +92,13 @@ export async function logoutAction() {
   const existing = await verifySessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
   if (existing) {
     try {
-      await bumpSessionTokenVersion(existing.businessId);
+      // A team member's own counter (migration 0014) so their logout doesn't
+      // revoke the owner's or any other member's session too.
+      if (existing.userId) {
+        await bumpMemberSessionTokenVersion(existing.userId);
+      } else {
+        await bumpSessionTokenVersion(existing.businessId);
+      }
     } catch {
       // Best-effort: even if the bump fails, still clear the cookie below.
     }

@@ -2,23 +2,27 @@ import { NextResponse } from "next/server";
 import { runDailyFollowUpJob } from "@/services/followupEngine";
 import { runDailyReplySyncJob } from "@/services/replyMatcher";
 import { runDailyGmailLeadCaptureJob } from "@/services/gmailLeadCapture";
-import { getAllActiveBusinesses } from "@/services/business";
-import { APP_TIMEZONE } from "@/config/constants";
+import { runGmailWatchRenewalJob } from "@/services/gmailWatchSync";
+import { getAllActiveBusinesses, getEffectiveTimezone } from "@/services/business";
 import { safeCompare } from "@/lib/timingSafe";
 import { getBearerToken } from "@/lib/apiAuth";
+import type { Business } from "@/types";
 
 const TARGET_LOCAL_HOUR = 8;
 
 /**
- * Vercel Cron schedules are always UTC, but Toronto shifts between EDT/EST
- * across the year. vercel.json schedules this route at both 12:00 and 13:00
- * UTC (covering both offsets) — whichever invocation doesn't land on 8am
- * Toronto local time is a no-op, so the job effectively runs once a day at
- * 8am local time year-round without needing a manual DST-season update.
+ * Vercel Cron schedules are always UTC, but each business's own effective
+ * timezone (`getEffectiveTimezone` — falls back to APP_TIMEZONE when unset)
+ * shifts between standard/daylight time across the year. vercel.json
+ * schedules this route at every UTC hour that lands on 8am local for some
+ * timezone in TIMEZONE_OPTIONS (config/constants.ts) across both DST states
+ * — an invocation that doesn't land on 8am for a given business just skips
+ * that business, so every business still gets its jobs run once a day at
+ * 8am its own local time, without a manual DST-season update.
  */
-function isTargetLocalHour(): boolean {
+function isTargetLocalHour(timezone: string): boolean {
   const hour = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIMEZONE,
+    timeZone: timezone,
     hour: "numeric",
     hour12: false,
   }).format(new Date());
@@ -26,15 +30,16 @@ function isTargetLocalHour(): boolean {
 }
 
 /**
- * Called by the Vercel Cron Job configured in vercel.json. Detects due
- * follow-ups, drafts messages, and queues them as Pending — never sends
- * anything. Also syncs incoming Gmail replies for every connected business
- * (see services/replyMatcher.ts) and, for businesses that opted in, scans
- * their Gmail inbox for new customer inquiries and creates Leads from them
- * (see services/gmailLeadCapture.ts) — both piggybacked onto this same
- * daily invocation rather than their own cron schedule, since Vercel's
- * Hobby plan caps how many/how-often cron jobs can run; the "Check for new
- * replies" button covers anything more immediate. Every run is logged.
+ * Called by the Vercel Cron Job configured in vercel.json, once per UTC hour
+ * that covers some business's 8am local time. Detects due follow-ups, drafts
+ * messages, and queues them as Pending — never sends anything. Also syncs
+ * incoming Gmail replies for every connected business (see
+ * services/replyMatcher.ts) and, for businesses that opted in, scans their
+ * Gmail inbox for new customer inquiries and creates Leads from them (see
+ * services/gmailLeadCapture.ts) — both piggybacked onto this same invocation
+ * rather than their own cron schedule; the "Check for new replies" button
+ * covers anything more immediate. Every run is logged, only for the
+ * businesses actually processed this invocation.
  *
  * If CRON_SECRET is set, requests must carry `Authorization: Bearer <CRON_SECRET>`,
  * which Vercel automatically attaches to its own cron invocations.
@@ -53,14 +58,27 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isTargetLocalHour()) {
-    return NextResponse.json({ skipped: true, reason: "not 8am America/Toronto yet" });
+  const allBusinesses = await getAllActiveBusinesses();
+
+  // Gmail watch renewal isn't tied to a business's 8am local slot (a
+  // registration just needs renewing before it expires, whenever this route
+  // happens to run), so it checks every active business on every invocation
+  // — a no-op for anyone not within 24h of expiring, and never blocks the
+  // 8am-gated jobs below even if a renewal call fails.
+  await runGmailWatchRenewalJob(allBusinesses);
+
+  const dueBusinesses: Business[] = allBusinesses.filter((business) =>
+    isTargetLocalHour(getEffectiveTimezone(business))
+  );
+
+  if (dueBusinesses.length === 0) {
+    return NextResponse.json({ skipped: true, reason: "no business at 8am local this hour" });
   }
 
   try {
-    const [followUpLogs, businesses] = await Promise.all([runDailyFollowUpJob(), getAllActiveBusinesses()]);
-    const replySyncLogs = await runDailyReplySyncJob(businesses);
-    const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(businesses);
+    const followUpLogs = await runDailyFollowUpJob(dueBusinesses);
+    const replySyncLogs = await runDailyReplySyncJob(dueBusinesses);
+    const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(dueBusinesses);
     return NextResponse.json({ followUps: followUpLogs, replySync: replySyncLogs, gmailLeadCapture: gmailCaptureLogs });
   } catch (error) {
     return NextResponse.json(

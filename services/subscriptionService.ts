@@ -61,10 +61,10 @@ export async function getEffectivePlan(businessId: string): Promise<Plan> {
 }
 
 /**
- * Whether a plan includes a given feature. Always resolves the real
- * plan/feature lookup (not hardcoded), but nothing in the app calls this to
- * actually block access yet — it establishes the shape for when feature
- * gating goes live, deliberately not wired into any UI/route yet.
+ * Whether a plan includes a given feature. Enforced at every gate: the public
+ * API and inbound webhook routes (lib/apiAuth.ts's requirePublicApiFeature)
+ * and outbound webhook dispatch (services/webhookDispatcher.ts) both check
+ * this before proceeding.
  */
 export async function checkFeatureGate(businessId: string, feature: PlanFeature): Promise<boolean> {
   const plan = await getEffectivePlan(businessId);

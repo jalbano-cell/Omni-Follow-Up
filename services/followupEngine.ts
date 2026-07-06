@@ -5,7 +5,7 @@ import { listEmailTemplates, renderTemplate, templateKeyForEstimateStage } from 
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
 import { writeDailyRunLog, type DailyRunLog } from "@/lib/logger";
 import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
-import type { Estimate, EmailTemplate, FollowUp, FollowUpQueueItem } from "@/types";
+import type { Business, Estimate, EmailTemplate, FollowUp, FollowUpQueueItem } from "@/types";
 
 /** Merge variables available to the 3 follow-up-stage templates — see services/emailTemplateService.ts. */
 function estimateMergeVars(estimate: Estimate): Record<string, string> {
@@ -96,8 +96,8 @@ export async function generateDueFollowUps(businessId: string): Promise<FollowUp
  * Never sends anything (see services/gmail.ts / services/followupSender.ts
  * for the separate, human-approval-gated send path).
  */
-export async function runDailyFollowUpJob(): Promise<DailyRunLog[]> {
-  const businesses = await getAllActiveBusinesses();
+export async function runDailyFollowUpJob(businesses?: Business[]): Promise<DailyRunLog[]> {
+  businesses ??= await getAllActiveBusinesses();
   const logs: DailyRunLog[] = [];
 
   for (const business of businesses) {

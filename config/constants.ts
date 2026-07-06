@@ -1,6 +1,6 @@
 import type { EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus } from "@/types";
 
-/** Single deployment-wide timezone — used for the cron's local-hour check and Calendar reminder times. */
+/** Fallback timezone for a business that hasn't set its own (`getEffectiveTimezone` in services/business.ts). */
 export const APP_TIMEZONE = "America/Toronto";
 
 /** Local hour (in APP_TIMEZONE) a follow-up's Calendar reminder is scheduled at, when a business hasn't set its own working hours. */
