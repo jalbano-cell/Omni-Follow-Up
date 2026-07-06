@@ -3,8 +3,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { StepIndicator } from "@/components/onboarding/step-indicator";
 import { completeOnboardingAction } from "@/app/onboarding/review/actions";
-import { getBusinessById, getEffectiveCadenceDays } from "@/services/business";
+import {
+  getBusinessById,
+  getEffectiveCadenceDays,
+  getEffectiveTimezone,
+  getEffectiveWorkingHours,
+} from "@/services/business";
 import { getCurrentSession } from "@/lib/session";
+import { TIMEZONE_OPTIONS } from "@/config/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -14,18 +20,22 @@ export default async function OnboardingReviewPage() {
   const cadence = getEffectiveCadenceDays(
     business ?? { followUpCadenceSentDays: null, followUpCadenceFollowUp1Days: null, followUpCadenceFollowUp2Days: null }
   );
+  const timezone = getEffectiveTimezone(business ?? { timezone: null });
+  const workingHours = getEffectiveWorkingHours(business ?? { workingHoursStart: null, workingHoursEnd: null });
+  const timezoneLabel = TIMEZONE_OPTIONS.find((tz) => tz.value === timezone)?.label ?? timezone;
 
   const rows: Array<[string, string]> = [
     ["Business", business?.businessName ?? "—"],
-    ["Industry", business?.industry ?? "—"],
     ["Email", business?.ownerEmail ?? "—"],
-    ["Gmail", business?.googleConnectedEmail ?? "Not connected"],
+    ["Google", business?.googleConnectedEmail ?? "Not connected"],
     ["Cadence", `${cadence.Sent} / ${cadence["Follow-up 1"]} / ${cadence["Follow-up 2"]} days`],
+    ["Time zone", timezoneLabel],
+    ["Business hours", `${workingHours.start}:00–${workingHours.end}:00`],
   ];
 
   return (
     <>
-      <StepIndicator currentStep={6} />
+      <StepIndicator currentStep={5} />
       <Card className="py-6">
         <CardContent className="px-6">
           <div className="mb-5 flex flex-col items-center gap-3 text-center">

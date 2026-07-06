@@ -131,23 +131,13 @@ export default async function SettingsPage({
 
         <BillingCard plan={plan} subscription={subscription} leadsUsedThisMonth={leadsUsedThisMonth} checkoutStatus={checkout} />
 
-        <SectionLabel>Lead sources</SectionLabel>
-
-        <LeadSourcesCard
-          intakeApiKeyPresent={Boolean(business.intakeApiKey)}
-          webhookEndpointUrl={webhookEndpointUrl}
-          gmailConnected={googleConnected}
-          monitorGmailInbox={monitorGmailInbox}
-        />
-
-        <IntakeKeyCard apiKey={business.intakeApiKey} endpointUrl={intakeEndpointUrl} />
-
         <Card className="py-5">
           <CardHeader className="px-5">
             <CardTitle className="text-base">Google connection</CardTitle>
             <CardDescription>
-              One connection covers three things: sending approved follow-ups, creating Calendar reminders when a
-              follow-up is drafted, and (optionally) monitoring your inbox for new leads.
+              Your primary lead source. One connection covers three things: watching your inbox for new customer
+              inquiries and creating leads from them, sending approved follow-ups, and creating Calendar reminders
+              when a follow-up is drafted.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-5">
@@ -217,7 +207,8 @@ export default async function SettingsPage({
                   <span className="block font-medium text-foreground">Monitor Gmail inbox for new customer inquiries</span>
                   <span className="block text-xs text-muted-foreground">
                     Once a day, scans this inbox for messages that aren&apos;t already part of an existing Lead or
-                    Estimate thread and creates a new Lead (source &quot;Gmail&quot;) for each one. Off by default.
+                    Estimate thread and creates a new Lead (source &quot;Gmail&quot;) for each one. On automatically
+                    when Gmail is connected — uncheck to turn it off.
                     {!googleConnected && " Requires Gmail connected above."}
                   </span>
                 </span>
@@ -228,6 +219,17 @@ export default async function SettingsPage({
             </form>
           </CardContent>
         </Card>
+
+        <SectionLabel>Advanced integrations</SectionLabel>
+
+        <LeadSourcesCard
+          intakeApiKeyPresent={Boolean(business.intakeApiKey)}
+          webhookEndpointUrl={webhookEndpointUrl}
+          gmailConnected={googleConnected}
+          monitorGmailInbox={monitorGmailInbox}
+        />
+
+        <IntakeKeyCard apiKey={business.intakeApiKey} endpointUrl={intakeEndpointUrl} />
 
         <Card className="py-5">
           <CardHeader className="px-5">

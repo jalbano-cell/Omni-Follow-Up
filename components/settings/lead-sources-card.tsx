@@ -38,7 +38,7 @@ export function LeadSourcesCard({
     {
       label: "Gmail",
       active: gmailConnected && monitorGmailInbox,
-      detail: !gmailConnected ? "Connect Gmail below to activate" : monitorGmailInbox ? "Monitoring enabled" : "Monitoring disabled — enable under Gmail connection",
+      detail: !gmailConnected ? "Connect Google above to activate" : monitorGmailInbox ? "Primary source — monitoring enabled" : "Monitoring disabled — enable under Google connection",
     },
     { label: "Manual Entry", active: true, detail: "Always available — Leads → New Lead" },
     { label: "CSV Import", active: true, detail: "Always available — Leads → Import CSV" },
@@ -53,7 +53,10 @@ export function LeadSourcesCard({
     <Card className="py-5">
       <CardHeader className="px-5">
         <CardTitle className="text-base">Lead sources</CardTitle>
-        <CardDescription>Every way a lead can enter OmniFollowUp — all funnel into the same pipeline.</CardDescription>
+        <CardDescription>
+          Gmail is your primary source. These are optional, advanced ways a lead can also enter OmniFollowUp — all
+          funnel into the same pipeline.
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-5">
         <ul className="flex flex-col gap-2">

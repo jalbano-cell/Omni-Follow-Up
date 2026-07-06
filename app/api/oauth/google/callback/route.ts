@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       connectedEmail,
       scopes: tokens.scope,
     });
-    await markOnboardingStep(state.businessId, 2);
+    await markOnboardingStep(state.businessId, 1);
 
     logAction("auth.google-connected", { businessId: state.businessId, connectedEmail });
     return NextResponse.redirect(new URL(state.returnTo, request.url));

@@ -20,18 +20,19 @@ export default async function OnboardingGmailPage({
 
   return (
     <>
-      <StepIndicator currentStep={3} />
+      <StepIndicator currentStep={2} />
       <Card className="py-6">
         <CardContent className="flex flex-col items-center gap-4 px-6 text-center">
           <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Mail className="size-6" strokeWidth={2} />
           </div>
           <div>
-            <h2 className="font-heading text-base font-semibold text-foreground">Connect your Gmail</h2>
+            <h2 className="font-heading text-base font-semibold text-foreground">Connect your Google account</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              OmniFollowUp sends approved follow-ups from your own Gmail address and can later show
-              customer replies in the same thread. Nothing sends automatically — you approve every email
-              before it goes out.
+              This is the only setup OmniFollowUp needs. Once connected, we start watching your inbox for new
+              customer inquiries and automatically create leads from them — no website changes, no API keys.
+              We can also send approved follow-ups from your own address and add Calendar reminders. Nothing
+              sends automatically — you approve every follow-up before it goes out.
             </p>
           </div>
 
