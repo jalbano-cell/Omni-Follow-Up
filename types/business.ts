@@ -42,6 +42,8 @@ export interface Business {
   notifyOnReply: boolean | null;
   /** Opt-in, defaults to false when null (see getEffectiveGmailLeadMonitoring in services/business.ts) — when on, the daily cron scans this business's Gmail inbox for new customer inquiries and creates a Lead (source "Gmail") for each one not already tied to a known Estimate thread. */
   monitorGmailInbox: boolean | null;
+  /** Monotonic counter embedded in each session JWT (lib/auth.ts); bumping it revokes every outstanding session for this business (logout, password change). Defaults to 0. */
+  sessionTokenVersion: number;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;

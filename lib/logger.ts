@@ -38,6 +38,27 @@ export function logAction(action: string, detail: Record<string, unknown>): void
   console.log(`[action] ${new Date().toISOString()} ${action}`, detail);
 }
 
+/**
+ * Partially masks an email for logs — keeps the first character of the local
+ * part and the full domain (`j***@acme.com`) so a failed submission is still
+ * traceable/contactable, without dumping a harvestable address into Vercel's
+ * log retention. Empty/malformed input passes through unchanged (nothing to leak).
+ */
+export function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  const local = email.slice(0, at);
+  const masked = local.length <= 1 ? local : `${local[0]}***`;
+  return `${masked}${email.slice(at)}`;
+}
+
+/** Masks a phone number for logs — keeps only the last 4 digits (`***1234`). */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length <= 4) return phone ? "***" : phone;
+  return `***${digits.slice(-4)}`;
+}
+
 const INTAKE_LOG_DIR = path.join(process.cwd(), "logs", "intake");
 
 export type IntakeAuditResult =

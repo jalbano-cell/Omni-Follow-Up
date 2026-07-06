@@ -41,6 +41,7 @@ function toBusiness(row: WorkspaceRow): Business {
     notifyOnNewLead: row.notify_on_new_lead,
     notifyOnReply: row.notify_on_reply,
     monitorGmailInbox: row.monitor_gmail_inbox,
+    sessionTokenVersion: row.session_token_version,
   };
 }
 
@@ -106,9 +107,22 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.notifyOnNewLead !== undefined) fields.notify_on_new_lead = input.notifyOnNewLead;
   if (input.notifyOnReply !== undefined) fields.notify_on_reply = input.notifyOnReply;
   if (input.monitorGmailInbox !== undefined) fields.monitor_gmail_inbox = input.monitorGmailInbox;
+  if (input.sessionTokenVersion !== undefined) fields.session_token_version = input.sessionTokenVersion;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
+}
+
+/**
+ * Revokes every outstanding session for this business by advancing its
+ * session_token_version — any JWT minted with the old version (lib/session.ts
+ * compares them) stops validating on its next request. Called on logout and
+ * should be called by any future password-reset flow.
+ */
+export async function bumpSessionTokenVersion(id: string): Promise<void> {
+  const business = await getBusinessById(id);
+  if (!business) return;
+  await updateBusiness(id, { sessionTokenVersion: business.sessionTokenVersion + 1 });
 }
 
 /**

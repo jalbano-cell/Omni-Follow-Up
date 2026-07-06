@@ -26,6 +26,8 @@ export interface Estimate {
   gmailThreadId: string | null;
   /** RFC 822 Message-ID header of the most recently sent email, used for In-Reply-To threading. */
   gmailLastMessageId: string | null;
+  /** Monotonic counter embedded in this estimate's customer share link (lib/auth.ts); bumping it invalidates a previously shared link. Defaults to 0. */
+  shareTokenVersion: number;
 }
 
 export type NewEstimateInput = Pick<
