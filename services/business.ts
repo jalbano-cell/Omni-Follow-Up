@@ -127,7 +127,11 @@ export async function rotateIntakeApiKey(id: string): Promise<Business> {
   return updateBusiness(id, { intakeApiKey: generateApiKey(), intakeApiKeyCreatedAt: new Date().toISOString() });
 }
 
-/** Persists a freshly-connected (or reconnected) Google account's tokens/scopes. */
+/**
+ * Persists a freshly-connected (or reconnected) Google account's tokens/scopes.
+ * Gmail is the product's primary lead source now, so every connection also turns
+ * on inbox monitoring — a business can still switch it back off in Settings.
+ */
 export async function saveGoogleConnection(
   id: string,
   input: { encryptedRefreshToken: string; connectedEmail: string; scopes: string }
@@ -137,6 +141,7 @@ export async function saveGoogleConnection(
     googleConnectedEmail: input.connectedEmail,
     googleScopes: input.scopes,
     googleConnectedAt: new Date().toISOString(),
+    monitorGmailInbox: true,
   });
 }
 
@@ -211,7 +216,7 @@ export function getEffectiveNotifyOnReply(business: Pick<Business, "notifyOnRepl
   return business.notifyOnReply ?? true;
 }
 
-/** Whether the daily cron scans this business's Gmail inbox for new customer inquiries (services/gmailLeadCapture.ts) — off by default, since not every business wants inbound email auto-converted into Leads. */
+/** Whether the daily cron scans this business's Gmail inbox for new customer inquiries (services/gmailLeadCapture.ts) — turned on automatically the moment Google is connected (services/business.ts's saveGoogleConnection); null only for a business that's never connected Google or has explicitly turned it back off. */
 export function getEffectiveGmailLeadMonitoring(business: Pick<Business, "monitorGmailInbox">): boolean {
   return business.monitorGmailInbox ?? false;
 }
