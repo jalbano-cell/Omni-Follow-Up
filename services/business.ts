@@ -41,7 +41,11 @@ function toBusiness(row: WorkspaceRow): Business {
     notifyOnNewLead: row.notify_on_new_lead,
     notifyOnReply: row.notify_on_reply,
     monitorGmailInbox: row.monitor_gmail_inbox,
-    sessionTokenVersion: row.session_token_version,
+    // `?? 0` so the app tolerates the column not existing yet (i.e. this code
+    // deployed before migration 0011 ran) — without it, an absent value would
+    // read as undefined and the revocation check in lib/session.ts would fail
+    // every authenticated request into a login loop.
+    sessionTokenVersion: row.session_token_version ?? 0,
   };
 }
 

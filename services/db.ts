@@ -57,7 +57,9 @@ function toEstimate(row: EstimateRow): Estimate {
     notes: row.notes,
     gmailThreadId: row.gmail_thread_id,
     gmailLastMessageId: row.gmail_last_message_id,
-    shareTokenVersion: row.share_token_version,
+    // `?? 0` for the same reason as sessionTokenVersion in services/business.ts:
+    // tolerate the column not existing yet if this deployed before migration 0011.
+    shareTokenVersion: row.share_token_version ?? 0,
   };
 }
 
