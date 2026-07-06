@@ -41,7 +41,7 @@ export async function signupAction(formData: FormData) {
   // Cap account creation per IP so signup can't be scripted into an abuse /
   // resource-exhaustion vector (each new business can trigger Gmail scanning).
   const ip = await clientIp();
-  if (rateLimit(`signup:ip:${ip}`, { max: 5, windowMs: 60 * 60 * 1000 }).limited) {
+  if ((await rateLimit(`signup:ip:${ip}`, { max: 5, windowMs: 60 * 60 * 1000 })).limited) {
     logAction("auth.signup-rate-limited", { ip });
     redirect(`/signup?error=${encodeURIComponent("Too many signups from this network. Please try again later.")}`);
   }

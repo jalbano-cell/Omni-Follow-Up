@@ -15,9 +15,8 @@ import type { NextConfig } from "next";
  *    third parties.
  *  - Permissions-Policy: deny camera/mic/geolocation the app never uses.
  *
- * A full script-src/style-src CSP needs per-request nonces to coexist with
- * Next.js hydration; that's a larger change and is intentionally left for a
- * follow-up so this baseline can ship without risk of a blank page.
+ * The Content-Security-Policy is NOT here — it needs a per-request nonce to
+ * coexist with Next.js hydration, so it's set in middleware.ts instead.
  */
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
@@ -25,7 +24,6 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
 ];
 
 const nextConfig: NextConfig = {

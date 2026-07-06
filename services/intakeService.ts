@@ -69,8 +69,8 @@ function sanitizeText(value: unknown, maxLength: number, { multiline = false } =
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 8;
 
-function isRateLimited(key: string): boolean {
-  return rateLimit(`intake:${key}`, { max: RATE_LIMIT_MAX, windowMs: RATE_LIMIT_WINDOW_MS }).limited;
+async function isRateLimited(key: string): Promise<boolean> {
+  return (await rateLimit(`intake:${key}`, { max: RATE_LIMIT_MAX, windowMs: RATE_LIMIT_WINDOW_MS })).limited;
 }
 
 export async function processIntake(request: IntakeRequest): Promise<IntakeOutcome> {
@@ -84,7 +84,7 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
     return { ok: false, status: 401, error: "Invalid or missing API key." };
   }
 
-  if (isRateLimited(`${business.id}:${ip ?? "unknown"}`)) {
+  if (await isRateLimited(`${business.id}:${ip ?? "unknown"}`)) {
     await logIntakeAudit({ timestamp, businessId: business.id, ip, userAgent, source, result: "rate_limited" });
     return { ok: false, status: 429, error: "Too many submissions. Please try again later." };
   }

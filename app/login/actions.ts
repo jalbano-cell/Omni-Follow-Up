@@ -31,11 +31,11 @@ export async function loginAction(formData: FormData) {
   // IPs hammering one account can brute-force unbounded. Best-effort — see
   // lib/rateLimit.ts's serverless caveat.
   const ip = await clientIp();
-  const ipLimited = rateLimit(`login:ip:${ip}`, { max: 10, windowMs: 10 * 60 * 1000 }).limited;
-  const emailLimited = email
-    ? rateLimit(`login:email:${email}`, { max: 5, windowMs: 15 * 60 * 1000 }).limited
-    : false;
-  if (ipLimited || emailLimited) {
+  const [ipResult, emailResult] = await Promise.all([
+    rateLimit(`login:ip:${ip}`, { max: 10, windowMs: 10 * 60 * 1000 }),
+    email ? rateLimit(`login:email:${email}`, { max: 5, windowMs: 15 * 60 * 1000 }) : Promise.resolve({ limited: false, remaining: 0 }),
+  ]);
+  if (ipResult.limited || emailResult.limited) {
     logAction("auth.login-rate-limited", { ip });
     redirect(`/login?error=rate&from=${encodeURIComponent(from)}`);
   }
