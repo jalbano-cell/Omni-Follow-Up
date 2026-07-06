@@ -48,7 +48,9 @@ function untyped() {
     from(table: string): {
       insert(values: unknown): { select(): { single(): Promise<{ data: unknown; error: { message: string } | null }> } };
       update(values: unknown): {
-        eq(col: string, val: string): { select(): { single(): Promise<{ data: unknown; error: { message: string } | null }> } };
+        match(m: Record<string, unknown>): {
+          select(): { single(): Promise<{ data: unknown; error: { message: string; code?: string } | null }> };
+        };
       };
       select(): {
         eq(col: string, val: string): { maybeSingle(): Promise<{ data: unknown; error: { message: string; code?: string } | null }> };
@@ -56,7 +58,7 @@ function untyped() {
           order(col: string, opts: { ascending: boolean }): Promise<{ data: unknown[] | null; error: { message: string } | null }>;
         } & Promise<{ data: unknown[] | null; error: { message: string } | null }>;
       };
-      delete(): { eq(col: string, val: string): Promise<{ error: { message: string } | null }> };
+      delete(): { match(m: Record<string, unknown>): Promise<{ error: { message: string } | null }> };
     };
   };
 }
@@ -68,9 +70,26 @@ export async function insertRow<T extends TableName>(table: T, values: Insert<T>
   return data as Row<T>;
 }
 
-/** Updates one row by id and returns the updated row. */
-export async function updateRow<T extends TableName>(table: T, id: string, values: Update<T>): Promise<Row<T>> {
-  const { data, error } = await untyped().from(table).update(values).eq("id", id).select().single();
+/**
+ * Updates one row by id and returns the updated row. `scope` (typically
+ * `{ workspace_id }`) is ANDed into the match so the write itself is
+ * tenant-scoped in Postgres, not just guarded by an application-code
+ * ownership pre-check — a defense-in-depth backstop for the fact that RLS is
+ * disabled (see the class comment above and supabase/migrations/0001). If the
+ * scope doesn't match, no row updates and `.single()` errors, same as "not found".
+ */
+export async function updateRow<T extends TableName>(
+  table: T,
+  id: string,
+  values: Update<T>,
+  scope?: Partial<Row<T>>
+): Promise<Row<T>> {
+  const { data, error } = await untyped()
+    .from(table)
+    .update(values)
+    .match({ id, ...(scope ?? {}) })
+    .select()
+    .single();
   if (error) throw new SupabaseQueryError(table, "update", error.message);
   return data as Row<T>;
 }
@@ -109,8 +128,8 @@ export async function selectWhere<T extends TableName>(
   return (data ?? []) as Row<T>[];
 }
 
-/** Deletes one row by id. */
-export async function deleteRow<T extends TableName>(table: T, id: string): Promise<void> {
-  const { error } = await untyped().from(table).delete().eq("id", id);
+/** Deletes one row by id, optionally tenant-scoped via `scope` (see updateRow). */
+export async function deleteRow<T extends TableName>(table: T, id: string, scope?: Partial<Row<T>>): Promise<void> {
+  const { error } = await untyped().from(table).delete().match({ id, ...(scope ?? {}) });
   if (error) throw new SupabaseQueryError(table, "delete", error.message);
 }

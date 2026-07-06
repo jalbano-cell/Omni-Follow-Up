@@ -46,12 +46,16 @@ export async function POST(request: Request) {
         break;
     }
   } catch (error) {
-    // Stripe retries a webhook on a non-2xx response — log and still 200 so it doesn't retry
-    // forever on a bug in our handling; the raw event is visible in the Stripe Dashboard either way.
+    // Return 500 so Stripe retries (its schedule backs off over ~3 days, then
+    // stops — not "forever"). Billing state is authoritative here, so a
+    // transient failure syncing the subscription must not be silently dropped
+    // by 200-ing it away. The raw event stays visible in the Stripe Dashboard,
+    // and the log line below plus a 5xx alert surface a genuine bug.
     logAction("stripe.webhook-handler-failed", {
       eventType: event.type,
       error: error instanceof Error ? error.message : "unknown error",
     });
+    return NextResponse.json({ error: "Webhook handler failed; will retry." }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

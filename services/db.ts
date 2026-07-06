@@ -57,6 +57,7 @@ function toEstimate(row: EstimateRow): Estimate {
     notes: row.notes,
     gmailThreadId: row.gmail_thread_id,
     gmailLastMessageId: row.gmail_last_message_id,
+    shareTokenVersion: row.share_token_version,
   };
 }
 
@@ -213,7 +214,27 @@ export async function updateEstimate(businessId: string, id: string, input: Upda
   if (input.gmailThreadId !== undefined) fields.gmail_thread_id = input.gmailThreadId;
   if (input.gmailLastMessageId !== undefined) fields.gmail_last_message_id = input.gmailLastMessageId;
 
-  const row = await updateRow("estimates", id, fields);
+  const row = await updateRow("estimates", id, fields, { workspace_id: businessId });
+  return toEstimate(row);
+}
+
+/**
+ * Invalidates any share link previously handed out for this estimate by
+ * advancing its share_token_version — the customer portal (app/e) rejects a
+ * token whose version is behind. Returns the updated estimate so a caller can
+ * mint a fresh link at the new version.
+ */
+export async function bumpEstimateShareTokenVersion(businessId: string, id: string): Promise<Estimate> {
+  const existing = await getEstimate(businessId, id);
+  if (!existing) {
+    throw new Error("Estimate not found for this business.");
+  }
+  const row = await updateRow(
+    "estimates",
+    id,
+    { share_token_version: existing.shareTokenVersion + 1 },
+    { workspace_id: businessId }
+  );
   return toEstimate(row);
 }
 
@@ -233,12 +254,12 @@ export async function deleteEstimate(businessId: string, id: string): Promise<vo
   ]);
 
   await Promise.all([
-    ...followUps.map((f) => deleteRow("followups", f.id)),
-    ...replies.map((r) => deleteRow("replies", r.id)),
+    ...followUps.map((f) => deleteRow("followups", f.id, { workspace_id: businessId })),
+    ...replies.map((r) => deleteRow("replies", r.id, { workspace_id: businessId })),
     deleteAttachmentsForEstimate(businessId, id),
   ]);
 
-  await deleteRow("estimates", id);
+  await deleteRow("estimates", id, { workspace_id: businessId });
 }
 
 /** Open estimates whose nextFollowUpDate has arrived (or passed), scoped to one business. */
@@ -298,7 +319,7 @@ export async function updateFollowUp(businessId: string, id: string, input: Upda
   if (input.sentAt !== undefined) fields.sent_at = input.sentAt;
   if (input.calendarEventId !== undefined) fields.calendar_event_id = input.calendarEventId;
 
-  const row = await updateRow("followups", id, fields);
+  const row = await updateRow("followups", id, fields, { workspace_id: businessId });
   return toFollowUp(row);
 }
 
@@ -337,7 +358,7 @@ export async function markReplyRead(businessId: string, id: string): Promise<Rep
   if (!row || row.workspace_id !== businessId) {
     throw new Error("Reply not found for this business.");
   }
-  const updated = await updateRow("replies", id, { is_read: true });
+  const updated = await updateRow("replies", id, { is_read: true }, { workspace_id: businessId });
   return toReply(updated);
 }
 
@@ -424,7 +445,7 @@ export async function updateLead(businessId: string, id: string, input: UpdateLe
     fields.pending_appointment_duration_minutes = input.pendingAppointmentDurationMinutes;
   if (input.possibleDuplicateOfLeadId !== undefined) fields.possible_duplicate_of_lead_id = input.possibleDuplicateOfLeadId;
 
-  const row = await updateRow("leads", id, fields);
+  const row = await updateRow("leads", id, fields, { workspace_id: businessId });
   return toLead(row);
 }
 
@@ -486,13 +507,13 @@ export async function createNotification(businessId: string, input: NewNotificat
 export async function markNotificationRead(businessId: string, id: string): Promise<Notification | null> {
   const row = await selectById("notifications", id);
   if (!row || row.workspace_id !== businessId) return null;
-  const updated = await updateRow("notifications", id, { is_read: true });
+  const updated = await updateRow("notifications", id, { is_read: true }, { workspace_id: businessId });
   return toNotification(updated);
 }
 
 /** Marks every unread notification read in one pass — used by the bell dropdown's "Mark all read". */
 export async function markAllNotificationsRead(businessId: string): Promise<number> {
   const unread = (await getNotifications(businessId)).filter((n) => !n.isRead);
-  await Promise.all(unread.map((n) => updateRow("notifications", n.id, { is_read: true })));
+  await Promise.all(unread.map((n) => updateRow("notifications", n.id, { is_read: true }, { workspace_id: businessId })));
   return unread.length;
 }

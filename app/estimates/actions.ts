@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { createEstimate, updateEstimate, deleteEstimate, getLeads } from "@/services/db";
+import { createEstimate, updateEstimate, deleteEstimate, getLeads, getEstimate, bumpEstimateShareTokenVersion } from "@/services/db";
 import { markLeadConverted, revertLeadConversion } from "@/services/leadService";
 import { logEstimateActivity } from "@/services/activityService";
 import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/services/business";
@@ -129,13 +129,33 @@ export async function deleteEstimateAction(id: string) {
   revalidatePath("/replies");
 }
 
-/** Mints a fresh signed link to this estimate's customer portal (app/e/[token]/page.tsx). Regenerating doesn't invalidate a previously shared link early — see lib/auth.ts's createEstimateShareToken. */
-export async function getEstimateShareUrlAction(estimateId: string): Promise<string> {
-  const businessId = await getCurrentBusinessId();
-  const token = await createEstimateShareToken({ estimateId, businessId });
+async function buildShareUrl(estimateId: string, businessId: string, shareTokenVersion: number): Promise<string> {
+  const token = await createEstimateShareToken({ estimateId, businessId, shareTokenVersion });
   const host = (await headers()).get("host") ?? "localhost:3000";
   const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
   return `${protocol}://${host}/e/${token}`;
+}
+
+/** Mints a signed link to this estimate's customer portal (app/e/[token]/page.tsx), stamped with the estimate's current share-token version. */
+export async function getEstimateShareUrlAction(estimateId: string): Promise<string> {
+  const businessId = await getCurrentBusinessId();
+  const estimate = await getEstimate(businessId, estimateId);
+  if (!estimate) {
+    throw new Error("Estimate not found.");
+  }
+  return buildShareUrl(estimateId, businessId, estimate.shareTokenVersion);
+}
+
+/**
+ * Revokes any link previously shared for this estimate (advances its
+ * share-token version) and returns a fresh link at the new version — for a
+ * "reset share link" control when a link was sent to the wrong person.
+ */
+export async function resetEstimateShareLinkAction(estimateId: string): Promise<string> {
+  const businessId = await getCurrentBusinessId();
+  const estimate = await bumpEstimateShareTokenVersion(businessId, estimateId);
+  logAction("estimate.share-link-reset", { estimateId });
+  return buildShareUrl(estimateId, businessId, estimate.shareTokenVersion);
 }
 
 export async function uploadEstimateAttachmentAction(estimateId: string, formData: FormData) {

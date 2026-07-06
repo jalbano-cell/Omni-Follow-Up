@@ -20,7 +20,11 @@ export type PortalActionResult = { ok: true } | { ok: false; error: string };
 async function resolveEstimateFromToken(token: string): Promise<Estimate | null> {
   const payload = await verifyEstimateShareToken(token);
   if (!payload) return null;
-  return getEstimate(payload.businessId, payload.estimateId);
+  const estimate = await getEstimate(payload.businessId, payload.estimateId);
+  // Honor share-link revocation here too (see resetEstimateShareLinkAction) —
+  // a revoked link must not be able to accept/decline on the customer's behalf.
+  if (!estimate || (payload.shareTokenVersion ?? 0) !== estimate.shareTokenVersion) return null;
+  return estimate;
 }
 
 /**
