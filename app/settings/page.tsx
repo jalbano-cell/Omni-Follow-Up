@@ -9,7 +9,6 @@ import {
   FileText,
   Bell,
   CalendarClock,
-  Webhook,
   CheckCircle2,
   XCircle,
   Users,
@@ -20,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { IntakeKeyCard } from "@/components/settings/intake-key-card";
 import { LeadSourcesCard } from "@/components/settings/lead-sources-card";
 import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
 import { PlanCard } from "@/components/settings/plan-card";
@@ -55,7 +53,6 @@ import {
   updateScheduleAction,
   updateEmailSignatureAction,
   updateAppointmentPreferencesAction,
-  updateWebhookUrlAction,
   updateNotificationPreferencesAction,
   updateGmailLeadMonitoringAction,
 } from "@/app/settings/actions";
@@ -75,7 +72,6 @@ export default async function SettingsPage({
 
   const host = (await headers()).get("host") ?? "localhost:3000";
   const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
-  const intakeEndpointUrl = `${protocol}://${host}/api/intake`;
   const webhookEndpointUrl = `${protocol}://${host}/api/v1/webhooks/leads`;
   const inviteBaseUrl = `${protocol}://${host}`;
 
@@ -440,37 +436,6 @@ export default async function SettingsPage({
           </form>
         </SettingsSection>
 
-        <SettingsSection
-          value="advanced-integrations"
-          icon={Webhook}
-          title="Advanced Integrations"
-          description="Webhook URLs, Intake API, developer tools"
-        >
-          <IntakeKeyCard apiKey={business.intakeApiKey} endpointUrl={intakeEndpointUrl} />
-
-          <div className="border-t border-border pt-4">
-            <p className="mb-1 text-sm font-semibold text-foreground">Webhook URL</p>
-            <p className="mb-3 text-xs text-muted-foreground">
-              We&apos;ll POST a JSON payload here on key events (new lead, estimate booked/lost) — best-effort, no
-              retries. See docs/api.md for the payload shape.
-            </p>
-            <form action={updateWebhookUrlAction} className="flex flex-col gap-1.5">
-              <Label htmlFor="outboundWebhookUrl" className="text-xs">
-                Webhook URL
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="outboundWebhookUrl"
-                  name="outboundWebhookUrl"
-                  type="url"
-                  placeholder="https://example.com/webhooks/omnifollowup"
-                  defaultValue={business.outboundWebhookUrl ?? ""}
-                />
-                <SubmitButton>Save</SubmitButton>
-              </div>
-            </form>
-          </div>
-        </SettingsSection>
       </SettingsAccordion>
     </>
   );

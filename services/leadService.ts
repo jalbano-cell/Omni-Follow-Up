@@ -14,7 +14,6 @@ import { analyzeLead } from "@/services/automation/leadClassifier";
 import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/services/emailBuilder";
 import { resolveAppointmentBooking, bookRecommendedAppointment } from "@/services/appointmentBooking";
 import { getBusinessById, getEffectiveNotifyOnNewLead } from "@/services/business";
-import { dispatchWebhookEvent } from "@/services/webhookDispatcher";
 import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
@@ -316,14 +315,6 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
   await sendLeadNotificationEmail(business, lead);
   await analyzeLead(business.id, lead);
   await sendLeadAcknowledgmentEmail(business, lead);
-  await dispatchWebhookEvent(business, "lead.created", {
-    leadId: lead.leadId,
-    name: lead.name,
-    email: lead.email,
-    company: lead.company,
-    requestedService: lead.requestedService,
-    source: lead.leadSource,
-  });
 
   return lead;
 }

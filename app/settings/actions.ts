@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateBusiness, clearGoogleConnection, rotateIntakeApiKey } from "@/services/business";
+import { updateBusiness, clearGoogleConnection } from "@/services/business";
 import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplateService";
 import { inviteTeamMember, removeTeamMember, TeamMemberLimitExceededError, TeamMemberEmailInUseError } from "@/services/userService";
 import { requireOwner } from "@/lib/session";
@@ -100,14 +100,6 @@ export async function disconnectGoogleAction() {
   revalidatePath("/settings");
 }
 
-/** Issues a fresh POST /api/intake key, invalidating the previous one — any website still using the old key starts getting 401s. */
-export async function rotateIntakeApiKeyAction() {
-  const businessId = await getCurrentBusinessId();
-  await rotateIntakeApiKey(businessId);
-  logAction("settings.intake-key-rotate", { businessId });
-  revalidatePath("/settings");
-}
-
 export async function updateEmailTemplateAction(key: EmailTemplateKey, subject: string, body: string) {
   const businessId = await getCurrentBusinessId();
   const trimmedSubject = subject.trim();
@@ -134,24 +126,6 @@ export async function updateAppointmentPreferencesAction(formData: FormData) {
 
   await updateBusiness(businessId, { autoBookAppointments });
   logAction("settings.appointment-preferences-update", { businessId, autoBookAppointments });
-  revalidatePath("/settings");
-}
-
-// Note: no entitlement check needed here — requireOwner() (via getCurrentBusinessId())
-// already redirects to /account-paused before this point if the workspace isn't
-// active, unlike services/webhookDispatcher.ts's own check, which guards a later
-// dispatch that isn't behind that same gate (e.g. from the customer-facing
-// portal in app/e/actions.ts).
-export async function updateWebhookUrlAction(formData: FormData) {
-  const businessId = await getCurrentBusinessId();
-  const url = String(formData.get("outboundWebhookUrl") ?? "").trim();
-
-  if (url && !/^https?:\/\//i.test(url)) {
-    throw new Error("Webhook URL must start with http:// or https://");
-  }
-
-  await updateBusiness(businessId, { outboundWebhookUrl: url || null });
-  logAction("settings.webhook-url-update", { businessId, hasUrl: Boolean(url) });
   revalidatePath("/settings");
 }
 

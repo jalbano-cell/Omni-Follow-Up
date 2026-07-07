@@ -24,7 +24,6 @@ Every external I/O and unit of business logic lives in `/services`. Pages/API ro
 - **`followupEngine.ts`** — drafts a follow-up message (`draftFollowUpMessage`, now rendering the business's email template — Phase 1) for every open estimate due for one; `generateDueFollowUps` (manual trigger) and `runDailyFollowUpJob` (cron entry point) both funnel through `generateFollowUpDrafts`. Never sends anything.
 - **`followupSender.ts`** — the only path that ever calls `gmail.ts`'s send. `sendApprovedFollowUp` requires the follow-up to already be Approved/Failed; advances the estimate's stage using the business's cadence; logs a `estimate.followup_sent` activity entry (Phase 2).
 - **`replyMatcher.ts`** — matches incoming Gmail messages to an estimate by thread+email; creates `Replies` rows and (Phase 2/7) an `estimate.reply_received` activity entry + optional in-app Notification. Never interprets or acts on a reply.
-- **`webhookDispatcher.ts`** (Phase 7) — best-effort, fire-and-forget outbound POST to a business's configured webhook URL on `lead.created`/`estimate.booked`/`estimate.lost`. No retries, 5s timeout.
 
 ## Google integrations
 

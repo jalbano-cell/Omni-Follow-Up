@@ -39,7 +39,6 @@ function toBusiness(row: WorkspaceRow): Business {
     intakeApiKey: row.intake_api_key,
     intakeApiKeyCreatedAt: row.intake_api_key_created_at,
     autoBookAppointments: row.auto_book_appointments,
-    outboundWebhookUrl: row.outbound_webhook_url,
     notifyOnNewLead: row.notify_on_new_lead,
     notifyOnReply: row.notify_on_reply,
     monitorGmailInbox: row.monitor_gmail_inbox,
@@ -146,7 +145,6 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.intakeApiKey !== undefined) fields.intake_api_key = input.intakeApiKey;
   if (input.intakeApiKeyCreatedAt !== undefined) fields.intake_api_key_created_at = input.intakeApiKeyCreatedAt;
   if (input.autoBookAppointments !== undefined) fields.auto_book_appointments = input.autoBookAppointments;
-  if (input.outboundWebhookUrl !== undefined) fields.outbound_webhook_url = input.outboundWebhookUrl;
   if (input.notifyOnNewLead !== undefined) fields.notify_on_new_lead = input.notifyOnNewLead;
   if (input.notifyOnReply !== undefined) fields.notify_on_reply = input.notifyOnReply;
   if (input.monitorGmailInbox !== undefined) fields.monitor_gmail_inbox = input.monitorGmailInbox;

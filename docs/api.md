@@ -4,7 +4,7 @@ A versioned REST API for integrating external systems (form builders, other CRMs
 
 ## Authentication
 
-Every request needs an `Authorization: Bearer <api_key>` header, where `<api_key>` is the business's own **Website intake API key** (Settings → Website intake API — the same key used for `POST /api/intake`). One key per business, full access to that business's own data — there are no scopes/permissions yet.
+Every request needs an `Authorization: Bearer <api_key>` header, where `<api_key>` is the business's own **Website intake API key** (the same key used for `POST /api/intake`, provisioned automatically on signup — `services/business.ts`'s `getBusinessByIntakeApiKey`/`rotateIntakeApiKey`; not currently surfaced in Settings UI). One key per business, full access to that business's own data — there are no scopes/permissions yet.
 
 ```
 Authorization: Bearer <api_key>
@@ -57,21 +57,6 @@ Response: `200 { "estimates": [Estimate, ...] }`.
 
 ### `POST /api/v1/webhooks/leads`
 Exactly `POST /api/v1/leads` under a URL that reads more naturally for webhook-style integrations (Zapier, a form builder's "webhook" action, etc). See above.
-
-## Webhooks (outbound)
-
-Set a **Webhook URL** in Settings and OmniFollowUp will `POST` a JSON payload to it on these events (see `services/webhookDispatcher.ts`):
-
-- `lead.created` — fires whenever a lead is created, from any source
-- `estimate.booked` — an estimate's status changes to Booked (from the app or the customer portal)
-- `estimate.lost` — an estimate's status changes to Lost (from the app or the customer portal)
-
-Payload shape:
-```json
-{ "event": "estimate.booked", "businessId": "...", "timestamp": "2026-07-05T12:00:00.000Z", "data": { "...event-specific fields..." } }
-```
-
-Best-effort, fire-and-forget: a 5-second timeout, no retries, no request signing. A failing or slow webhook endpoint never blocks or slows down the action that triggered it — failures are logged server-side only. This is the opposite direction from the inbound `/api/v1/webhooks/leads` above (that receives leads from your systems; this notifies your systems of what happened here).
 
 ## Notes
 

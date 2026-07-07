@@ -3,9 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { verifyEstimateShareToken } from "@/lib/auth";
 import { getEstimate, updateEstimate, createNotification } from "@/services/db";
-import { getBusinessById } from "@/services/business";
 import { logEstimateActivity } from "@/services/activityService";
-import { dispatchWebhookEvent } from "@/services/webhookDispatcher";
 import { logAction } from "@/lib/logger";
 import type { Estimate } from "@/types";
 
@@ -70,18 +68,6 @@ export async function respondToEstimateAction(token: string, decision: "Booked" 
         error: error instanceof Error ? error.message : "unknown error",
       });
     }
-  }
-
-  const business = await getBusinessById(estimate.businessId);
-  if (business) {
-    await dispatchWebhookEvent(business, decision === "Booked" ? "estimate.booked" : "estimate.lost", {
-      estimateId: estimate.id,
-      estimateNumber: estimate.estimateNumber,
-      customerName: estimate.customerName,
-      customerEmail: estimate.customerEmail,
-      estimateValue: estimate.estimateValue,
-      viaPortal: true,
-    });
   }
 
   revalidatePath(`/estimates/${estimate.id}`);

@@ -41,8 +41,6 @@ export interface Business {
   intakeApiKeyCreatedAt: string | null;
   /** Opt-in, defaults to false when null (see getEffectiveAutoBooking in services/business.ts) — off means a requested appointment becomes a reviewable recommendation on the Lead instead of an automatic Calendar booking. */
   autoBookAppointments: boolean | null;
-  /** Outbound event dispatch target (services/webhookDispatcher.ts) — null means outbound webhooks are off. Separate concept from the inbound intake API key/webhook. */
-  outboundWebhookUrl: string | null;
   /** Both default true when null — see getEffectiveNotifyOnNewLead/getEffectiveNotifyOnReply in services/business.ts. */
   notifyOnNewLead: boolean | null;
   notifyOnReply: boolean | null;
