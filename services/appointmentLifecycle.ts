@@ -1,5 +1,5 @@
 import { getAppointments, updateAppointment, getFutureAppointmentsForContact } from "@/services/db";
-import { getEffectiveRebookIntervalDays } from "@/services/business";
+import { getEffectiveRebookIntervalDays, getEffectiveReminderHoursBefore, getEffectiveTimezone } from "@/services/business";
 import { isContactSuppressed } from "@/services/suppression";
 import { sendEmail } from "@/services/gmail";
 import { createUnsubscribeToken } from "@/lib/auth";
@@ -7,7 +7,9 @@ import { buildAbsoluteUrl } from "@/lib/url";
 import { buildComplianceFooter } from "@/services/emailTemplates/complianceFooter";
 import { buildAppointmentReviewRequestContent } from "@/services/emailTemplates/appointmentReviewRequest";
 import { buildAppointmentRebookReminderContent } from "@/services/emailTemplates/appointmentRebookReminder";
+import { buildAppointmentReminderBody } from "@/services/emailTemplates/appointmentReminder";
 import { decrypt } from "@/lib/crypto";
+import { formatZonedDateTime } from "@/lib/date";
 import { logAction } from "@/lib/logger";
 import type { Appointment, Business } from "@/types";
 
@@ -62,6 +64,66 @@ export function isEligibleForRebookReminder(
   if (!appointment.completedAt) return false;
   const dueAt = new Date(appointment.completedAt).getTime() + intervalDays * ONE_DAY_MS;
   return dueAt <= now.getTime();
+}
+
+/**
+ * Pure — an approved appointment enters its reminder window `hoursBefore`
+ * hours before scheduledStart, hasn't already been drafted (reminderStatus
+ * starts null), and hasn't already happened (too late to remind). Unlike
+ * the other predicates in this file, drafting here never sends anything —
+ * see services/appointmentService.ts's approveReminder/sendReminder for the
+ * human-approval gate this feeds into.
+ */
+export function isEligibleForReminderDraft(
+  appointment: Pick<Appointment, "status" | "scheduledStart" | "reminderStatus">,
+  now: Date,
+  hoursBefore: number
+): boolean {
+  if (appointment.status !== "approved" || appointment.reminderStatus != null) return false;
+  const scheduledStartMs = new Date(appointment.scheduledStart).getTime();
+  if (scheduledStartMs <= now.getTime()) return false;
+  const draftAt = scheduledStartMs - hoursBefore * 60 * 60 * 1000;
+  return draftAt <= now.getTime();
+}
+
+/**
+ * Drafts (never sends) a pre-appointment reminder once an approved
+ * appointment enters its reminder window (services/business.ts's
+ * getEffectiveReminderHoursBefore). The owner approves/edits/skips/sends it
+ * from `/appointments` — same human-in-the-loop gate as the Estimate
+ * Follow-up Queue, distinct from this file's other two auto-sends.
+ */
+export async function runAppointmentReminderDraftJob(businesses: Business[]): Promise<AppointmentLifecycleLog[]> {
+  const logs: AppointmentLifecycleLog[] = [];
+  const now = new Date();
+
+  for (const business of businesses) {
+    const timestamp = now.toISOString();
+    let processed = 0;
+    const errors: string[] = [];
+    try {
+      const appointments = await getAppointments(business.id);
+      const hoursBefore = getEffectiveReminderHoursBefore(business);
+      const timezone = getEffectiveTimezone(business);
+      for (const appointment of appointments) {
+        if (!isEligibleForReminderDraft(appointment, now, hoursBefore)) continue;
+        try {
+          const label = formatZonedDateTime(new Date(appointment.scheduledStart), timezone);
+          const reminderMessage = buildAppointmentReminderBody(appointment, business, label);
+          await updateAppointment(business.id, appointment.id, { reminderMessage, reminderStatus: "pending" });
+          processed += 1;
+        } catch (error) {
+          errors.push(`appointment ${appointment.id}: ${error instanceof Error ? error.message : "unknown error"}`);
+        }
+      }
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "unknown error");
+    }
+    logAction("appointment-lifecycle.reminder-draft", { businessId: business.id, processed, errors });
+    logs.push({ timestamp, businessId: business.id, processed, errors });
+  }
+
+  return logs;
 }
 
 /** Auto-transitions approved appointments whose scheduled_end has passed to completed. No email — see the review-request/rebook jobs below for what fires once completed. */

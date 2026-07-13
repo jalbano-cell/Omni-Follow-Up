@@ -3,6 +3,7 @@ import {
   isEligibleForCompletion,
   isEligibleForReviewRequest,
   isEligibleForRebookReminder,
+  isEligibleForReminderDraft,
 } from "@/services/appointmentLifecycle";
 import { getEffectiveRebookIntervalDays } from "@/services/business";
 
@@ -121,5 +122,35 @@ describe("getEffectiveRebookIntervalDays", () => {
     expect(
       getEffectiveRebookIntervalDays({ rebookIntervalDays: null, rebookIntervalOverrides: { grooming: 49 } }, "GROOMING")
     ).toBe(49);
+  });
+});
+
+describe("isEligibleForReminderDraft", () => {
+  const approvedTomorrow2pm = {
+    status: "approved" as const,
+    scheduledStart: new Date(NOW.getTime() + 20 * 60 * 60 * 1000).toISOString(),
+    reminderStatus: null,
+  };
+
+  it("drafts once the appointment enters the reminder window", () => {
+    expect(isEligibleForReminderDraft(approvedTomorrow2pm, NOW, 24)).toBe(true);
+  });
+
+  it("does not draft before the reminder window is reached", () => {
+    expect(isEligibleForReminderDraft(approvedTomorrow2pm, NOW, 1)).toBe(false);
+  });
+
+  it("never re-drafts once a reminder already exists (any non-null status)", () => {
+    expect(isEligibleForReminderDraft({ ...approvedTomorrow2pm, reminderStatus: "pending" }, NOW, 24)).toBe(false);
+    expect(isEligibleForReminderDraft({ ...approvedTomorrow2pm, reminderStatus: "sent" }, NOW, 24)).toBe(false);
+  });
+
+  it("does not draft for a requested (not yet approved) appointment", () => {
+    expect(isEligibleForReminderDraft({ ...approvedTomorrow2pm, status: "requested" }, NOW, 24)).toBe(false);
+  });
+
+  it("does not draft once the appointment has already started", () => {
+    const alreadyStarted = { ...approvedTomorrow2pm, scheduledStart: new Date(NOW.getTime() - 60 * 1000).toISOString() };
+    expect(isEligibleForReminderDraft(alreadyStarted, NOW, 24)).toBe(false);
   });
 });

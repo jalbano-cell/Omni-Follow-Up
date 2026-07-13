@@ -75,6 +75,9 @@ export type Database = {
           prep_instructions: string | null
           price: number | null
           rebook_reminder_sent_at: string | null
+          reminder_message: string | null
+          reminder_sent_at: string | null
+          reminder_status: string | null
           requested_at: string
           review_request_sent_at: string | null
           scheduled_end: string
@@ -99,6 +102,9 @@ export type Database = {
           prep_instructions?: string | null
           price?: number | null
           rebook_reminder_sent_at?: string | null
+          reminder_message?: string | null
+          reminder_sent_at?: string | null
+          reminder_status?: string | null
           requested_at?: string
           review_request_sent_at?: string | null
           scheduled_end: string
@@ -123,6 +129,9 @@ export type Database = {
           prep_instructions?: string | null
           price?: number | null
           rebook_reminder_sent_at?: string | null
+          reminder_message?: string | null
+          reminder_sent_at?: string | null
+          reminder_status?: string | null
           requested_at?: string
           review_request_sent_at?: string | null
           scheduled_end?: string
@@ -802,6 +811,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          appointment_reminder_hours_before: number | null
           auto_book_appointments: boolean | null
           business_name: string
           calendar_id: string | null
@@ -842,6 +852,7 @@ export type Database = {
           working_hours_start: number | null
         }
         Insert: {
+          appointment_reminder_hours_before?: number | null
           auto_book_appointments?: boolean | null
           business_name: string
           calendar_id?: string | null
@@ -882,6 +893,7 @@ export type Database = {
           working_hours_start?: number | null
         }
         Update: {
+          appointment_reminder_hours_before?: number | null
           auto_book_appointments?: boolean | null
           business_name?: string
           calendar_id?: string | null

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AppointmentStatusBadge } from "@/components/appointments/appointment-status-badge";
 import { ApproveAppointmentDialog } from "@/components/appointments/approve-appointment-dialog";
+import { AppointmentReminderSection } from "@/components/appointments/appointment-reminder-section";
 import { dismissAppointmentAction, flagNoShowAction, flagCancelledAction } from "@/app/appointments/actions";
 import { formatCurrency } from "@/lib/date";
 import type { Appointment } from "@/types";
@@ -76,16 +77,19 @@ export function AppointmentCard({ appointment, scheduledLabel }: { appointment: 
         )}
 
         {appointment.status === "approved" && (
-          <div className="mt-4 flex gap-2">
-            <Button size="sm" variant="outline" onClick={noShow} disabled={isPending}>
-              <UserX className="size-3.5" />
-              Mark no-show
-            </Button>
-            <Button size="sm" variant="ghost" onClick={cancel} disabled={isPending}>
-              <Ban className="size-3.5" />
-              Cancel
-            </Button>
-          </div>
+          <>
+            <div className="mt-4 flex gap-2">
+              <Button size="sm" variant="outline" onClick={noShow} disabled={isPending}>
+                <UserX className="size-3.5" />
+                Mark no-show
+              </Button>
+              <Button size="sm" variant="ghost" onClick={cancel} disabled={isPending}>
+                <Ban className="size-3.5" />
+                Cancel
+              </Button>
+            </div>
+            <AppointmentReminderSection appointment={appointment} />
+          </>
         )}
       </CardContent>
     </Card>

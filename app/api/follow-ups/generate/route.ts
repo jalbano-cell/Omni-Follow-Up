@@ -7,6 +7,7 @@ import {
   runAppointmentCompletionJob,
   runAppointmentReviewRequestJob,
   runAppointmentRebookReminderJob,
+  runAppointmentReminderDraftJob,
 } from "@/services/appointmentLifecycle";
 import { getAllActiveBusinesses, getEffectiveTimezone } from "@/services/business";
 import { safeCompare } from "@/lib/timingSafe";
@@ -102,6 +103,7 @@ export async function GET(request: Request) {
     const replySyncLogs = await runDailyReplySyncJob(estimatesBusinesses);
     const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(dueBusinesses, appHost);
     const appointmentCompletionLogs = await runAppointmentCompletionJob(appointmentsBusinesses);
+    const appointmentReminderDraftLogs = await runAppointmentReminderDraftJob(appointmentsBusinesses);
     const appointmentReviewRequestLogs = await runAppointmentReviewRequestJob(appointmentsBusinesses, appHost);
     const appointmentRebookReminderLogs = await runAppointmentRebookReminderJob(appointmentsBusinesses, appHost);
     return NextResponse.json({
@@ -109,6 +111,7 @@ export async function GET(request: Request) {
       replySync: replySyncLogs,
       gmailLeadCapture: gmailCaptureLogs,
       appointmentCompletion: appointmentCompletionLogs,
+      appointmentReminderDraft: appointmentReminderDraftLogs,
       appointmentReviewRequest: appointmentReviewRequestLogs,
       appointmentRebookReminder: appointmentRebookReminderLogs,
     });

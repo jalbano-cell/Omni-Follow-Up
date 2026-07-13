@@ -57,6 +57,8 @@ export interface Business {
   rebookIntervalDays: number | null;
   /** Per-service-type overrides keyed by lowercased serviceType — a present key with a null value explicitly disables the reminder for that service even when rebookIntervalDays is set. See getEffectiveRebookIntervalDays. */
   rebookIntervalOverrides: Record<string, number | null>;
+  /** Hours before an approved appointment's scheduledStart that its pre-appointment reminder drafts; null = use the app-wide default (see getEffectiveReminderHoursBefore). */
+  appointmentReminderHoursBefore: number | null;
   /** Both default true when null — see getEffectiveNotifyOnNewLead/getEffectiveNotifyOnReply in services/business.ts. */
   notifyOnNewLead: boolean | null;
   notifyOnReply: boolean | null;

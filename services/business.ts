@@ -6,6 +6,7 @@ import {
   CALENDAR_REMINDER_HOUR,
   DEFAULT_FOLLOW_UP_CADENCE_DAYS,
   DEFAULT_WORKING_HOURS_END,
+  DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE,
 } from "@/config/constants";
 import { generateApiKey } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
@@ -58,6 +59,7 @@ function toBusiness(row: WorkspaceRow): Business {
     mailingAddress: row.mailing_address ?? null,
     rebookIntervalDays: row.rebook_interval_days ?? null,
     rebookIntervalOverrides: (row.rebook_interval_overrides as Record<string, number | null>) ?? {},
+    appointmentReminderHoursBefore: row.appointment_reminder_hours_before ?? null,
   };
 }
 
@@ -167,6 +169,7 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.mailingAddress !== undefined) fields.mailing_address = input.mailingAddress;
   if (input.rebookIntervalDays !== undefined) fields.rebook_interval_days = input.rebookIntervalDays;
   if (input.rebookIntervalOverrides !== undefined) fields.rebook_interval_overrides = input.rebookIntervalOverrides;
+  if (input.appointmentReminderHoursBefore !== undefined) fields.appointment_reminder_hours_before = input.appointmentReminderHoursBefore;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -362,6 +365,11 @@ export function getEffectiveRebookIntervalDays(
     return overrides[key];
   }
   return business.rebookIntervalDays ?? null;
+}
+
+/** Hours before an approved appointment's scheduledStart its pre-appointment reminder drafts — falls back to DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE when unset. See services/appointmentLifecycle.ts's runAppointmentReminderDraftJob. */
+export function getEffectiveReminderHoursBefore(business: Pick<Business, "appointmentReminderHoursBefore">): number {
+  return business.appointmentReminderHoursBefore ?? DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE;
 }
 
 /** Whether the owner-notification email fires for a new lead — on by default. */

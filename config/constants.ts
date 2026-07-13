@@ -37,6 +37,9 @@ export const CALENDAR_REMINDER_DURATION_MINUTES = 15;
 /** Default end-of-workday hour, when a business hasn't set its own. */
 export const DEFAULT_WORKING_HOURS_END = 17;
 
+/** Hours before an approved appointment's scheduledStart its pre-appointment reminder drafts, when a business hasn't set its own. See services/business.ts's getEffectiveReminderHoursBefore. */
+export const DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE = 24;
+
 /** Curated timezone options for the Settings/onboarding picker — the North American markets this product targets. */
 export const TIMEZONE_OPTIONS = [
   { value: "America/Toronto", label: "Eastern Time (Toronto)" },

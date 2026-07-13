@@ -167,6 +167,7 @@ export async function updateAppointmentLifecycleAction(formData: FormData) {
   const mailingAddress = String(formData.get("mailingAddress") ?? "").trim();
   const rebookDaysRaw = String(formData.get("rebookIntervalDays") ?? "").trim();
   const overridesRaw = String(formData.get("rebookIntervalOverrides") ?? "");
+  const reminderHoursRaw = String(formData.get("appointmentReminderHoursBefore") ?? "").trim();
 
   let rebookIntervalDays: number | null = null;
   if (rebookDaysRaw) {
@@ -177,13 +178,23 @@ export async function updateAppointmentLifecycleAction(formData: FormData) {
     rebookIntervalDays = parsed;
   }
 
+  let appointmentReminderHoursBefore: number | null = null;
+  if (reminderHoursRaw) {
+    const parsed = Number(reminderHoursRaw);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      throw new Error("Reminder timing must be a positive number of hours.");
+    }
+    appointmentReminderHoursBefore = parsed;
+  }
+
   await updateBusiness(businessId, {
     googleReviewUrl: googleReviewUrl || null,
     mailingAddress: mailingAddress || null,
     rebookIntervalDays,
     rebookIntervalOverrides: parseRebookOverrides(overridesRaw),
+    appointmentReminderHoursBefore,
   });
-  logAction("settings.appointment-lifecycle-update", { businessId, rebookIntervalDays });
+  logAction("settings.appointment-lifecycle-update", { businessId, rebookIntervalDays, appointmentReminderHoursBefore });
   revalidatePath("/settings");
 }
 

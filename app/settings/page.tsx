@@ -519,6 +519,24 @@ export default async function SettingsPage({
             </div>
 
             <div className="flex flex-col gap-1.5">
+              <Label htmlFor="appointmentReminderHoursBefore" className="text-xs">
+                Reminder (hours before appointment)
+              </Label>
+              <Input
+                id="appointmentReminderHoursBefore"
+                name="appointmentReminderHoursBefore"
+                type="number"
+                min={1}
+                defaultValue={business.appointmentReminderHoursBefore ?? ""}
+                placeholder="e.g. 24"
+              />
+              <p className="text-xs text-muted-foreground">
+                Drafts a reminder for you to approve this many hours before an approved appointment — left blank,
+                defaults to 24 hours. Nothing sends until you approve it on the Appointments page.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="mailingAddress" className="text-xs">
                 Mailing address
               </Label>
