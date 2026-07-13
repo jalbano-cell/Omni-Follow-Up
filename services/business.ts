@@ -11,7 +11,7 @@ import { generateApiKey } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
 import { upsertMailboxConnection, deleteMailboxConnection } from "@/services/mailboxConnections";
 import { logAction } from "@/lib/logger";
-import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspacePlan, WorkspaceStatus } from "@/types";
+import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspacePlan, WorkspaceStatus, WorkspaceProductMode } from "@/types";
 
 type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
 
@@ -53,6 +53,7 @@ function toBusiness(row: WorkspaceRow): Business {
     gmailWatchExpiration: row.gmail_watch_expiration ?? null,
     plan: row.plan as WorkspacePlan,
     status: row.status as WorkspaceStatus,
+    productMode: (row.product_mode as WorkspaceProductMode) ?? "both",
     googleReviewUrl: row.google_review_url ?? null,
     mailingAddress: row.mailing_address ?? null,
     rebookIntervalDays: row.rebook_interval_days ?? null,
@@ -109,6 +110,7 @@ export async function createBusinessForAgency(input: {
   ownerName: string;
   ownerEmail: string;
   plan: WorkspacePlan;
+  productMode?: WorkspaceProductMode;
 }): Promise<Business> {
   const now = new Date().toISOString();
   const placeholderPasswordHash = await hashPassword(randomBytes(32).toString("hex"));
@@ -121,6 +123,7 @@ export async function createBusinessForAgency(input: {
     intake_api_key_created_at: now,
     plan: input.plan,
     status: "active",
+    product_mode: input.productMode ?? "both",
   });
   return toBusiness(row);
 }
@@ -159,6 +162,7 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.gmailWatchExpiration !== undefined) fields.gmail_watch_expiration = input.gmailWatchExpiration;
   if (input.plan !== undefined) fields.plan = input.plan;
   if (input.status !== undefined) fields.status = input.status;
+  if (input.productMode !== undefined) fields.product_mode = input.productMode;
   if (input.googleReviewUrl !== undefined) fields.google_review_url = input.googleReviewUrl;
   if (input.mailingAddress !== undefined) fields.mailing_address = input.mailingAddress;
   if (input.rebookIntervalDays !== undefined) fields.rebook_interval_days = input.rebookIntervalDays;

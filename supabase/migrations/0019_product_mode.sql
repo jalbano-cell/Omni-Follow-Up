@@ -1,0 +1,11 @@
+-- ---------------------------------------------------------------------------
+-- Per-client product mode — agency-set, like plan/status
+-- ---------------------------------------------------------------------------
+-- Lets the agency (via /admin) restrict a workspace to just the Estimate
+-- follow-up pipeline, just the Appointment booking lifecycle, or both (the
+-- default — every existing workspace's behavior is unchanged until an admin
+-- deliberately narrows it). Plain text with app-layer validation
+-- (types/business.ts's WorkspaceProductMode), same convention as every other
+-- status-like column in this schema. Leads (the shared intake funnel both
+-- surfaces are built on) are never gated by this — see CLAUDE.md.
+alter table workspaces add column if not exists product_mode text not null default 'both';

@@ -1,4 +1,12 @@
-import type { AppointmentStatus, EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus, WorkspacePlan } from "@/types";
+import type {
+  AppointmentStatus,
+  EmailTemplateKey,
+  EstimateStatus,
+  FollowUpStatus,
+  LeadStatus,
+  WorkspacePlan,
+  WorkspaceProductMode,
+} from "@/types";
 
 /** Seat cap (owner + team members, services/userService.ts) per agency-assigned plan tier. Null means no cap. */
 export const PLAN_MAX_USERS: Record<WorkspacePlan, number | null> = {
@@ -9,6 +17,15 @@ export const PLAN_MAX_USERS: Record<WorkspacePlan, number | null> = {
 export const PLAN_LABELS: Record<WorkspacePlan, string> = {
   grow: "Grow",
   transform: "Transform",
+};
+
+/** Agency-set per /admin — which product surface(s) a workspace can use. See lib/session.ts's requireEstimatesEnabled/requireAppointmentsEnabled. */
+export const PRODUCT_MODE_OPTIONS: WorkspaceProductMode[] = ["both", "estimates_only", "appointments_only"];
+
+export const PRODUCT_MODE_LABELS: Record<WorkspaceProductMode, string> = {
+  both: "Both",
+  estimates_only: "Estimates only",
+  appointments_only: "Appointments only",
 };
 
 /** Fallback timezone for a business that hasn't set its own (`getEffectiveTimezone` in services/business.ts). */

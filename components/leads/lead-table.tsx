@@ -14,7 +14,7 @@ import type { Lead, LeadStatus } from "@/types";
 const STATUS_FILTERS: Array<LeadStatus | "All"> = ["All", ...LEAD_STATUSES];
 const SOURCE_FILTERS: Array<LeadSource | "All"> = ["All", ...LEAD_SOURCES];
 
-export function LeadTable({ leads }: { leads: Lead[] }) {
+export function LeadTable({ leads, estimatesEnabled = true }: { leads: Lead[]; estimatesEnabled?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "All">("New Inquiry");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "All">("All");
 
@@ -122,7 +122,7 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
                     <LeadStatusBadge status={lead.status} />
                   </TableCell>
                   <TableCell>
-                    <LeadRowActions lead={lead} />
+                    <LeadRowActions lead={lead} estimatesEnabled={estimatesEnabled} />
                   </TableCell>
                 </TableRow>
               ))}

@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EstimateForm, type EstimateFormPrefill } from "@/components/estimates/estimate-form";
 import { getLead } from "@/services/db";
 import { SERVICE_TYPES } from "@/config/constants";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function NewEstimatePage({
 }: {
   searchParams: Promise<{ fromLead?: string }>;
 }) {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const { id: businessId } = await requireEstimatesEnabled();
   const { fromLead } = await searchParams;
 
   let prefill: EstimateFormPrefill | undefined;

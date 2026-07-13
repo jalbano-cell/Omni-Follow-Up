@@ -3,12 +3,12 @@ import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { ReplyList } from "@/components/replies/reply-list";
 import { SyncRepliesButton } from "@/components/replies/sync-replies-button";
 import { getReplyInbox } from "@/services/replyMatcher";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function RepliesPage() {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const { id: businessId } = await requireEstimatesEnabled();
 
   let items;
   try {

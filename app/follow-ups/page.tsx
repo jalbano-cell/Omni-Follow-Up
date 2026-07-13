@@ -3,12 +3,12 @@ import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { FollowUpQueue } from "@/components/follow-ups/follow-up-queue";
 import { GenerateFollowUpsButton } from "@/components/follow-ups/generate-follow-ups-button";
 import { getFollowUpQueue } from "@/services/followupEngine";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function FollowUpsPage() {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const { id: businessId } = await requireEstimatesEnabled();
 
   let queue;
   try {

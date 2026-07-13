@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEstimate, getFollowUpsForEstimate, getRepliesForEstimate } from "@/services/db";
 import { getAttachmentsForEstimate } from "@/services/estimateAttachmentService";
 import { formatCurrency, formatDate, daysSince } from "@/lib/date";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export default async function EstimateDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { id: businessId } = await requireOnboardedBusiness();
+  const { id: businessId } = await requireEstimatesEnabled();
 
   let estimate;
   let followUps;

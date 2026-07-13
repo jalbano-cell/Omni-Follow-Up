@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAllActiveBusinesses } from "@/services/business";
 import { updateWorkspaceEntitlementAction } from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/session";
-import { PLAN_LABELS } from "@/config/constants";
+import { PLAN_LABELS, PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
 import type { WorkspacePlan, WorkspaceStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +74,18 @@ export default async function AdminPage() {
                   {STATUS_OPTIONS.map((status) => (
                     <SelectItem key={status} value={status}>
                       {status[0].toUpperCase() + status.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select name="productMode" defaultValue={business.productMode}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRODUCT_MODE_OPTIONS.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {PRODUCT_MODE_LABELS[mode]}
                     </SelectItem>
                   ))}
                 </SelectContent>

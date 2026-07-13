@@ -7,11 +7,11 @@ import { clearReminder } from "@/services/calendarReminders";
 import { generateDueFollowUps } from "@/services/followupEngine";
 import { sendApprovedFollowUp, type SendFollowUpResult } from "@/services/followupSender";
 import { logEstimateActivity } from "@/services/activityService";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 
 export async function approveFollowUpAction(id: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const followUp = await updateFollowUp(businessId, id, { status: "Approved" });
   logAction("follow-up.approve", { followUpId: id });
   await logEstimateActivity(businessId, followUp.estimateId, "estimate.followup_approved", "Follow-up approved.");
@@ -20,7 +20,7 @@ export async function approveFollowUpAction(id: string) {
 }
 
 export async function skipFollowUpAction(id: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const followUp = await getFollowUp(businessId, id);
   await updateFollowUp(businessId, id, { status: "Rejected" });
   logAction("follow-up.skip", { followUpId: id });
@@ -35,7 +35,7 @@ export async function skipFollowUpAction(id: string) {
 }
 
 export async function editFollowUpMessageAction(id: string, message: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   await updateFollowUp(businessId, id, { message });
   logAction("follow-up.edit", { followUpId: id });
   revalidatePath("/follow-ups");
@@ -47,7 +47,7 @@ export async function editFollowUpMessageAction(id: string, message: string) {
  * job. See services/followupSender.ts for the retry + database sync logic.
  */
 export async function sendFollowUpAction(id: string): Promise<SendFollowUpResult> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const result = await sendApprovedFollowUp(businessId, id);
   revalidatePath("/follow-ups");
   revalidatePath("/");
@@ -56,7 +56,7 @@ export async function sendFollowUpAction(id: string): Promise<SendFollowUpResult
 }
 
 export async function generateFollowUpsAction() {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const created = await generateDueFollowUps(businessId);
   logAction("follow-up.manual-generate", { created: created.length });
   revalidatePath("/follow-ups");

@@ -9,13 +9,17 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Logo } from "@/components/layout/logo";
+import type { WorkspaceProductMode } from "@/types";
 
 export function AppShell({
   children,
   notificationBell,
+  productMode,
 }: {
   children: React.ReactNode;
   notificationBell?: React.ReactNode;
+  /** Which nav entries to show — see components/layout/sidebar.tsx/mobile-nav.tsx. Null on public/unauthenticated routes (they never reach this point anyway). */
+  productMode?: WorkspaceProductMode | null;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -40,7 +44,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-svh w-full">
-      <Sidebar />
+      <Sidebar productMode={productMode} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center gap-3 border-b border-border px-4 md:hidden">
@@ -53,7 +57,7 @@ export function AppShell({
               }
             />
             <SheetContent side="left" className="w-64 p-0">
-              <MobileNav onNavigate={() => setOpen(false)} />
+              <MobileNav onNavigate={() => setOpen(false)} productMode={productMode} />
             </SheetContent>
           </Sheet>
           <Link href="/">

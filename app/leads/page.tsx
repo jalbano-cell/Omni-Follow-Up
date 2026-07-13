@@ -11,7 +11,8 @@ import { requireOnboardedBusiness } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 export default async function LeadsPage() {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const business = await requireOnboardedBusiness();
+  const businessId = business.id;
 
   let leads;
   try {
@@ -40,7 +41,7 @@ export default async function LeadsPage() {
           </div>
         }
       />
-      <LeadTable leads={leads} />
+      <LeadTable leads={leads} estimatesEnabled={business.productMode !== "appointments_only"} />
     </>
   );
 }

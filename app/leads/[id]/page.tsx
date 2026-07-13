@@ -54,6 +54,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const pendingAppointmentLabel = pendingAppointment
     ? formatZonedDateTime(new Date(pendingAppointment.scheduledStart), getEffectiveTimezone(business))
     : null;
+  const estimatesEnabled = business.productMode !== "appointments_only";
 
   return (
     <>
@@ -76,7 +77,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         action={
           <div className="flex items-center gap-2">
             <LeadStatusBadge status={lead.status} />
-            <LeadRowActions lead={lead} showView={false} />
+            <LeadRowActions lead={lead} showView={false} estimatesEnabled={estimatesEnabled} />
           </div>
         }
       />
@@ -118,7 +119,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             ) : (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-muted-foreground">Not yet converted to an estimate.</p>
-                {lead.status === "New Inquiry" && (
+                {lead.status === "New Inquiry" && estimatesEnabled && (
                   <Button size="sm" render={<Link href={`/estimates/new?fromLead=${lead.id}`} />}>
                     Convert to Estimate
                   </Button>

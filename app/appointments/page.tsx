@@ -4,7 +4,7 @@ import { AppointmentList } from "@/components/appointments/appointment-list";
 import { getAppointments } from "@/services/db";
 import { getEffectiveTimezone } from "@/services/business";
 import { formatZonedDateTime } from "@/lib/date";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireAppointmentsEnabled } from "@/lib/session";
 import type { AppointmentStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ const STATUS_PRIORITY: Record<AppointmentStatus, number> = {
 };
 
 export default async function AppointmentsPage() {
-  const business = await requireOnboardedBusiness();
+  const business = await requireAppointmentsEnabled();
 
   let appointments;
   try {

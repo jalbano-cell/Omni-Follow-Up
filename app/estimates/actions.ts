@@ -10,12 +10,12 @@ import { getBusinessById, getEffectiveCadenceDays, markOnboardingStep } from "@/
 import { uploadEstimateAttachment, deleteEstimateAttachment } from "@/services/estimateAttachmentService";
 import { createEstimateShareToken } from "@/lib/auth";
 import { addDays } from "@/lib/date";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import type { EstimateStatus } from "@/types";
 
 export async function createEstimateAction(formData: FormData) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
 
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerEmail = String(formData.get("customerEmail") ?? "").trim();
@@ -70,7 +70,7 @@ export async function createEstimateAction(formData: FormData) {
 }
 
 export async function updateEstimateStatusAction(id: string, status: EstimateStatus) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   await updateEstimate(businessId, id, { status, lastContactDate: new Date().toISOString().slice(0, 10) });
   logAction("estimate.status-update", { estimateId: id, status });
 
@@ -98,7 +98,7 @@ export async function updateEstimateStatusAction(id: string, status: EstimateSta
  * so the caller navigates client-side after this resolves.
  */
 export async function deleteEstimateAction(id: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
 
   const leads = await getLeads(businessId);
   const linkedLead = leads.find((l) => l.convertedEstimateId === id);
@@ -127,7 +127,7 @@ async function buildShareUrl(estimateId: string, businessId: string, shareTokenV
 
 /** Mints a signed link to this estimate's customer portal (app/e/[token]/page.tsx), stamped with the estimate's current share-token version. */
 export async function getEstimateShareUrlAction(estimateId: string): Promise<string> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const estimate = await getEstimate(businessId, estimateId);
   if (!estimate) {
     throw new Error("Estimate not found.");
@@ -141,14 +141,14 @@ export async function getEstimateShareUrlAction(estimateId: string): Promise<str
  * "reset share link" control when a link was sent to the wrong person.
  */
 export async function resetEstimateShareLinkAction(estimateId: string): Promise<string> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const estimate = await bumpEstimateShareTokenVersion(businessId, estimateId);
   logAction("estimate.share-link-reset", { estimateId });
   return buildShareUrl(estimateId, businessId, estimate.shareTokenVersion);
 }
 
 export async function uploadEstimateAttachmentAction(estimateId: string, formData: FormData) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Choose a file first.");
@@ -166,7 +166,7 @@ export async function uploadEstimateAttachmentAction(estimateId: string, formDat
 }
 
 export async function deleteEstimateAttachmentAction(estimateId: string, attachmentId: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   await deleteEstimateAttachment(businessId, attachmentId);
   logAction("estimate.attachment-delete", { estimateId, attachmentId });
   revalidatePath(`/estimates/${estimateId}`);

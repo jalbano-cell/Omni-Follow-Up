@@ -4,7 +4,9 @@ import { AppShell } from "@/components/layout/app-shell";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
 import { getNotifications, getUnreadNotificationCount } from "@/services/db";
+import { getBusinessById } from "@/services/business";
 import { getOptionalSession } from "@/lib/session";
+import type { WorkspaceProductMode } from "@/types";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -45,11 +47,30 @@ async function NotificationBellSlot() {
   }
 }
 
+/**
+ * Same "renders on every route, degrade to null" posture as NotificationBellSlot —
+ * the sidebar/mobile nav need to know which product surfaces this business
+ * can use (services/business.ts's productMode) to hide the Estimates/Follow-up
+ * Queue/Replies/Analytics or Appointments nav entries accordingly.
+ */
+async function getNavProductMode(): Promise<WorkspaceProductMode | null> {
+  const session = await getOptionalSession();
+  if (!session) return null;
+  try {
+    const business = await getBusinessById(session.businessId);
+    return business?.productMode ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const productMode = await getNavProductMode();
+
   return (
     <html
       lang="en"
@@ -62,7 +83,9 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="min-h-full font-[family-name:var(--font-sans)]">
-        <AppShell notificationBell={<NotificationBellSlot />}>{children}</AppShell>
+        <AppShell productMode={productMode} notificationBell={<NotificationBellSlot />}>
+          {children}
+        </AppShell>
         <Toaster theme="dark" />
       </body>
     </html>

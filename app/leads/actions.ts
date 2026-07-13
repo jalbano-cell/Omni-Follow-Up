@@ -20,7 +20,7 @@ import {
 import { approveAppointment, dismissRequestedAppointment, type ApproveAppointmentResult } from "@/services/appointmentService";
 import { getBusinessById } from "@/services/business";
 import { parseCsv, csvRowsToLeads } from "@/lib/csv";
-import { getCurrentBusinessId } from "@/lib/session";
+import { getCurrentBusinessId, requireAppointmentsEnabled } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 
 /** Resolves the request's own host for building absolute links (unsubscribe, etc.) in outbound emails — see lib/url.ts. */
@@ -178,7 +178,7 @@ export async function importLeadsCsvAction(csvText: string): Promise<CsvImportSu
 
 /** Approves a Lead's linked requested Appointment (components/leads/pending-appointment-banner.tsx) — same underlying action as app/appointments/actions.ts's approveAppointmentAction, just also revalidating the Lead Details page. */
 export async function approveLeadAppointmentAction(appointmentId: string, leadId: string): Promise<ApproveAppointmentResult> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireAppointmentsEnabled()).id;
   const appHost = await resolveAppHost();
   const result = await approveAppointment(businessId, appointmentId, {}, appHost);
   logAction("appointment.approve", { appointmentId, ok: result.ok });
@@ -188,7 +188,7 @@ export async function approveLeadAppointmentAction(appointmentId: string, leadId
 }
 
 export async function dismissLeadAppointmentAction(appointmentId: string, leadId: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireAppointmentsEnabled()).id;
   await dismissRequestedAppointment(businessId, appointmentId);
   logAction("appointment.dismiss", { appointmentId });
   revalidatePath(`/leads/${leadId}`);

@@ -22,19 +22,41 @@ import { LeadRowActions } from "@/components/leads/lead-row-actions";
 import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getDashboardStats, getUpcomingFollowUps, getRecentActivity, getFollowUpFunnel } from "@/services/analytics";
+import {
+  getDashboardStats,
+  getUpcomingFollowUps,
+  getRecentActivity,
+  getFollowUpFunnel,
+  type DashboardStats,
+} from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
 import { getReplyInbox } from "@/services/replyMatcher";
 import { getEstimates, getLeads, getAppointments } from "@/services/db";
 import { getEffectiveTimezone } from "@/services/business";
 import { formatCurrency, formatDate, formatZonedDateTime } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+const EMPTY_STATS: DashboardStats = {
+  totalEstimates: 0,
+  pendingFollowUps: 0,
+  atRiskRevenue: 0,
+  atRiskCount: 0,
+  bookedJobs: 0,
+  bookedRevenue: 0,
+};
 
 export default async function DashboardPage() {
   const business = await requireOnboardedBusiness();
   const businessId = business.id;
+  // Leads and Recent Activity are universal (see CLAUDE.md's Appointments
+  // section) — everything else on this page belongs to one surface or the
+  // other and is skipped (both the fetch and the section) when an admin has
+  // restricted this workspace to just one via /admin.
+  const showEstimates = business.productMode !== "appointments_only";
+  const showAppointments = business.productMode !== "estimates_only";
 
   let stats;
   let followUpQueue;
@@ -49,15 +71,17 @@ export default async function DashboardPage() {
   try {
     [stats, followUpQueue, recentEstimates, unreadReplies, upcomingFollowUps, funnel, recentActivity, newLeads, pendingAppointments] =
       await Promise.all([
-        getDashboardStats(businessId),
-        getFollowUpQueue(businessId),
-        getEstimates(businessId).then((estimates) => estimates.slice(0, 5)),
-        getReplyInbox(businessId).then((replies) => replies.filter((r) => !r.isRead)),
-        getUpcomingFollowUps(businessId),
-        getFollowUpFunnel(businessId),
+        showEstimates ? getDashboardStats(businessId) : Promise.resolve(EMPTY_STATS),
+        showEstimates ? getFollowUpQueue(businessId) : Promise.resolve([]),
+        showEstimates ? getEstimates(businessId).then((estimates) => estimates.slice(0, 5)) : Promise.resolve([]),
+        showEstimates ? getReplyInbox(businessId).then((replies) => replies.filter((r) => !r.isRead)) : Promise.resolve([]),
+        showEstimates ? getUpcomingFollowUps(businessId) : Promise.resolve([]),
+        showEstimates ? getFollowUpFunnel(businessId) : Promise.resolve([]),
         getRecentActivity(businessId, 8),
         getLeads(businessId).then((leads) => leads.filter((l) => l.status === "New Inquiry")),
-        getAppointments(businessId).then((appointments) => appointments.filter((a) => a.status === "requested")),
+        showAppointments
+          ? getAppointments(businessId).then((appointments) => appointments.filter((a) => a.status === "requested"))
+          : Promise.resolve([]),
       ]);
   } catch (error) {
     return (
@@ -116,6 +140,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {showEstimates && (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Estimates" value={String(stats.totalEstimates)} icon={FileText} />
         <StatCard
@@ -139,7 +164,9 @@ export default async function DashboardPage() {
           hint={formatCurrency(stats.bookedRevenue)}
         />
       </div>
+      )}
 
+      {showEstimates && (
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="py-5">
           <CardHeader className="flex flex-row items-center justify-between px-5">
@@ -214,6 +241,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       <div className="mt-6">
         <Card className="py-5">
@@ -247,7 +275,7 @@ export default async function DashboardPage() {
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
                       <LeadStatusBadge status={lead.status} />
-                      <LeadRowActions lead={lead} />
+                      <LeadRowActions lead={lead} estimatesEnabled={showEstimates} />
                     </div>
                   </li>
                 ))}
@@ -257,6 +285,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
+      {showAppointments && (
       <div className="mt-6">
         <Card className="py-5">
           <CardHeader className="flex flex-row items-center justify-between px-5">
@@ -295,7 +324,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
+      {showEstimates && (
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="py-5">
           <CardHeader className="flex flex-row items-center justify-between px-5">
@@ -353,8 +384,10 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className={cn("mt-6 grid grid-cols-1 gap-6", showEstimates && "lg:grid-cols-2")}>
+        {showEstimates && (
         <Card className="py-5">
           <CardHeader className="px-5">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -366,6 +399,7 @@ export default async function DashboardPage() {
             <FunnelChart items={funnel} />
           </CardContent>
         </Card>
+        )}
 
         <Card className="py-5">
           <CardHeader className="px-5">

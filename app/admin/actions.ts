@@ -10,10 +10,12 @@ import { runDailyGmailLeadCaptureJob } from "@/services/gmailLeadCapture";
 import { decrypt } from "@/lib/crypto";
 import { requireAdmin } from "@/lib/session";
 import { logAction } from "@/lib/logger";
-import type { WorkspacePlan, WorkspaceStatus } from "@/types";
+import { PRODUCT_MODE_OPTIONS } from "@/config/constants";
+import type { WorkspacePlan, WorkspaceStatus, WorkspaceProductMode } from "@/types";
 
 const PLAN_VALUES: WorkspacePlan[] = ["grow", "transform"];
 const STATUS_VALUES: WorkspaceStatus[] = ["active", "inactive", "suspended"];
+const PRODUCT_MODE_VALUES: WorkspaceProductMode[] = PRODUCT_MODE_OPTIONS;
 
 async function getAdminBaseUrl(): Promise<string> {
   const host = (await headers()).get("host") ?? "localhost:3000";
@@ -50,6 +52,7 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
   const ownerName = String(formData.get("ownerName") ?? "").trim();
   const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase();
   const plan = String(formData.get("plan") ?? "") as WorkspacePlan;
+  const productMode = String(formData.get("productMode") ?? "both") as WorkspaceProductMode;
 
   if (!businessName || !ownerName || !ownerEmail) {
     return { error: "Business name, owner name, and owner email are all required." };
@@ -59,6 +62,9 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
   }
   if (!PLAN_VALUES.includes(plan)) {
     return { error: "Invalid plan selection." };
+  }
+  if (!PRODUCT_MODE_VALUES.includes(productMode)) {
+    return { error: "Invalid product mode selection." };
   }
 
   // Check for a collision BEFORE inserting — createBusinessForAgency has no
@@ -75,7 +81,7 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
     return { error: "That email is already associated with an Omni Follow Up account." };
   }
 
-  const business = await createBusinessForAgency({ businessName, ownerName, ownerEmail, plan });
+  const business = await createBusinessForAgency({ businessName, ownerName, ownerEmail, plan, productMode });
 
   let claim;
   try {
@@ -87,7 +93,7 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
     throw error;
   }
 
-  logAction("admin.workspace-provisioned", { businessId: business.id, plan });
+  logAction("admin.workspace-provisioned", { businessId: business.id, plan, productMode });
 
   const baseUrl = await getAdminBaseUrl();
   const claimUrl = `${baseUrl}/invite/${claim.inviteToken}`;
@@ -176,13 +182,14 @@ export async function updateWorkspaceEntitlementAction(workspaceId: string, form
 
   const plan = String(formData.get("plan") ?? "") as WorkspacePlan;
   const status = String(formData.get("status") ?? "") as WorkspaceStatus;
+  const productMode = String(formData.get("productMode") ?? "") as WorkspaceProductMode;
 
-  if (!PLAN_VALUES.includes(plan) || !STATUS_VALUES.includes(status)) {
-    throw new Error("Invalid plan or status selection.");
+  if (!PLAN_VALUES.includes(plan) || !STATUS_VALUES.includes(status) || !PRODUCT_MODE_VALUES.includes(productMode)) {
+    throw new Error("Invalid plan, status, or product mode selection.");
   }
 
-  await updateBusiness(workspaceId, { plan, status });
-  logAction("admin.workspace-entitlement-updated", { businessId: workspaceId, plan, status });
+  await updateBusiness(workspaceId, { plan, status, productMode });
+  logAction("admin.workspace-entitlement-updated", { businessId: workspaceId, plan, status, productMode });
 
   revalidatePath("/admin");
 }

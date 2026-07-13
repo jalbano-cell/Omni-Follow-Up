@@ -9,7 +9,16 @@ import { LeadAssignDialog } from "@/components/leads/lead-assign-dialog";
 import { archiveLeadAction } from "@/app/leads/actions";
 import type { Lead } from "@/types";
 
-export function LeadRowActions({ lead, showView = true }: { lead: Lead; showView?: boolean }) {
+export function LeadRowActions({
+  lead,
+  showView = true,
+  estimatesEnabled = true,
+}: {
+  lead: Lead;
+  showView?: boolean;
+  /** Hides "Convert to Estimate" for a workspace the agency has restricted to productMode "appointments_only" — see lib/session.ts's requireEstimatesEnabled. */
+  estimatesEnabled?: boolean;
+}) {
   const [isPending, startTransition] = useTransition();
 
   function archive() {
@@ -30,10 +39,12 @@ export function LeadRowActions({ lead, showView = true }: { lead: Lead; showView
       <LeadAssignDialog leadId={lead.id} currentAssignee={lead.assignedTo} />
       {lead.status === "New Inquiry" && (
         <>
-          <Button variant="outline" size="sm" render={<Link href={`/estimates/new?fromLead=${lead.id}`} />}>
-            <ArrowRightCircle className="size-3.5" />
-            Convert to Estimate
-          </Button>
+          {estimatesEnabled && (
+            <Button variant="outline" size="sm" render={<Link href={`/estimates/new?fromLead=${lead.id}`} />}>
+              <ArrowRightCircle className="size-3.5" />
+              Convert to Estimate
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={archive} disabled={isPending}>
             <Archive className="size-3.5" />
             Archive

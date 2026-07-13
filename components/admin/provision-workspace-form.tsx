@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { provisionNewWorkspaceAction, sendOnboardingWelcomeEmailAction } from "@/app/admin/actions";
-import { PLAN_LABELS } from "@/config/constants";
+import { PLAN_LABELS, PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
 import type { WorkspacePlan } from "@/types";
 
 const PLAN_OPTIONS: WorkspacePlan[] = ["grow", "transform"];
@@ -105,6 +105,21 @@ export function ProvisionWorkspaceForm() {
                 {PLAN_OPTIONS.map((plan) => (
                   <SelectItem key={plan} value={plan}>
                     {PLAN_LABELS[plan]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="productMode">Product mode</Label>
+            <Select name="productMode" defaultValue="both" required>
+              <SelectTrigger id="productMode" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRODUCT_MODE_OPTIONS.map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {PRODUCT_MODE_LABELS[mode]}
                   </SelectItem>
                 ))}
               </SelectContent>

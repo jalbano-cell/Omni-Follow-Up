@@ -5,12 +5,12 @@ import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { Button } from "@/components/ui/button";
 import { EstimatesTable } from "@/components/estimates/estimates-table";
 import { getEstimates } from "@/services/db";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function EstimatesPage() {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const { id: businessId } = await requireEstimatesEnabled();
 
   let estimates;
   try {

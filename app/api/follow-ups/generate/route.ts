@@ -90,13 +90,20 @@ export async function GET(request: Request) {
   // per-recipient request to derive one from otherwise.
   const appHost = new URL(request.url).host;
 
+  // Skip jobs for whichever surface an admin-set productMode has disabled for
+  // a business (services/business.ts's Business.productMode) — Leads/Gmail
+  // watch renewal are universal and run for everyone (see CLAUDE.md's
+  // Appointments section).
+  const estimatesBusinesses = dueBusinesses.filter((b) => b.productMode !== "appointments_only");
+  const appointmentsBusinesses = dueBusinesses.filter((b) => b.productMode !== "estimates_only");
+
   try {
-    const followUpLogs = await runDailyFollowUpJob(dueBusinesses);
-    const replySyncLogs = await runDailyReplySyncJob(dueBusinesses);
+    const followUpLogs = await runDailyFollowUpJob(estimatesBusinesses);
+    const replySyncLogs = await runDailyReplySyncJob(estimatesBusinesses);
     const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(dueBusinesses, appHost);
-    const appointmentCompletionLogs = await runAppointmentCompletionJob(dueBusinesses);
-    const appointmentReviewRequestLogs = await runAppointmentReviewRequestJob(dueBusinesses, appHost);
-    const appointmentRebookReminderLogs = await runAppointmentRebookReminderJob(dueBusinesses, appHost);
+    const appointmentCompletionLogs = await runAppointmentCompletionJob(appointmentsBusinesses);
+    const appointmentReviewRequestLogs = await runAppointmentReviewRequestJob(appointmentsBusinesses, appHost);
+    const appointmentRebookReminderLogs = await runAppointmentRebookReminderJob(appointmentsBusinesses, appHost);
     return NextResponse.json({
       followUps: followUpLogs,
       replySync: replySyncLogs,

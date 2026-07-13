@@ -76,6 +76,8 @@ export default async function SettingsPage({
   const webhookEndpointUrl = `${protocol}://${host}/api/v1/webhooks/leads`;
   const inviteBaseUrl = `${protocol}://${host}`;
 
+  const estimatesEnabled = business.productMode !== "appointments_only";
+  const appointmentsEnabled = business.productMode !== "estimates_only";
   const googleConnected = Boolean(business.googleRefreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
   const calendarId = getEffectiveCalendarId(business);
@@ -311,6 +313,7 @@ export default async function SettingsPage({
           </form>
         </SettingsSection>
 
+        {estimatesEnabled && (
         <SettingsSection
           value="microsoft-integration"
           icon={Mail}
@@ -364,6 +367,7 @@ export default async function SettingsPage({
             )}
           </div>
         </SettingsSection>
+        )}
 
         <SettingsSection
           value="lead-sources"
@@ -379,6 +383,7 @@ export default async function SettingsPage({
           />
         </SettingsSection>
 
+        {estimatesEnabled && (
         <SettingsSection
           value="follow-up-automation"
           icon={Repeat}
@@ -424,6 +429,7 @@ export default async function SettingsPage({
             <SubmitButton>Save cadence</SubmitButton>
           </form>
         </SettingsSection>
+        )}
 
         <SettingsSection
           value="email-templates"
@@ -464,6 +470,7 @@ export default async function SettingsPage({
           </form>
         </SettingsSection>
 
+        {appointmentsEnabled && (
         <SettingsSection
           value="appointment-preferences"
           icon={CalendarClock}
@@ -547,6 +554,7 @@ export default async function SettingsPage({
             <SubmitButton>Save appointment lifecycle settings</SubmitButton>
           </form>
         </SettingsSection>
+        )}
 
       </SettingsAccordion>
     </>

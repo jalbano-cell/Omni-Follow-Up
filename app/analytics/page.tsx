@@ -6,12 +6,12 @@ import { RevenueTrendChart } from "@/components/analytics/revenue-trend-chart";
 import { ReplyMetricsCard } from "@/components/analytics/reply-metrics-card";
 import { LeadSourceChart } from "@/components/analytics/lead-source-chart";
 import { getFollowUpFunnel, getRevenueTrend, getReplyMetrics, getLeadSourceBreakdown } from "@/services/analytics";
-import { requireOnboardedBusiness } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const { id: businessId } = await requireEstimatesEnabled();
 
   let funnel;
   let trend;

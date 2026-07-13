@@ -2,24 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Clock, MailOpen, MessageSquarePlus, CalendarCheck, BarChart3, Settings, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/login/actions";
 import { Logo } from "@/components/layout/logo";
+import { isNavItemVisible, NAV_ITEMS } from "@/components/layout/nav-items";
+import type { WorkspaceProductMode } from "@/types";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/leads", label: "Leads", icon: MessageSquarePlus },
-  { href: "/appointments", label: "Appointments", icon: CalendarCheck },
-  { href: "/estimates", label: "Estimates", icon: FileText },
-  { href: "/follow-ups", label: "Follow-up Queue", icon: Clock },
-  { href: "/replies", label: "Reply Inbox", icon: MailOpen },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
-
-export function MobileNav({ onNavigate }: { onNavigate?: () => void }) {
+export function MobileNav({
+  onNavigate,
+  productMode,
+}: {
+  onNavigate?: () => void;
+  productMode?: WorkspaceProductMode | null;
+}) {
   const pathname = usePathname();
+  const items = NAV_ITEMS.filter((item) => isNavItemVisible(item.surface, productMode));
 
   return (
     <div className="flex h-full flex-col">
@@ -27,7 +25,7 @@ export function MobileNav({ onNavigate }: { onNavigate?: () => void }) {
         <Logo />
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (

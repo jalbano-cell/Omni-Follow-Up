@@ -112,7 +112,14 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead, appHo
     return;
   }
 
-  const booking = await createAppointmentFromLead(business, lead, appHost);
+  // Skipped entirely for a workspace the agency has restricted to
+  // productMode "estimates_only" (see CLAUDE.md's Appointments section) — a
+  // customer's message never gets parsed for a booking request there, it
+  // just gets the plain acknowledgment below.
+  const booking =
+    business.productMode !== "estimates_only"
+      ? await createAppointmentFromLead(business, lead, appHost)
+      : ({ type: "none" } as const);
 
   // The "requested" case already sent its own instant pending-ack email
   // (services/appointmentService.ts) — nothing further to send here.

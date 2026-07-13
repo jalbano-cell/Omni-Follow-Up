@@ -832,6 +832,7 @@ export type Database = {
           owner_name: string
           password_hash: string
           plan: string
+          product_mode: string
           rebook_interval_days: number | null
           rebook_interval_overrides: Json
           session_token_version: number
@@ -871,6 +872,7 @@ export type Database = {
           owner_name: string
           password_hash: string
           plan?: string
+          product_mode?: string
           rebook_interval_days?: number | null
           rebook_interval_overrides?: Json
           session_token_version?: number
@@ -910,6 +912,7 @@ export type Database = {
           owner_name?: string
           password_hash?: string
           plan?: string
+          product_mode?: string
           rebook_interval_days?: number | null
           rebook_interval_overrides?: Json
           session_token_version?: number

@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { markReplyRead } from "@/services/db";
 import { getBusinessById } from "@/services/business";
 import { syncRepliesForBusiness } from "@/services/replyMatcher";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireEstimatesEnabled } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 
 export async function markReplyReadAction(id: string) {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   await markReplyRead(businessId, id);
   logAction("reply.mark-read", { replyId: id });
   revalidatePath("/replies");
@@ -16,7 +16,7 @@ export async function markReplyReadAction(id: string) {
 
 /** Manual trigger (e.g. the "Check for new replies" button) — returns how many new replies were found. */
 export async function syncRepliesAction(): Promise<{ created: number; errors: string[] }> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireEstimatesEnabled()).id;
   const business = await getBusinessById(businessId);
   if (!business) {
     return { created: 0, errors: ["Business not found."] };

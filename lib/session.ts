@@ -126,6 +126,31 @@ export async function requireOwner(): Promise<Business> {
 }
 
 /**
+ * Guard for every Estimate/Follow-up/Reply/Analytics page and Server Action —
+ * these are gated off for a workspace the agency has restricted to
+ * `productMode: "appointments_only"` (set via /admin). Redirects to `/`
+ * rather than /account-paused, since the workspace itself is perfectly
+ * active — it just doesn't have this surface. Leads are never gated by
+ * productMode (see CLAUDE.md's Appointments section) and don't use this guard.
+ */
+export async function requireEstimatesEnabled(): Promise<Business> {
+  const business = await requireOnboardedBusiness();
+  if (business.productMode === "appointments_only") {
+    redirect("/");
+  }
+  return business;
+}
+
+/** Same as requireEstimatesEnabled, for the Appointments surface — gated off when productMode is "estimates_only". */
+export async function requireAppointmentsEnabled(): Promise<Business> {
+  const business = await requireOnboardedBusiness();
+  if (business.productMode === "estimates_only") {
+    redirect("/");
+  }
+  return business;
+}
+
+/**
  * Guard for /admin — the agency's own provisioning tool (creating/activating
  * client workspaces, see app/admin/actions.ts). Gated to exactly one
  * workspace, identified by `ADMIN_WORKSPACE_ID` (env.adminWorkspaceId) — not

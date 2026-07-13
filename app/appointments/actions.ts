@@ -11,7 +11,7 @@ import {
   type ApproveAppointmentResult,
   type FlagOutcomeResult,
 } from "@/services/appointmentService";
-import { getCurrentBusinessId } from "@/lib/session";
+import { requireAppointmentsEnabled } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 
 /** Resolves the request's own host for building absolute links (unsubscribe, etc.) in outbound emails — see lib/url.ts. */
@@ -26,7 +26,7 @@ function revalidateAppointment(appointment: { leadId: string | null }) {
 }
 
 export async function approveAppointmentAction(id: string, input: ApproveAppointmentInput): Promise<ApproveAppointmentResult> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireAppointmentsEnabled()).id;
   const appHost = await resolveAppHost();
   const result = await approveAppointment(businessId, id, input, appHost);
   logAction("appointment.approve", { appointmentId: id, ok: result.ok });
@@ -36,7 +36,7 @@ export async function approveAppointmentAction(id: string, input: ApproveAppoint
 }
 
 export async function dismissAppointmentAction(id: string): Promise<FlagOutcomeResult> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireAppointmentsEnabled()).id;
   const result = await dismissRequestedAppointment(businessId, id);
   logAction("appointment.dismiss", { appointmentId: id });
   if (result.ok) revalidateAppointment(result.appointment);
@@ -45,7 +45,7 @@ export async function dismissAppointmentAction(id: string): Promise<FlagOutcomeR
 }
 
 export async function flagNoShowAction(id: string): Promise<FlagOutcomeResult> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireAppointmentsEnabled()).id;
   const result = await flagNoShow(businessId, id);
   logAction("appointment.no-show", { appointmentId: id });
   if (result.ok) revalidateAppointment(result.appointment);
@@ -54,7 +54,7 @@ export async function flagNoShowAction(id: string): Promise<FlagOutcomeResult> {
 }
 
 export async function flagCancelledAction(id: string): Promise<FlagOutcomeResult> {
-  const businessId = await getCurrentBusinessId();
+  const businessId = (await requireAppointmentsEnabled()).id;
   const result = await flagCancelled(businessId, id);
   logAction("appointment.cancel", { appointmentId: id });
   if (result.ok) revalidateAppointment(result.appointment);

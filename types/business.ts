@@ -4,6 +4,9 @@ export type WorkspacePlan = "grow" | "transform";
 /** The actual access gate — 'active' means full access everywhere; anything else is a full app lockout to /account-paused (lib/session.ts's requireOnboardedBusiness). Set directly by the agency, not by Billing. */
 export type WorkspaceStatus = "active" | "inactive" | "suspended";
 
+/** Which product surface(s) this workspace can use — agency-set via /admin, same model as plan/status. Leads are never gated by this (see CLAUDE.md's Appointments section). */
+export type WorkspaceProductMode = "estimates_only" | "appointments_only" | "both";
+
 export interface Business {
   id: string;
   businessName: string;
@@ -69,6 +72,8 @@ export interface Business {
   plan: WorkspacePlan;
   /** Agency-assigned access gate. Defaults to "inactive" for a new signup until provisioned — see WorkspaceStatus. */
   status: WorkspaceStatus;
+  /** Agency-assigned product surface restriction. Defaults to "both" — see WorkspaceProductMode. */
+  productMode: WorkspaceProductMode;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;
