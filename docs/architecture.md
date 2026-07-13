@@ -1,6 +1,6 @@
 # Architecture
 
-OmniFollowUp is a multi-tenant Next.js 15 (App Router) SaaS. One tenant = one row in `workspaces` = one business. Every table below `workspaces` carries a `workspace_id` column, and every service function that touches tenant data takes `businessId` as an explicit first parameter — there's no ambient/implicit "current tenant" context anywhere in the codebase. See `CLAUDE.md` for the full set of product/architecture rules this codebase is held to; this file is the map of where things live.
+Omni Follow Up is a multi-tenant Next.js 15 (App Router) SaaS. One tenant = one row in `workspaces` = one business. Every table below `workspaces` carries a `workspace_id` column, and every service function that touches tenant data takes `businessId` as an explicit first parameter — there's no ambient/implicit "current tenant" context anywhere in the codebase. See `CLAUDE.md` for the full set of product/architecture rules this codebase is held to; this file is the map of where things live.
 
 ## The core workflow
 

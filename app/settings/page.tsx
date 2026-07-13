@@ -38,21 +38,22 @@ import {
   getEffectiveCalendarId,
   getEffectiveTimezone,
   getEffectiveWorkingHours,
-  getEffectiveAutoBooking,
   getEffectiveNotifyOnNewLead,
   getEffectiveNotifyOnReply,
   getEffectiveGmailLeadMonitoring,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
 import { getTeamMembersForBusiness } from "@/services/userService";
+import { getMailboxConnection } from "@/services/mailboxConnections";
 import {
   updateCadenceAction,
   disconnectGoogleAction,
+  disconnectMicrosoftAction,
   updateBusinessProfileAction,
   updateCalendarIdAction,
   updateScheduleAction,
   updateEmailSignatureAction,
-  updateAppointmentPreferencesAction,
+  updateAppointmentLifecycleAction,
   updateNotificationPreferencesAction,
   updateGmailLeadMonitoringAction,
 } from "@/app/settings/actions";
@@ -64,9 +65,9 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ googleError?: string }>;
+  searchParams: Promise<{ googleError?: string; microsoftError?: string }>;
 }) {
-  const { googleError } = await searchParams;
+  const { googleError, microsoftError } = await searchParams;
   const { email } = await getCurrentSession();
   const business = await requireOwner();
 
@@ -80,12 +81,15 @@ export default async function SettingsPage({
   const calendarId = getEffectiveCalendarId(business);
   const timezone = getEffectiveTimezone(business);
   const workingHours = getEffectiveWorkingHours(business);
-  const autoBookAppointments = getEffectiveAutoBooking(business);
   const notifyOnNewLead = getEffectiveNotifyOnNewLead(business);
   const notifyOnReply = getEffectiveNotifyOnReply(business);
   const monitorGmailInbox = getEffectiveGmailLeadMonitoring(business);
   const emailTemplates = await listEmailTemplates(business.id);
   const teamMembers = await getTeamMembersForBusiness(business.id);
+  const microsoftConnection = await getMailboxConnection(business.id, "microsoft");
+  const rebookOverridesText = Object.entries(business.rebookIntervalOverrides)
+    .map(([serviceType, days]) => `${serviceType}: ${days == null ? "none" : days}`)
+    .join("\n");
 
   return (
     <>
@@ -308,6 +312,60 @@ export default async function SettingsPage({
         </SettingsSection>
 
         <SettingsSection
+          value="microsoft-integration"
+          icon={Mail}
+          title="Microsoft Integration"
+          description="Connect Outlook or Microsoft 365 for sending and replies"
+        >
+          <p className="text-sm text-muted-foreground">
+            An alternative to Gmail for sending approved follow-ups and reading replies.
+            {googleConnected && " Gmail is already connected above, so it's used for sending and replies — connecting Microsoft too won't change that unless Gmail is disconnected."}
+          </p>
+
+          {microsoftError && (
+            <p className="text-xs text-destructive">Something went wrong connecting Microsoft. Please try again.</p>
+          )}
+
+          <div className="flex items-center gap-2 rounded-lg border border-border px-4 py-3">
+            {microsoftConnection ? (
+              <>
+                <CheckCircle2 className="size-4 text-success" />
+                <span className="text-sm text-foreground">Connected</span>
+                <Badge variant="success" className="ml-auto">
+                  {microsoftConnection.connectedEmail}
+                </Badge>
+              </>
+            ) : (
+              <>
+                <XCircle className="size-4 text-destructive" />
+                <span className="text-sm text-foreground">Not connected</span>
+                <Badge variant="destructive" className="ml-auto">
+                  Sending &amp; replies unavailable
+                </Badge>
+              </>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {microsoftConnection ? (
+              <>
+                <Button size="sm" variant="outline" render={<Link href="/api/oauth/microsoft/start?returnTo=/settings" />}>
+                  Reconnect
+                </Button>
+                <form action={disconnectMicrosoftAction}>
+                  <Button size="sm" variant="ghost" type="submit">
+                    Disconnect
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <Button size="sm" render={<Link href="/api/oauth/microsoft/start?returnTo=/settings" />}>
+                Connect Microsoft
+              </Button>
+            )}
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
           value="lead-sources"
           icon={Inbox}
           title="Lead Sources"
@@ -409,30 +467,84 @@ export default async function SettingsPage({
         <SettingsSection
           value="appointment-preferences"
           icon={CalendarClock}
-          title="Appointment Preferences"
-          description="Configure appointment booking behavior"
+          title="Appointment Lifecycle"
+          description="Review requests, rebook reminders, and CASL compliance"
         >
           <p className="text-sm text-muted-foreground">
-            When a customer&apos;s message requests a specific date/time, should it book automatically or wait for
-            your approval?
+            Every requested appointment always waits for your approval on the{" "}
+            <Link href="/appointments" className="text-primary hover:underline">
+              Appointments
+            </Link>{" "}
+            page — nothing books automatically. These settings control what happens afterward: the day-after review
+            request and the recurring rebook reminder.
           </p>
-          <form action={updateAppointmentPreferencesAction} className="flex flex-col gap-4">
-            <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
-              <input
-                type="checkbox"
-                name="autoBookAppointments"
-                defaultChecked={autoBookAppointments}
-                className="mt-0.5 size-4 shrink-0 rounded border-border"
+          <form action={updateAppointmentLifecycleAction} className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="googleReviewUrl" className="text-xs">
+                  Google review link
+                </Label>
+                <Input
+                  id="googleReviewUrl"
+                  name="googleReviewUrl"
+                  type="url"
+                  defaultValue={business.googleReviewUrl ?? ""}
+                  placeholder="https://g.page/r/.../review"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Left blank, the day-after review request is skipped — there&apos;d be nowhere to send the customer.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="rebookIntervalDays" className="text-xs">
+                  Rebook reminder (days after completion)
+                </Label>
+                <Input
+                  id="rebookIntervalDays"
+                  name="rebookIntervalDays"
+                  type="number"
+                  min={1}
+                  defaultValue={business.rebookIntervalDays ?? ""}
+                  placeholder="e.g. 49"
+                />
+                <p className="text-xs text-muted-foreground">Left blank, no rebook reminder sends by default.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="mailingAddress" className="text-xs">
+                Mailing address
+              </Label>
+              <Input
+                id="mailingAddress"
+                name="mailingAddress"
+                defaultValue={business.mailingAddress ?? ""}
+                placeholder="123 Main St, Toronto, ON"
               />
-              <span>
-                <span className="font-medium text-foreground">Automatically book appointments when the requested time is open</span>
-                <br />
-                <span className="text-xs text-muted-foreground">
-                  Off by default — leaves a reviewable recommendation on the Lead instead, with an Approve button.
-                </span>
-              </span>
-            </label>
-            <SubmitButton>Save preferences</SubmitButton>
+              <p className="text-xs text-muted-foreground">
+                Included in every automated appointment email&apos;s footer — Canada&apos;s anti-spam law (CASL)
+                requires it.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="rebookIntervalOverrides" className="text-xs">
+                Per-service overrides (optional)
+              </Label>
+              <Textarea
+                id="rebookIntervalOverrides"
+                name="rebookIntervalOverrides"
+                defaultValue={rebookOverridesText}
+                rows={3}
+                placeholder={"Grooming: 49\nConsultation: none"}
+              />
+              <p className="text-xs text-muted-foreground">
+                One per line, as &ldquo;Service Type: days&rdquo; — use &ldquo;none&rdquo; to disable the reminder for
+                that service even when the default above is set.
+              </p>
+            </div>
+
+            <SubmitButton>Save appointment lifecycle settings</SubmitButton>
           </form>
         </SettingsSection>
 

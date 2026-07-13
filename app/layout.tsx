@@ -20,7 +20,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OmniFollowUp",
+  title: "Omni Follow Up",
   description: "Estimate follow-up automation for local service businesses.",
 };
 

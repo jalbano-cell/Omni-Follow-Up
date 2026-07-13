@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileText, Clock, MailOpen, MessageSquarePlus, BarChart3, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, Clock, MailOpen, MessageSquarePlus, CalendarCheck, BarChart3, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/login/actions";
 import { Logo } from "@/components/layout/logo";
@@ -10,6 +10,7 @@ import { Logo } from "@/components/layout/logo";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: MessageSquarePlus },
+  { href: "/appointments", label: "Appointments", icon: CalendarCheck },
   { href: "/estimates", label: "Estimates", icon: FileText },
   { href: "/follow-ups", label: "Follow-up Queue", icon: Clock },
   { href: "/replies", label: "Reply Inbox", icon: MailOpen },

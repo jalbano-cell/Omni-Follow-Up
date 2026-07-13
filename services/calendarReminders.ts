@@ -36,7 +36,7 @@ export async function ensureReminderForDraft(business: Business, followUp: Follo
       accessToken,
       calendarId: getEffectiveCalendarId(business),
       summary: `Follow up with ${estimate.customerName}`,
-      description: `${estimate.serviceType} estimate (${estimate.estimateValue}) is due for a follow-up. Review and send it from the Follow-up Queue in OmniFollowUp.`,
+      description: `${estimate.serviceType} estimate (${estimate.estimateValue}) is due for a follow-up. Review and send it from the Follow-up Queue in Omni Follow Up.`,
       startDateTime: start,
       endDateTime: end,
       timeZone: getEffectiveTimezone(business),

@@ -37,7 +37,12 @@ export default async function AdminPage() {
         title="Admin"
         description="Provision and manage client workspace access."
         action={
-          <Button render={<Link href="/admin/new" />}>New workspace</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" render={<Link href="/admin/classifications" />}>
+              Lead classifications
+            </Button>
+            <Button render={<Link href="/admin/new" />}>New workspace</Button>
+          </div>
         }
       />
 

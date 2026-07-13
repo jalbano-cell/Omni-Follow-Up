@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import {
   createLead,
+  getAppointmentsForLead,
   getEstimate,
   getFollowUpsForEstimate,
   getLead,
@@ -12,14 +13,14 @@ import {
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
 import { analyzeLead } from "@/services/automation/leadClassifier";
 import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/services/emailBuilder";
-import { resolveAppointmentBooking, bookRecommendedAppointment } from "@/services/appointmentBooking";
-import { getBusinessById, getEffectiveNotifyOnNewLead } from "@/services/business";
+import { createAppointmentFromLead } from "@/services/appointmentService";
+import { getEffectiveNotifyOnNewLead } from "@/services/business";
 import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
 import { AUTO_ACKNOWLEDGE_LEAD_SOURCES, type LeadSource } from "@/config/constants";
-import type { ActivityLogEntry, Business, Estimate, FollowUp, Lead, NewLeadInput, Reply } from "@/types";
+import type { ActivityLogEntry, Appointment, Business, Estimate, FollowUp, Lead, NewLeadInput, Reply } from "@/types";
 
 /**
  * Domain logic for the Lead lifecycle — this is the one place "what happens
@@ -88,18 +89,21 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
  * Requires Gmail connected, same as the owner-notification email — skipped
  * and logged otherwise, never blocking lead creation.
  *
- * First checks (via services/appointmentBooking.ts) whether the lead's
- * message requested a specific date/time — if so, that's either booked as a
- * real Calendar event (customer invited) or resolved to open alternate
- * slots, both also done with no human approval, and the acknowledgment
- * reflects whichever outcome resulted.
+ * First checks (via services/appointmentService.ts's createAppointmentFromLead)
+ * whether the lead's message requested a specific date/time — if the slot is
+ * free, that creates a durable, owner-approval-required Appointment and
+ * sends its own instant pending-ack email (never a lock-implying "booked"
+ * email — see CLAUDE.md's Appointments section for why the old
+ * auto-book-instantly path was retired); if it conflicts, this function
+ * falls back to offering open alternate times in the plain acknowledgment,
+ * same as before.
  *
  * Only fires for real-time inbound sources (see AUTO_ACKNOWLEDGE_LEAD_SOURCES)
  * — a Manual Entry or CSV Import is typically a retroactive record of a lead
  * that already made contact some other way, where an automatic "we received
  * your message" email would be surprising or duplicate.
  */
-async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Promise<void> {
+async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead, appHost: string): Promise<void> {
   if (!AUTO_ACKNOWLEDGE_LEAD_SOURCES.includes(lead.leadSource as LeadSource)) {
     return;
   }
@@ -108,55 +112,16 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
     return;
   }
 
-  const booking = await resolveAppointmentBooking(business, lead);
-  // "recommended" never states a specific time to the customer — nothing is
-  // actually confirmed yet, so the email stays as vague as the "none" case.
-  const bookingOutcome: AcknowledgmentBookingOutcome =
-    booking.type === "booked"
-      ? { type: "booked", dateTimeLabel: booking.label }
-      : booking.type === "alternates"
-        ? { type: "alternates", alternateLabels: booking.labels }
-        : { type: "none" };
+  const booking = await createAppointmentFromLead(business, lead, appHost);
 
-  if (booking.type === "booked") {
-    await logLeadActivity(
-      business.id,
-      lead.id,
-      "lead.appointment_booked",
-      `Appointment automatically booked for ${booking.label}.`
-    );
-  } else if (booking.type === "alternates") {
-    await logLeadActivity(
-      business.id,
-      lead.id,
-      "lead.appointment_alternates_offered",
-      `Requested time unavailable — offered alternates: ${booking.labels.join(", ")}.`
-    );
-  } else if (booking.type === "recommended") {
-    await updateLead(business.id, lead.id, {
-      pendingAppointmentDateTime: booking.dateTime,
-      pendingAppointmentDurationMinutes: booking.durationMinutes,
-    });
-    await logLeadActivity(
-      business.id,
-      lead.id,
-      "lead.appointment_recommended",
-      `Customer requested an appointment for ${booking.label} — review and approve booking.`
-    );
-    try {
-      await createNotification(business.id, {
-        leadId: lead.id,
-        type: "lead.appointment_recommended",
-        message: `${lead.name} requested an appointment for ${booking.label} — approve to book it.`,
-      });
-    } catch (error) {
-      logAction("lead.appointment-recommend-notify-failed", {
-        businessId: business.id,
-        leadId: lead.leadId,
-        error: error instanceof Error ? error.message : "unknown error",
-      });
-    }
+  // The "requested" case already sent its own instant pending-ack email
+  // (services/appointmentService.ts) — nothing further to send here.
+  if (booking.type === "requested") {
+    return;
   }
+
+  const bookingOutcome: AcknowledgmentBookingOutcome =
+    booking.type === "alternates" ? { type: "alternates", alternateLabels: booking.labels } : { type: "none" };
 
   const content = await buildAcknowledgmentEmail(lead, business, bookingOutcome);
 
@@ -187,40 +152,6 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead): Prom
       "Automatic acknowledgment email failed to send."
     );
   }
-}
-
-export type ApproveAppointmentResult = { ok: true; label: string } | { ok: false; error: string };
-
-/**
- * Books the appointment a lead recommended when auto-booking is off (see
- * services/business.ts's getEffectiveAutoBooking) — the one place a
- * recommendation actually turns into a real Calendar event, always by an
- * explicit business-owner action from the Lead Details page.
- */
-export async function approveRecommendedAppointment(businessId: string, id: string): Promise<ApproveAppointmentResult> {
-  const [business, lead] = await Promise.all([getBusinessById(businessId), getLead(businessId, id)]);
-  if (!business || !lead) {
-    return { ok: false, error: "Lead not found." };
-  }
-  if (!lead.pendingAppointmentDateTime) {
-    return { ok: false, error: "No pending appointment recommendation for this lead." };
-  }
-
-  const result = await bookRecommendedAppointment(business, lead);
-  if (!result.ok) {
-    return result;
-  }
-
-  await updateLead(businessId, id, { pendingAppointmentDateTime: null, pendingAppointmentDurationMinutes: null });
-  await logLeadActivity(businessId, id, "lead.appointment_booked", `Appointment booked for ${result.label} (approved by owner).`);
-  return { ok: true, label: result.label };
-}
-
-/** Clears a pending recommendation without booking it — the owner decided not to (or the customer's timing no longer works). */
-export async function dismissRecommendedAppointment(businessId: string, id: string): Promise<Lead> {
-  const lead = await updateLead(businessId, id, { pendingAppointmentDateTime: null, pendingAppointmentDurationMinutes: null });
-  await logLeadActivity(businessId, id, "lead.appointment_dismissed", "Appointment recommendation dismissed.");
-  return lead;
 }
 
 export type MergeDuplicateResult = { ok: true } | { ok: false; error: string };
@@ -266,7 +197,7 @@ export async function dismissDuplicateLead(businessId: string, id: string): Prom
  * is a best-effort side effect that must never turn a saved lead into a
  * failed response.
  */
-export async function createLeadFromSubmission(business: Business, input: NewLeadInput): Promise<Lead> {
+export async function createLeadFromSubmission(business: Business, input: NewLeadInput, appHost: string): Promise<Lead> {
   const leadId = generateLeadId();
   // Snapshot existing leads before this one is created — a duplicate check must never match the new lead against itself.
   const existingLeads = await getLeads(business.id);
@@ -314,7 +245,7 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
 
   await sendLeadNotificationEmail(business, lead);
   await analyzeLead(business.id, lead);
-  await sendLeadAcknowledgmentEmail(business, lead);
+  await sendLeadAcknowledgmentEmail(business, lead, appHost);
 
   return lead;
 }
@@ -455,6 +386,8 @@ export interface LeadDetail {
   aiInsights: LeadAiInsights;
   /** The earlier Lead this one was flagged as a likely re-submission of (services/duplicateLeadDetection.ts) — null once dismissed/merged, or if never flagged. */
   possibleDuplicateOfLead: Lead | null;
+  /** This lead's still-`requested` Appointment, if any (services/appointmentService.ts) — surfaced as the Lead Details page's approve/dismiss banner. Null once approved/cancelled, or if nothing was ever requested. */
+  pendingAppointment: Appointment | null;
 }
 
 /** Everything the Lead Details page needs, joined in one call. */
@@ -462,10 +395,11 @@ export async function getLeadDetail(businessId: string, id: string): Promise<Lea
   const lead = await getLead(businessId, id);
   if (!lead) return null;
 
-  const [timeline, linkedEstimate, possibleDuplicateOfLead] = await Promise.all([
+  const [timeline, linkedEstimate, possibleDuplicateOfLead, leadAppointments] = await Promise.all([
     getLeadTimeline(businessId, id),
     lead.convertedEstimateId ? getEstimate(businessId, lead.convertedEstimateId) : Promise.resolve(null),
     lead.possibleDuplicateOfLeadId ? getLead(businessId, lead.possibleDuplicateOfLeadId) : Promise.resolve(null),
+    getAppointmentsForLead(businessId, id),
   ]);
 
   const [conversation, upcomingFollowUps] = linkedEstimate
@@ -482,6 +416,7 @@ export async function getLeadDetail(businessId: string, id: string): Promise<Lea
     conversation,
     upcomingFollowUps,
     aiInsights: toAiInsights(lead),
+    pendingAppointment: leadAppointments.find((a) => a.status === "requested") ?? null,
     possibleDuplicateOfLead,
   };
 }

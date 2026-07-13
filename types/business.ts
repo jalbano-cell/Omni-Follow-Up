@@ -39,8 +39,21 @@ export interface Business {
   /** Bearer-token secret for POST /api/intake — a website's contact form authenticates with this to identify the tenant. */
   intakeApiKey: string | null;
   intakeApiKeyCreatedAt: string | null;
-  /** Opt-in, defaults to false when null (see getEffectiveAutoBooking in services/business.ts) — off means a requested appointment becomes a reviewable recommendation on the Lead instead of an automatic Calendar booking. */
+  /**
+   * Retired — every requested appointment now always requires owner approval
+   * (see CLAUDE.md's Appointments section and services/appointmentService.ts).
+   * The column stays (additive-only migration policy) but the app no longer
+   * reads or writes it.
+   */
   autoBookAppointments: boolean | null;
+  /** Google Business Profile review link, sent in the day-after review request (services/emailTemplates/appointmentReviewRequest.ts). Null skips that send (logged) — nowhere to point the customer. */
+  googleReviewUrl: string | null;
+  /** Physical mailing address, included in the CASL compliance footer (services/emailTemplates/complianceFooter.ts) on every automated appointment-lifecycle email. Omitted from the footer when unset. */
+  mailingAddress: string | null;
+  /** Business-wide default days after an appointment's completedAt before a rebook reminder sends; null = disabled. See getEffectiveRebookIntervalDays. */
+  rebookIntervalDays: number | null;
+  /** Per-service-type overrides keyed by lowercased serviceType — a present key with a null value explicitly disables the reminder for that service even when rebookIntervalDays is set. See getEffectiveRebookIntervalDays. */
+  rebookIntervalOverrides: Record<string, number | null>;
   /** Both default true when null — see getEffectiveNotifyOnNewLead/getEffectiveNotifyOnReply in services/business.ts. */
   notifyOnNewLead: boolean | null;
   notifyOnReply: boolean | null;

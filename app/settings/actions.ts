@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { updateBusiness, clearGoogleConnection } from "@/services/business";
+import { deleteMailboxConnection } from "@/services/mailboxConnections";
 import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplateService";
 import { inviteTeamMember, removeTeamMember, TeamMemberLimitExceededError, TeamMemberEmailInUseError } from "@/services/userService";
 import { requireOwner } from "@/lib/session";
@@ -100,6 +101,13 @@ export async function disconnectGoogleAction() {
   revalidatePath("/settings");
 }
 
+export async function disconnectMicrosoftAction() {
+  const businessId = await getCurrentBusinessId();
+  await deleteMailboxConnection(businessId, "microsoft");
+  logAction("settings.microsoft-disconnect", { businessId });
+  revalidatePath("/settings");
+}
+
 export async function updateEmailTemplateAction(key: EmailTemplateKey, subject: string, body: string) {
   const businessId = await getCurrentBusinessId();
   const trimmedSubject = subject.trim();
@@ -120,12 +128,62 @@ export async function resetEmailTemplateAction(key: EmailTemplateKey) {
   revalidatePath("/settings");
 }
 
-export async function updateAppointmentPreferencesAction(formData: FormData) {
-  const businessId = await getCurrentBusinessId();
-  const autoBookAppointments = formData.get("autoBookAppointments") === "on";
+/** Parses the "Service Type: days" textarea into services/business.ts's getEffectiveRebookIntervalDays override shape — a blank or "none"/"off" value explicitly disables the reminder for that service; an unparseable line is silently skipped rather than rejecting the whole save. */
+function parseRebookOverrides(text: string): Record<string, number | null> {
+  const overrides: Record<string, number | null> = {};
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) continue;
 
-  await updateBusiness(businessId, { autoBookAppointments });
-  logAction("settings.appointment-preferences-update", { businessId, autoBookAppointments });
+    const serviceType = line.slice(0, separatorIndex).trim().toLowerCase();
+    const valueText = line.slice(separatorIndex + 1).trim().toLowerCase();
+    if (!serviceType) continue;
+
+    if (valueText === "" || valueText === "none" || valueText === "off") {
+      overrides[serviceType] = null;
+      continue;
+    }
+    const days = Number(valueText);
+    if (!Number.isNaN(days) && days > 0) {
+      overrides[serviceType] = days;
+    }
+  }
+  return overrides;
+}
+
+/**
+ * Retired the old "auto-book appointments instantly" toggle here (see
+ * CLAUDE.md's Appointments section — every requested appointment now always
+ * requires owner approval) in favor of the review/rebook lifecycle settings:
+ * the CASL-required Google review link + mailing address, and the recurring
+ * rebook reminder's business default and per-service overrides.
+ */
+export async function updateAppointmentLifecycleAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+
+  const googleReviewUrl = String(formData.get("googleReviewUrl") ?? "").trim();
+  const mailingAddress = String(formData.get("mailingAddress") ?? "").trim();
+  const rebookDaysRaw = String(formData.get("rebookIntervalDays") ?? "").trim();
+  const overridesRaw = String(formData.get("rebookIntervalOverrides") ?? "");
+
+  let rebookIntervalDays: number | null = null;
+  if (rebookDaysRaw) {
+    const parsed = Number(rebookDaysRaw);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      throw new Error("Rebook interval must be a positive number of days.");
+    }
+    rebookIntervalDays = parsed;
+  }
+
+  await updateBusiness(businessId, {
+    googleReviewUrl: googleReviewUrl || null,
+    mailingAddress: mailingAddress || null,
+    rebookIntervalDays,
+    rebookIntervalOverrides: parseRebookOverrides(overridesRaw),
+  });
+  logAction("settings.appointment-lifecycle-update", { businessId, rebookIntervalDays });
   revalidatePath("/settings");
 }
 

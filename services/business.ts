@@ -9,6 +9,8 @@ import {
 } from "@/config/constants";
 import { generateApiKey } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
+import { upsertMailboxConnection, deleteMailboxConnection } from "@/services/mailboxConnections";
+import { logAction } from "@/lib/logger";
 import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspacePlan, WorkspaceStatus } from "@/types";
 
 type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
@@ -51,6 +53,10 @@ function toBusiness(row: WorkspaceRow): Business {
     gmailWatchExpiration: row.gmail_watch_expiration ?? null,
     plan: row.plan as WorkspacePlan,
     status: row.status as WorkspaceStatus,
+    googleReviewUrl: row.google_review_url ?? null,
+    mailingAddress: row.mailing_address ?? null,
+    rebookIntervalDays: row.rebook_interval_days ?? null,
+    rebookIntervalOverrides: (row.rebook_interval_overrides as Record<string, number | null>) ?? {},
   };
 }
 
@@ -153,6 +159,10 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.gmailWatchExpiration !== undefined) fields.gmail_watch_expiration = input.gmailWatchExpiration;
   if (input.plan !== undefined) fields.plan = input.plan;
   if (input.status !== undefined) fields.status = input.status;
+  if (input.googleReviewUrl !== undefined) fields.google_review_url = input.googleReviewUrl;
+  if (input.mailingAddress !== undefined) fields.mailing_address = input.mailingAddress;
+  if (input.rebookIntervalDays !== undefined) fields.rebook_interval_days = input.rebookIntervalDays;
+  if (input.rebookIntervalOverrides !== undefined) fields.rebook_interval_overrides = input.rebookIntervalOverrides;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -190,23 +200,53 @@ export async function rotateIntakeApiKey(id: string): Promise<Business> {
  * Persists a freshly-connected (or reconnected) Google account's tokens/scopes.
  * Gmail is the product's primary lead source now, so every connection also turns
  * on inbox monitoring — a business can still switch it back off in Settings.
+ *
+ * Also mirrors the connection into `mailbox_connections` (provider='google')
+ * — the provider-agnostic store services/mailboxProvider.ts's interface is
+ * built against — so it stays valid as a genuinely-generalized store going
+ * forward. `workspaces.google_*` above remains authoritative: every existing
+ * Gmail read/send/refresh call site still reads those columns directly and
+ * is unaffected by (and unaware of) this mirror. Best-effort — a failure
+ * here must never break the actual Google connection, which is why it's
+ * wrapped separately from the updateBusiness call above.
  */
 export async function saveGoogleConnection(
   id: string,
   input: { encryptedRefreshToken: string; connectedEmail: string; scopes: string }
 ): Promise<Business> {
-  return updateBusiness(id, {
+  const business = await updateBusiness(id, {
     googleRefreshTokenEnc: input.encryptedRefreshToken,
     googleConnectedEmail: input.connectedEmail,
     googleScopes: input.scopes,
     googleConnectedAt: new Date().toISOString(),
     monitorGmailInbox: true,
   });
+
+  try {
+    await upsertMailboxConnection(id, "google", {
+      refreshTokenEnc: input.encryptedRefreshToken,
+      connectedEmail: input.connectedEmail,
+      scopes: input.scopes,
+    });
+  } catch (error) {
+    logAction("business.mailbox-connection-mirror-failed", {
+      businessId: id,
+      provider: "google",
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+
+  return business;
 }
 
-/** Clears a Google connection — used when a refresh token is revoked (invalid_grant) and needs reconnecting. */
+/**
+ * Clears a Google connection — used when a refresh token is revoked
+ * (invalid_grant) and needs reconnecting. Also clears the mirrored
+ * `mailbox_connections` row (see saveGoogleConnection's doc comment) —
+ * same best-effort treatment, never allowed to block the actual disconnect.
+ */
 export async function clearGoogleConnection(id: string): Promise<Business> {
-  return updateBusiness(id, {
+  const business = await updateBusiness(id, {
     googleRefreshTokenEnc: null,
     googleConnectedEmail: null,
     googleScopes: null,
@@ -216,6 +256,18 @@ export async function clearGoogleConnection(id: string): Promise<Business> {
     gmailWatchHistoryId: null,
     gmailWatchExpiration: null,
   });
+
+  try {
+    await deleteMailboxConnection(id, "google");
+  } catch (error) {
+    logAction("business.mailbox-connection-mirror-failed", {
+      businessId: id,
+      provider: "google",
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+
+  return business;
 }
 
 /**
@@ -288,9 +340,24 @@ export function getEffectiveWorkingHours(
   };
 }
 
-/** Whether a requested appointment books automatically (true) or only produces a reviewable recommendation (false, the default) — see services/appointmentBooking.ts. */
-export function getEffectiveAutoBooking(business: Pick<Business, "autoBookAppointments">): boolean {
-  return business.autoBookAppointments ?? false;
+/**
+ * Days after an appointment's completedAt before a rebook reminder sends for
+ * a given service type, or null if disabled — checks the per-service
+ * override map first (a present key with a null value explicitly disables
+ * the reminder for that service even when a business default is set), then
+ * falls back to the business-wide default (also null = disabled). See
+ * services/appointmentLifecycle.ts's rebook-reminder job.
+ */
+export function getEffectiveRebookIntervalDays(
+  business: Pick<Business, "rebookIntervalDays" | "rebookIntervalOverrides">,
+  serviceType: string
+): number | null {
+  const key = serviceType.trim().toLowerCase();
+  const overrides = business.rebookIntervalOverrides ?? {};
+  if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+    return overrides[key];
+  }
+  return business.rebookIntervalDays ?? null;
 }
 
 /** Whether the owner-notification email fires for a new lead — on by default. */

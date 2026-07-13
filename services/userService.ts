@@ -70,7 +70,7 @@ export class TeamMemberLimitExceededError extends Error {
 
 export class TeamMemberEmailInUseError extends Error {
   constructor() {
-    super("That email is already associated with an OmniFollowUp account.");
+    super("That email is already associated with an Omni Follow Up account.");
     this.name = "TeamMemberEmailInUseError";
   }
 }

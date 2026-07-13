@@ -24,11 +24,11 @@ export default async function InvitePage({
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-2">
           <Logo size="md" withWordmark={false} />
-          <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">OmniFollowUp</h1>
+          <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">Omni Follow Up</h1>
           {acceptable && business ? (
             <p className="text-sm text-muted-foreground">
               {member!.role === "owner" ? "Activate" : "Join"}{" "}
-              <span className="font-medium text-foreground">{business.businessName}</span> on OmniFollowUp
+              <span className="font-medium text-foreground">{business.businessName}</span> on Omni Follow Up
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">Invite link</p>

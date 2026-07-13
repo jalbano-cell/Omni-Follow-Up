@@ -22,9 +22,18 @@ export interface Estimate {
   nextFollowUpDate: string | null;
   lastContactDate: string | null;
   notes: string;
-  /** Gmail thread ID for the conversation with this customer, set after the first send. */
+  /**
+   * Opaque thread/conversation id for this customer's email conversation,
+   * set after the first send — despite the name, holds whichever mailbox
+   * provider the business is connected through (services/mailboxProvider.ts's
+   * resolveActiveMailboxConnection): a Gmail threadId for a Google-connected
+   * business, or a Graph conversationId for a Microsoft one. Kept as one
+   * column rather than a column per provider since a business only ever
+   * sends through one provider at a time — column name predates Microsoft
+   * support and wasn't renamed to avoid an unrelated migration.
+   */
   gmailThreadId: string | null;
-  /** RFC 822 Message-ID header of the most recently sent email, used for In-Reply-To threading. */
+  /** RFC 822 Message-ID header of the most recently sent email, used for In-Reply-To/References threading on the next send — same dual-provider reuse as gmailThreadId above; both Gmail and Microsoft Graph expose a real RFC 822 Message-ID. */
   gmailLastMessageId: string | null;
   /** Monotonic counter embedded in this estimate's customer share link (lib/auth.ts); bumping it invalidates a previously shared link. Defaults to 0. */
   shareTokenVersion: number;

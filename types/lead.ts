@@ -7,7 +7,7 @@ export type AiInsightsStatus = "pending" | "completed" | "failed" | "dismissed";
  * A business inquiry — today, always created via POST /api/intake (a website
  * contact form), but the shape is source-agnostic (see `leadSource`) so a
  * future phone/referral entry point can reuse it. The single source of truth
- * for every inbound lead in OmniFollowUp.
+ * for every inbound lead in Omni Follow Up.
  */
 export interface Lead {
   id: string;
@@ -51,15 +51,6 @@ export interface Lead {
   /** When analysis last completed — null while pending, unset if it has never run. */
   aiGeneratedAt: string | null;
   aiStatus: AiInsightsStatus;
-  /**
-   * Set when the lead requested a specific date/time and auto-booking is off
-   * (see services/appointmentBooking.ts, getEffectiveAutoBooking) — a
-   * business owner reviews and either approves the real booking
-   * (services/leadService.ts's approveRecommendedAppointment, which clears
-   * these) or ignores it. Null once approved, dismissed, or never requested.
-   */
-  pendingAppointmentDateTime: string | null;
-  pendingAppointmentDurationMinutes: number | null;
   /** Set only for leadSource "Gmail" — the originating message/thread, used to dedup repeated inbox scans (services/gmailLeadCapture.ts) and to skip messages that belong to an existing Estimate's reply thread (services/replyMatcher.ts's job instead). */
   gmailMessageId: string | null;
   gmailThreadId: string | null;
@@ -89,8 +80,6 @@ export type UpdateLeadInput = Partial<
     | "aiResponseUrgencyReason"
     | "aiGeneratedAt"
     | "aiStatus"
-    | "pendingAppointmentDateTime"
-    | "pendingAppointmentDurationMinutes"
     | "possibleDuplicateOfLeadId"
   >
 >;

@@ -1,6 +1,7 @@
-import { sendEmail } from "@/services/gmail";
 import { getEstimate, getFollowUp, updateEstimate, updateFollowUp } from "@/services/db";
 import { getBusinessById, getEffectiveCadenceDays, clearGoogleConnection } from "@/services/business";
+import { getMailboxProvider, resolveActiveMailboxConnection } from "@/services/mailboxProvider";
+import { deleteMailboxConnection } from "@/services/mailboxConnections";
 import { clearReminder } from "@/services/calendarReminders";
 import { getEmailTemplate, renderTemplate, templateKeyForEstimateStage } from "@/services/emailTemplateService";
 import { logEstimateActivity } from "@/services/activityService";
@@ -42,11 +43,17 @@ function bodyWithSignature(message: string, emailSignature: string | null): stri
 }
 
 /**
- * Sends an already-approved follow-up via Gmail and syncs the database. This is
- * the ONLY path that ever calls services/gmail.ts — it is invoked exclusively
- * from the Follow-up Queue UI's "Send Email" / "Retry Send" action, never
- * from the daily cron job, so nothing is ever emailed without a human first
- * clicking Approve and then explicitly confirming the send.
+ * Sends an already-approved follow-up through whichever mailbox provider
+ * the business has connected (services/mailboxProvider.ts's
+ * resolveActiveMailboxConnection — Google or Microsoft, resolved fresh on
+ * every send rather than cached on the Estimate/FollowUp) and syncs the
+ * database. This is the ONLY path that ever sends a follow-up — it is
+ * invoked exclusively from the Follow-up Queue UI's "Send Email" / "Retry
+ * Send" action, never from the daily cron job, so nothing is ever emailed
+ * without a human first clicking Approve and then explicitly confirming
+ * the send. Provider-agnostic: this function never imports
+ * services/gmail.ts or services/microsoftGraphSend.ts directly, only
+ * through the MailboxProvider interface.
  */
 export async function sendApprovedFollowUp(businessId: string, followUpId: string): Promise<SendFollowUpResult> {
   const followUp = await getFollowUp(businessId, followUpId);
@@ -66,11 +73,14 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
   if (!business) {
     return { ok: false, error: "Business not found." };
   }
-  if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
-    return { ok: false, error: "Gmail isn't connected for this business yet. Connect Gmail in Settings to enable sending." };
-  }
 
-  const refreshToken = decrypt(business.googleRefreshTokenEnc);
+  const connection = await resolveActiveMailboxConnection(business);
+  if (!connection) {
+    return { ok: false, error: "No mailbox is connected for this business yet. Connect Gmail or Microsoft in Settings to enable sending." };
+  }
+  const provider = getMailboxProvider(connection.provider);
+
+  const refreshToken = decrypt(connection.refreshTokenEnc);
   const cadence = getEffectiveCadenceDays(business);
 
   const subject = await subjectFor(estimate);
@@ -78,9 +88,9 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
   let lastError = "Unknown error";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const result = await sendEmail({
+      const result = await provider.send({
         refreshToken,
-        fromEmail: business.googleConnectedEmail,
+        fromEmail: connection.connectedEmail,
         to: estimate.customerEmail,
         subject,
         body: bodyWithSignature(followUp.message, business.emailSignature),
@@ -96,7 +106,10 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
         status: stage.status,
         lastContactDate: todayIso(),
         nextFollowUpDate: stage.nextFollowUpDate,
-        gmailThreadId: result.threadId,
+        // Reused across providers as opaque identifiers, not literally
+        // Gmail-specific despite the column name — see estimate.gmailThreadId's
+        // doc comment in types/estimate.ts.
+        gmailThreadId: result.providerThreadId,
         gmailLastMessageId: result.rfc822MessageId ?? estimate.gmailLastMessageId,
       });
       await clearReminder(business, followUp);
@@ -106,26 +119,31 @@ export async function sendApprovedFollowUp(businessId: string, followUpId: strin
         followUpId,
         estimateId: estimate.id,
         attempt,
-        gmailMessageId: result.gmailMessageId,
+        provider: connection.provider,
+        providerMessageId: result.providerMessageId,
       });
       return { ok: true };
     } catch (error) {
       lastError = error instanceof Error ? error.message : "Unknown error";
 
       if (lastError === "invalid_grant") {
-        await clearGoogleConnection(businessId);
-        logAction("follow-up.send.google-disconnected", { followUpId, estimateId: estimate.id });
+        if (connection.provider === "google") {
+          await clearGoogleConnection(businessId);
+        } else {
+          await deleteMailboxConnection(businessId, connection.provider);
+        }
+        logAction("follow-up.send.mailbox-disconnected", { followUpId, estimateId: estimate.id, provider: connection.provider });
         return {
           ok: false,
-          error: "Google access was revoked. Reconnect Gmail in Settings and try sending again.",
+          error: `${connection.provider === "google" ? "Google" : "Microsoft"} access was revoked. Reconnect in Settings and try sending again.`,
         };
       }
 
-      logAction("follow-up.send.attempt-failed", { followUpId, estimateId: estimate.id, attempt, error: lastError });
+      logAction("follow-up.send.attempt-failed", { followUpId, estimateId: estimate.id, attempt, provider: connection.provider, error: lastError });
     }
   }
 
   await updateFollowUp(businessId, followUpId, { status: "Failed" });
-  logAction("follow-up.send.failed", { followUpId, estimateId: estimate.id, error: lastError });
+  logAction("follow-up.send.failed", { followUpId, estimateId: estimate.id, provider: connection.provider, error: lastError });
   return { ok: false, error: lastError };
 }

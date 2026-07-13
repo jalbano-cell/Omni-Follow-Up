@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import {
   archiveLead,
   assignLead,
@@ -11,18 +12,21 @@ import {
   updateAiInsights,
   regenerateAiInsights,
   createLeadFromSubmission,
-  approveRecommendedAppointment,
-  dismissRecommendedAppointment,
   mergeDuplicateLead,
   dismissDuplicateLead,
   type UpdateAiInsightsInput,
-  type ApproveAppointmentResult,
   type MergeDuplicateResult,
 } from "@/services/leadService";
+import { approveAppointment, dismissRequestedAppointment, type ApproveAppointmentResult } from "@/services/appointmentService";
 import { getBusinessById } from "@/services/business";
 import { parseCsv, csvRowsToLeads } from "@/lib/csv";
 import { getCurrentBusinessId } from "@/lib/session";
 import { logAction } from "@/lib/logger";
+
+/** Resolves the request's own host for building absolute links (unsubscribe, etc.) in outbound emails — see lib/url.ts. */
+async function resolveAppHost(): Promise<string> {
+  return (await headers()).get("host") ?? "localhost:3000";
+}
 
 export async function archiveLeadAction(id: string) {
   const businessId = await getCurrentBusinessId();
@@ -97,15 +101,19 @@ export async function createLeadAction(formData: FormData) {
     throw new Error("Name, email, and message are required.");
   }
 
-  const lead = await createLeadFromSubmission(business, {
-    name,
-    email,
-    phone,
-    company,
-    requestedService,
-    message,
-    leadSource: "Manual Entry",
-  });
+  const lead = await createLeadFromSubmission(
+    business,
+    {
+      name,
+      email,
+      phone,
+      company,
+      requestedService,
+      message,
+      leadSource: "Manual Entry",
+    },
+    await resolveAppHost()
+  );
 
   logAction("lead.manual-create", { leadId: lead.id });
   revalidatePath("/leads");
@@ -129,6 +137,7 @@ export async function importLeadsCsvAction(csvText: string): Promise<CsvImportSu
   }
 
   const rows = csvRowsToLeads(parseCsv(csvText));
+  const appHost = await resolveAppHost();
 
   let imported = 0;
   const skippedRows: string[] = [];
@@ -141,15 +150,19 @@ export async function importLeadsCsvAction(csvText: string): Promise<CsvImportSu
     }
 
     try {
-      await createLeadFromSubmission(business, {
-        name: row.data.name,
-        email: row.data.email,
-        phone: row.data.phone,
-        company: row.data.company,
-        requestedService: row.data.service,
-        message: row.data.message || "(Imported via CSV — no message provided.)",
-        leadSource: "CSV Import",
-      });
+      await createLeadFromSubmission(
+        business,
+        {
+          name: row.data.name,
+          email: row.data.email,
+          phone: row.data.phone,
+          company: row.data.company,
+          requestedService: row.data.service,
+          message: row.data.message || "(Imported via CSV — no message provided.)",
+          leadSource: "CSV Import",
+        },
+        appHost
+      );
       imported += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
@@ -163,19 +176,23 @@ export async function importLeadsCsvAction(csvText: string): Promise<CsvImportSu
   return { imported, skippedRows, errors };
 }
 
-export async function approveRecommendedAppointmentAction(id: string): Promise<ApproveAppointmentResult> {
+/** Approves a Lead's linked requested Appointment (components/leads/pending-appointment-banner.tsx) — same underlying action as app/appointments/actions.ts's approveAppointmentAction, just also revalidating the Lead Details page. */
+export async function approveLeadAppointmentAction(appointmentId: string, leadId: string): Promise<ApproveAppointmentResult> {
   const businessId = await getCurrentBusinessId();
-  const result = await approveRecommendedAppointment(businessId, id);
-  logAction("lead.appointment-approve", { leadId: id, ok: result.ok });
-  revalidatePath(`/leads/${id}`);
+  const appHost = await resolveAppHost();
+  const result = await approveAppointment(businessId, appointmentId, {}, appHost);
+  logAction("appointment.approve", { appointmentId, ok: result.ok });
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath("/appointments");
   return result;
 }
 
-export async function dismissRecommendedAppointmentAction(id: string) {
+export async function dismissLeadAppointmentAction(appointmentId: string, leadId: string) {
   const businessId = await getCurrentBusinessId();
-  await dismissRecommendedAppointment(businessId, id);
-  logAction("lead.appointment-dismiss", { leadId: id });
-  revalidatePath(`/leads/${id}`);
+  await dismissRequestedAppointment(businessId, appointmentId);
+  logAction("appointment.dismiss", { appointmentId });
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath("/appointments");
 }
 
 export async function mergeDuplicateLeadAction(id: string): Promise<MergeDuplicateResult> {

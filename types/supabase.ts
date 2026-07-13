@@ -59,6 +59,103 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          approved_at: string | null
+          completed_at: string | null
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string
+          estimate_id: string | null
+          google_calendar_event_id: string | null
+          id: string
+          lead_id: string | null
+          location: string | null
+          prep_instructions: string | null
+          price: number | null
+          rebook_reminder_sent_at: string | null
+          requested_at: string
+          review_request_sent_at: string | null
+          scheduled_end: string
+          scheduled_start: string
+          service_type: string
+          source_message: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string
+          estimate_id?: string | null
+          google_calendar_event_id?: string | null
+          id?: string
+          lead_id?: string | null
+          location?: string | null
+          prep_instructions?: string | null
+          price?: number | null
+          rebook_reminder_sent_at?: string | null
+          requested_at?: string
+          review_request_sent_at?: string | null
+          scheduled_end: string
+          scheduled_start: string
+          service_type?: string
+          source_message?: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string
+          estimate_id?: string | null
+          google_calendar_event_id?: string | null
+          id?: string
+          lead_id?: string | null
+          location?: string | null
+          prep_instructions?: string | null
+          price?: number | null
+          rebook_reminder_sent_at?: string | null
+          requested_at?: string
+          review_request_sent_at?: string | null
+          scheduled_end?: string
+          scheduled_start?: string
+          service_type?: string
+          source_message?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_templates: {
         Row: {
           body: string
@@ -274,6 +371,68 @@ export type Database = {
           },
         ]
       }
+      lead_classifications: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          from_header: string | null
+          gmail_message_id: string | null
+          gmail_thread_id: string
+          id: string
+          intent: string | null
+          is_lead: boolean | null
+          model_used: string | null
+          raw_response: string | null
+          reason: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          from_header?: string | null
+          gmail_message_id?: string | null
+          gmail_thread_id: string
+          id?: string
+          intent?: string | null
+          is_lead?: boolean | null
+          model_used?: string | null
+          raw_response?: string | null
+          reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          from_header?: string | null
+          gmail_message_id?: string | null
+          gmail_thread_id?: string
+          id?: string
+          intent?: string | null
+          is_lead?: boolean | null
+          model_used?: string | null
+          raw_response?: string | null
+          reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_classifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           ai_category: string | null
@@ -410,6 +569,50 @@ export type Database = {
           },
         ]
       }
+      mailbox_connections: {
+        Row: {
+          connected_at: string
+          connected_email: string
+          created_at: string
+          id: string
+          provider: string
+          refresh_token_enc: string
+          scopes: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          connected_at?: string
+          connected_email: string
+          created_at?: string
+          id?: string
+          provider: string
+          refresh_token_enc: string
+          scopes?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          connected_at?: string
+          connected_email?: string
+          created_at?: string
+          id?: string
+          provider?: string
+          refresh_token_enc?: string
+          scopes?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mailbox_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -515,6 +718,38 @@ export type Database = {
           },
         ]
       }
+      suppressed_contacts: {
+        Row: {
+          email: string
+          id: string
+          reason: string | null
+          suppressed_at: string
+          workspace_id: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          reason?: string | null
+          suppressed_at?: string
+          workspace_id: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          reason?: string | null
+          suppressed_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppressed_contacts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           accepted_at: string | null
@@ -580,11 +815,13 @@ export type Database = {
           google_connected_at: string | null
           google_connected_email: string | null
           google_refresh_token_enc: string | null
+          google_review_url: string | null
           google_scopes: string | null
           id: string
           industry: string | null
           intake_api_key: string | null
           intake_api_key_created_at: string | null
+          mailing_address: string | null
           monitor_gmail_inbox: boolean | null
           notify_on_new_lead: boolean | null
           notify_on_reply: boolean | null
@@ -595,6 +832,8 @@ export type Database = {
           owner_name: string
           password_hash: string
           plan: string
+          rebook_interval_days: number | null
+          rebook_interval_overrides: Json
           session_token_version: number
           status: string
           timezone: string | null
@@ -615,11 +854,13 @@ export type Database = {
           google_connected_at?: string | null
           google_connected_email?: string | null
           google_refresh_token_enc?: string | null
+          google_review_url?: string | null
           google_scopes?: string | null
           id?: string
           industry?: string | null
           intake_api_key?: string | null
           intake_api_key_created_at?: string | null
+          mailing_address?: string | null
           monitor_gmail_inbox?: boolean | null
           notify_on_new_lead?: boolean | null
           notify_on_reply?: boolean | null
@@ -630,6 +871,8 @@ export type Database = {
           owner_name: string
           password_hash: string
           plan?: string
+          rebook_interval_days?: number | null
+          rebook_interval_overrides?: Json
           session_token_version?: number
           status?: string
           timezone?: string | null
@@ -650,11 +893,13 @@ export type Database = {
           google_connected_at?: string | null
           google_connected_email?: string | null
           google_refresh_token_enc?: string | null
+          google_review_url?: string | null
           google_scopes?: string | null
           id?: string
           industry?: string | null
           intake_api_key?: string | null
           intake_api_key_created_at?: string | null
+          mailing_address?: string | null
           monitor_gmail_inbox?: boolean | null
           notify_on_new_lead?: boolean | null
           notify_on_reply?: boolean | null
@@ -665,6 +910,8 @@ export type Database = {
           owner_name?: string
           password_hash?: string
           plan?: string
+          rebook_interval_days?: number | null
+          rebook_interval_overrides?: Json
           session_token_version?: number
           status?: string
           timezone?: string | null

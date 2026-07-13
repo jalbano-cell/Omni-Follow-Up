@@ -51,15 +51,24 @@ export async function verifySessionToken(token: string | null | undefined): Prom
 
 export interface OAuthStatePayload {
   businessId: string;
-  /** Where to send the business back to once the Google OAuth callback completes. */
+  /** Where to send the business back to once the OAuth callback completes. */
   returnTo: string;
+  /**
+   * PKCE code_verifier (lib/pkce.ts) — only set by providers that use PKCE
+   * (Microsoft; Google's flow doesn't need it). Carried statelessly through
+   * the signed state token, same as businessId/returnTo, since this app has
+   * no server-side OAuth session store to hold it in instead. Optional and
+   * ignored by Google's existing flow — fully backward compatible.
+   */
+  codeVerifier?: string;
 }
 
 /**
- * Signed, stateless CSRF token for the Google OAuth redirect round-trip —
- * no server-side state store needed, since the JWT itself carries and
- * verifies the businessId/returnTo it was issued for. Short-lived since the
- * whole redirect-to-Google-and-back only takes a couple of minutes.
+ * Signed, stateless CSRF token for an OAuth redirect round-trip — no
+ * server-side state store needed, since the JWT itself carries and verifies
+ * everything the callback needs (businessId/returnTo, and a PKCE
+ * code_verifier for providers that use one). Short-lived since the whole
+ * redirect-to-provider-and-back only takes a couple of minutes.
  */
 export async function createOAuthStateToken(payload: OAuthStatePayload): Promise<string> {
   return new SignJWT({ ...payload })
@@ -74,7 +83,8 @@ export async function verifyOAuthStateToken(token: string | null | undefined): P
   try {
     const { payload } = await jwtVerify(token, getSecretKey());
     if (typeof payload.businessId !== "string" || typeof payload.returnTo !== "string") return null;
-    return { businessId: payload.businessId, returnTo: payload.returnTo };
+    const codeVerifier = typeof payload.codeVerifier === "string" ? payload.codeVerifier : undefined;
+    return { businessId: payload.businessId, returnTo: payload.returnTo, codeVerifier };
   } catch {
     return null;
   }
@@ -116,6 +126,34 @@ export async function verifyEstimateShareToken(token: string | null | undefined)
       businessId: payload.businessId,
       shareTokenVersion: typeof payload.shareTokenVersion === "number" ? payload.shareTokenVersion : 0,
     };
+  } catch {
+    return null;
+  }
+}
+
+export interface UnsubscribePayload {
+  businessId: string;
+  email: string;
+}
+
+/**
+ * Signed, stateless unsubscribe link embedded in every appointment-lifecycle
+ * automated email (services/emailTemplates/complianceFooter.ts) — CASL
+ * requires this to keep working whenever a recipient clicks it, so unlike
+ * every other token in this file it deliberately carries no expiration.
+ * services/suppression.ts's suppressContact is the only effect of a
+ * successful verify (app/unsubscribe/[token]).
+ */
+export async function createUnsubscribeToken(payload: UnsubscribePayload): Promise<string> {
+  return new SignJWT({ ...payload }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().sign(getSecretKey());
+}
+
+export async function verifyUnsubscribeToken(token: string | null | undefined): Promise<UnsubscribePayload | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, getSecretKey());
+    if (typeof payload.businessId !== "string" || typeof payload.email !== "string") return null;
+    return { businessId: payload.businessId, email: payload.email };
   } catch {
     return null;
   }

@@ -9,7 +9,7 @@ const SIZE_PX = {
 } as const;
 
 /**
- * The OmniFollowUp mark — inlined (not an <img src="/logo.svg">) so each
+ * The Omni Follow Up mark — inlined (not an <img src="/logo.svg">) so each
  * instance gets its own unique gradient id via useId(); the sidebar and
  * mobile header both render a Logo in the DOM simultaneously (one hidden by
  * responsive CSS, not unmounted), so a hardcoded gradient id would collide.
@@ -66,7 +66,7 @@ export function Logo({
             wordmarkClassName
           )}
         >
-          OmniFollowUp
+          Omni Follow Up
         </span>
       )}
     </div>

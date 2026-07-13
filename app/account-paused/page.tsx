@@ -24,7 +24,7 @@ export default async function AccountPausedPage() {
       <div className="w-full max-w-sm text-center">
         <div className="mb-8 flex flex-col items-center gap-2">
           <Logo size="md" withWordmark={false} />
-          <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">OmniFollowUp</h1>
+          <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">Omni Follow Up</h1>
         </div>
 
         <h2 className="mb-2 text-base font-semibold text-foreground">Your account is paused</h2>

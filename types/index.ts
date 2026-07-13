@@ -9,3 +9,5 @@ export * from "./notification";
 export * from "./emailTemplate";
 export * from "./estimateAttachment";
 export * from "./teamMember";
+export * from "./mailboxConnection";
+export * from "./appointment";

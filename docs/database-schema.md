@@ -44,6 +44,10 @@ One row per `(workspace_id, template_key)` override; absence of a row means "use
 
 Metadata rows for files in the private `estimate-attachments` Supabase Storage bucket (`storage_path`, `file_name`, `content_type`, `size_bytes`). Every read/write goes through the service-role client; customer downloads use a short-lived signed URL, never direct bucket access.
 
+## `lead_classifications` (migration `0016`)
+
+Decision log for the inbound-email lead classifier (`services/leadClassification.ts`) — Step 1 only, classify and log, nothing downstream depends on it. One row per `(workspace_id, gmail_thread_id)` (upserted, never duplicated), recording what Claude Haiku decided about a scanned Gmail thread: `is_lead`/`confidence`/`reason`/`intent`, `model_used`, the full `raw_response`, and `status` (`classified` or `unclassified` — the latter on any API/parse failure, retried on the next scan). Also stores a denormalized `subject`/`from_header` (not part of the original spec's column list) purely so `/admin/classifications` can show the source email next to the verdict without a live Gmail re-fetch per row. Deliberately separate from `leads.ai_*` (`services/automation/leadClassifier.ts`) — that's a different pipeline stage (scoring an already-created Lead), and this table never creates, blocks, or alters a Lead row.
+
 ## Migration history
 
 Started on Airtable, migrated to Supabase (dual-write, then full cutover — `airtable_record_id` columns since dropped). All V1.0-roadmap tables/columns above were added across Phases 1, 2 (reused an already-existing but previously-unwired `estimates.lead_id`), 4, 6, and 7. Every session's businessId/leadId/etc. are Supabase-generated UUIDs.

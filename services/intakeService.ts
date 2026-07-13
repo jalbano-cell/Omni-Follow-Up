@@ -42,6 +42,8 @@ export interface IntakeRequest {
   userAgent: string | null;
   /** Which entry point this came through — POST /api/intake (the default) or the inbound webhook. Recorded on the Lead and in the audit trail. */
   source?: LeadSource;
+  /** The request's own host — threaded down to services/leadService.ts's createLeadFromSubmission for building absolute links (unsubscribe, etc.) in outbound emails. See lib/url.ts. */
+  appHost: string;
 }
 
 export type IntakeOutcome =
@@ -123,17 +125,21 @@ export async function processIntake(request: IntakeRequest): Promise<IntakeOutco
 
   let lead;
   try {
-    lead = await createLeadFromSubmission(business, {
-      name,
-      email,
-      phone,
-      company,
-      requestedService,
-      message,
-      leadSource: source,
-      ipAddress: ip ?? undefined,
-      userAgent: userAgent ?? undefined,
-    });
+    lead = await createLeadFromSubmission(
+      business,
+      {
+        name,
+        email,
+        phone,
+        company,
+        requestedService,
+        message,
+        leadSource: source,
+        ipAddress: ip ?? undefined,
+        userAgent: userAgent ?? undefined,
+      },
+      request.appHost
+    );
   } catch (error) {
     // The database write is the one step that must not silently disappear on
     // failure — log the full sanitized payload (not just a summary) so the

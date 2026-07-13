@@ -16,7 +16,7 @@ export default async function SignupPage({
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-2">
           <Logo size="md" withWordmark={false} />
-          <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">OmniFollowUp</h1>
+          <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">Omni Follow Up</h1>
           <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
         <StepIndicator currentStep={1} />

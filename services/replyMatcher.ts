@@ -1,6 +1,6 @@
 import { getEstimates, getReplies, createReply, createNotification } from "@/services/db";
-import { getThreadMessages, extractEmailAddress } from "@/services/gmailInbox";
-import { refreshAccessToken } from "@/services/googleOAuth";
+import { extractEmailAddress } from "@/services/gmailInbox";
+import { getMailboxProvider, resolveActiveMailboxConnection } from "@/services/mailboxProvider";
 import { logEstimateActivity } from "@/services/activityService";
 import { getEffectiveNotifyOnReply } from "@/services/business";
 import { decrypt } from "@/lib/crypto";
@@ -14,20 +14,26 @@ export interface ReplySyncResult {
 }
 
 /**
- * Syncs incoming customer replies for one business. Matches purely by Gmail
- * thread ID (every outbound send already threads onto the estimate) plus
- * the estimate's customerEmail — a message from any other address on the
- * same thread is not treated as a reply. Never changes an Estimate's status
- * or creates a follow-up; a reply is surfaced, not interpreted.
+ * Syncs incoming customer replies for one business, through whichever
+ * mailbox provider it has connected (services/mailboxProvider.ts's
+ * resolveActiveMailboxConnection — Google or Microsoft). Matches purely by
+ * provider thread id (every outbound send already threads onto the
+ * estimate — see types/estimate.ts's gmailThreadId doc comment on why that
+ * column holds either provider's thread id) plus the estimate's
+ * customerEmail — a message from any other address on the same thread is
+ * not treated as a reply. Never changes an Estimate's status or creates a
+ * follow-up; a reply is surfaced, not interpreted.
  *
  * Known limitation: a reply from a different address, or deep in an old
  * part of a long thread, won't be matched — this is a v1 tradeoff for
  * staying simple, not a full inbound-parsing engine.
  */
 export async function syncRepliesForBusiness(business: Business): Promise<ReplySyncResult> {
-  if (!business.googleRefreshTokenEnc) {
+  const connection = await resolveActiveMailboxConnection(business);
+  if (!connection) {
     return { estimatesChecked: 0, created: 0, errors: [] };
   }
+  const provider = getMailboxProvider(connection.provider);
 
   const [estimates, existingReplies] = await Promise.all([
     getEstimates(business.id),
@@ -36,24 +42,24 @@ export async function syncRepliesForBusiness(business: Business): Promise<ReplyS
   const estimatesWithThread = estimates.filter((e) => !!e.gmailThreadId);
   const knownMessageIds = new Set(existingReplies.map((r) => r.gmailMessageId));
 
-  const accessToken = await refreshAccessToken(decrypt(business.googleRefreshTokenEnc));
+  const accessToken = await provider.refresh(decrypt(connection.refreshTokenEnc));
 
   let created = 0;
   const errors: string[] = [];
 
   for (const estimate of estimatesWithThread) {
     try {
-      const messages = await getThreadMessages({ accessToken, threadId: estimate.gmailThreadId! });
+      const messages = await provider.listReplies({ accessToken, threadId: estimate.gmailThreadId! });
       const customerEmail = estimate.customerEmail.toLowerCase();
 
       for (const message of messages) {
-        if (knownMessageIds.has(message.gmailMessageId)) continue;
+        if (knownMessageIds.has(message.providerMessageId)) continue;
         if (extractEmailAddress(message.fromHeader) !== customerEmail) continue;
 
         await createReply(business.id, {
           estimateId: estimate.id,
-          gmailMessageId: message.gmailMessageId,
-          gmailThreadId: message.threadId,
+          gmailMessageId: message.providerMessageId,
+          gmailThreadId: message.providerThreadId,
           fromEmail: extractEmailAddress(message.fromHeader),
           subject: message.subject,
           snippet: message.snippet,
@@ -78,7 +84,7 @@ export async function syncRepliesForBusiness(business: Business): Promise<ReplyS
           }
         }
 
-        knownMessageIds.add(message.gmailMessageId);
+        knownMessageIds.add(message.providerMessageId);
         created += 1;
       }
     } catch (error) {

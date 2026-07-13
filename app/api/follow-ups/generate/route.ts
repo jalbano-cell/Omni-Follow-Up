@@ -3,6 +3,11 @@ import { runDailyFollowUpJob } from "@/services/followupEngine";
 import { runDailyReplySyncJob } from "@/services/replyMatcher";
 import { runDailyGmailLeadCaptureJob } from "@/services/gmailLeadCapture";
 import { runGmailWatchRenewalJob } from "@/services/gmailWatchSync";
+import {
+  runAppointmentCompletionJob,
+  runAppointmentReviewRequestJob,
+  runAppointmentRebookReminderJob,
+} from "@/services/appointmentLifecycle";
 import { getAllActiveBusinesses, getEffectiveTimezone } from "@/services/business";
 import { safeCompare } from "@/lib/timingSafe";
 import { getBearerToken } from "@/lib/apiAuth";
@@ -80,11 +85,26 @@ export async function GET(request: Request) {
     return NextResponse.json({ skipped: true, reason: "no business at 8am local this hour" });
   }
 
+  // Same host every appointment-lifecycle email uses to build its unsubscribe
+  // link (lib/url.ts) — this route's own host, since the cron job has no
+  // per-recipient request to derive one from otherwise.
+  const appHost = new URL(request.url).host;
+
   try {
     const followUpLogs = await runDailyFollowUpJob(dueBusinesses);
     const replySyncLogs = await runDailyReplySyncJob(dueBusinesses);
-    const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(dueBusinesses);
-    return NextResponse.json({ followUps: followUpLogs, replySync: replySyncLogs, gmailLeadCapture: gmailCaptureLogs });
+    const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(dueBusinesses, appHost);
+    const appointmentCompletionLogs = await runAppointmentCompletionJob(dueBusinesses);
+    const appointmentReviewRequestLogs = await runAppointmentReviewRequestJob(dueBusinesses, appHost);
+    const appointmentRebookReminderLogs = await runAppointmentRebookReminderJob(dueBusinesses, appHost);
+    return NextResponse.json({
+      followUps: followUpLogs,
+      replySync: replySyncLogs,
+      gmailLeadCapture: gmailCaptureLogs,
+      appointmentCompletion: appointmentCompletionLogs,
+      appointmentReviewRequest: appointmentReviewRequestLogs,
+      appointmentRebookReminder: appointmentRebookReminderLogs,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

@@ -2,6 +2,7 @@ import { getEstimates, getLeads } from "@/services/db";
 import { listInboxMessageIds, getMessage, extractEmailAddress, extractDisplayName } from "@/services/gmailInbox";
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { createLeadFromSubmission } from "@/services/leadService";
+import { classifyAndLogMessage } from "@/services/leadClassification";
 import { getEffectiveGmailLeadMonitoring } from "@/services/business";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -30,8 +31,15 @@ const LOOKBACK_QUERY = "in:inbox -in:chats -in:sent newer_than:3d";
  * first-contact inquiry. A message on a thread that already belongs to an
  * Estimate (real or a Gmail-lead not yet converted) is skipped here — it's
  * either replyMatcher's job or already has a Lead.
+ *
+ * Also runs services/leadClassification.ts's Claude Haiku classifier on
+ * every candidate here, reusing this same fetched message rather than
+ * re-fetching it — deliberately a side-by-side, log-only step (Step 1: no
+ * gating). It never affects whether a Lead gets created below, and its own
+ * classifyAndLogMessage never throws, so a classification hiccup can't
+ * break lead capture and vice versa.
  */
-export async function captureLeadsFromGmailForBusiness(business: Business): Promise<GmailCaptureResult> {
+export async function captureLeadsFromGmailForBusiness(business: Business, appHost: string): Promise<GmailCaptureResult> {
   if (!business.googleRefreshTokenEnc || !getEffectiveGmailLeadMonitoring(business)) {
     return { messagesScanned: 0, created: 0, errors: [] };
   }
@@ -64,14 +72,20 @@ export async function captureLeadsFromGmailForBusiness(business: Business): Prom
 
       const messageBody = [message.subject, message.bodyText].filter(Boolean).join("\n\n").trim();
 
-      await createLeadFromSubmission(business, {
-        name: extractDisplayName(message.fromHeader),
-        email: fromEmail,
-        message: messageBody || "(No message body.)",
-        leadSource: "Gmail",
-        gmailMessageId: message.gmailMessageId,
-        gmailThreadId: message.threadId,
-      });
+      await classifyAndLogMessage(business.id, message);
+
+      await createLeadFromSubmission(
+        business,
+        {
+          name: extractDisplayName(message.fromHeader),
+          email: fromEmail,
+          message: messageBody || "(No message body.)",
+          leadSource: "Gmail",
+          gmailMessageId: message.gmailMessageId,
+          gmailThreadId: message.threadId,
+        },
+        appHost
+      );
 
       knownThreadIds.add(message.threadId);
       knownMessageIds.add(message.gmailMessageId);
@@ -93,14 +107,14 @@ export interface GmailCaptureLog {
 }
 
 /** Per-business loop, piggybacked on the same daily cron invocation as the follow-up draft/reply-sync jobs — see app/api/follow-ups/generate/route.ts and CLAUDE.md's note on Vercel's Hobby-plan cron limits. */
-export async function runDailyGmailLeadCaptureJob(businesses: Business[]): Promise<GmailCaptureLog[]> {
+export async function runDailyGmailLeadCaptureJob(businesses: Business[], appHost: string): Promise<GmailCaptureLog[]> {
   const logs: GmailCaptureLog[] = [];
 
   for (const business of businesses) {
     const timestamp = new Date().toISOString();
     let log: GmailCaptureLog;
     try {
-      const result = await captureLeadsFromGmailForBusiness(business);
+      const result = await captureLeadsFromGmailForBusiness(business, appHost);
       log = { timestamp, businessId: business.id, messagesScanned: result.messagesScanned, leadsCreated: result.created, errors: result.errors };
     } catch (error) {
       log = { timestamp, businessId: business.id, messagesScanned: 0, leadsCreated: 0, errors: [error instanceof Error ? error.message : "unknown error"] };

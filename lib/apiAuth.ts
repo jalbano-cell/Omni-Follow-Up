@@ -81,6 +81,7 @@ export async function handleLeadIntakeRequest(request: Request, source: LeadSour
     ip: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
     source,
+    appHost: request.headers.get("host") ?? "localhost:3000",
   });
 
   if (!outcome.ok) {

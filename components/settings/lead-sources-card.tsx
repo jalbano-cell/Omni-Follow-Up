@@ -54,7 +54,7 @@ export function LeadSourcesCard({
       <CardHeader className="px-0">
         <CardTitle className="text-base">Lead sources</CardTitle>
         <CardDescription>
-          Gmail is your primary source. These are optional, advanced ways a lead can also enter OmniFollowUp — all
+          Gmail is your primary source. These are optional, advanced ways a lead can also enter Omni Follow Up — all
           funnel into the same pipeline.
         </CardDescription>
       </CardHeader>

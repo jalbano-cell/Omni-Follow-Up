@@ -1,4 +1,4 @@
-import type { EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus, WorkspacePlan } from "@/types";
+import type { AppointmentStatus, EmailTemplateKey, EstimateStatus, FollowUpStatus, LeadStatus, WorkspacePlan } from "@/types";
 
 /** Seat cap (owner + team members, services/userService.ts) per agency-assigned plan tier. Null means no cap. */
 export const PLAN_MAX_USERS: Record<WorkspacePlan, number | null> = {
@@ -106,6 +106,27 @@ export const STATUS_BADGE_VARIANT: Record<EstimateStatus, "default" | "secondary
 /** Every way a Lead can enter the system — kept as a plain string on the Lead record (see types/lead.ts), not a closed DB enum. */
 export const LEAD_SOURCES = ["Website Form", "Gmail", "Manual Entry", "CSV Import", "Webhook"] as const;
 export type LeadSource = (typeof LEAD_SOURCES)[number];
+
+export const APPOINTMENT_STATUSES: AppointmentStatus[] = ["requested", "approved", "completed", "no_show", "cancelled"];
+
+export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, string> = {
+  requested: "Requested",
+  approved: "Approved",
+  completed: "Completed",
+  no_show: "No-show",
+  cancelled: "Cancelled",
+};
+
+export const APPOINTMENT_STATUS_BADGE_VARIANT: Record<
+  AppointmentStatus,
+  "default" | "secondary" | "success" | "warning" | "destructive"
+> = {
+  requested: "warning",
+  approved: "default",
+  completed: "success",
+  no_show: "destructive",
+  cancelled: "secondary",
+};
 
 /** What POST /api/intake records when a submission doesn't specify a source. */
 export const DEFAULT_LEAD_SOURCE: LeadSource = "Website Form";

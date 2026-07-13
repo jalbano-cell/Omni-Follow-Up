@@ -1,4 +1,4 @@
--- OmniFollowUp — initial Supabase schema (Airtable -> Supabase migration, Phase 2)
+-- Omni Follow Up — initial Supabase schema (Airtable -> Supabase migration, Phase 2)
 --
 -- This is a superset of the minimal 7-table spec: every field currently on
 -- Airtable's Businesses/Leads/Estimates/FollowUps/Replies tables is preserved

@@ -4,17 +4,17 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarClock, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { approveRecommendedAppointmentAction, dismissRecommendedAppointmentAction } from "@/app/leads/actions";
+import { approveLeadAppointmentAction, dismissLeadAppointmentAction } from "@/app/leads/actions";
 
-/** Shown on the Lead Details page when auto-booking is off and the customer requested a specific date/time — see services/appointmentBooking.ts's "recommended" outcome. */
-export function PendingAppointmentBanner({ leadId, label }: { leadId: string; label: string }) {
+/** Shown on the Lead Details page when the customer requested a specific date/time and it's still awaiting owner approval — see services/appointmentService.ts's "requested" Appointment status. */
+export function PendingAppointmentBanner({ appointmentId, leadId, label }: { appointmentId: string; leadId: string; label: string }) {
   const [isPending, startTransition] = useTransition();
 
   function approve() {
     startTransition(async () => {
-      const result = await approveRecommendedAppointmentAction(leadId);
+      const result = await approveLeadAppointmentAction(appointmentId, leadId);
       if (result.ok) {
-        toast.success(`Appointment booked for ${result.label}`);
+        toast.success("Appointment approved and confirmation sent");
       } else {
         toast.error(result.error);
       }
@@ -23,8 +23,8 @@ export function PendingAppointmentBanner({ leadId, label }: { leadId: string; la
 
   function dismiss() {
     startTransition(async () => {
-      await dismissRecommendedAppointmentAction(leadId);
-      toast("Recommendation dismissed");
+      await dismissLeadAppointmentAction(appointmentId, leadId);
+      toast("Appointment request dismissed");
     });
   }
 

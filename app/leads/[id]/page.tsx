@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { getLeadDetail } from "@/services/leadService";
 import { getEffectiveTimezone } from "@/services/business";
 import { ACTIONABLE_FOLLOWUP_STATUSES } from "@/config/constants";
-import { formatCurrency, formatDate, zonedDateTimeToUtc, formatZonedDateTime } from "@/lib/date";
+import { formatCurrency, formatDate, formatZonedDateTime } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   }
 
   if (!detail) notFound();
-  const { lead, timeline, linkedEstimate, conversation, upcomingFollowUps, aiInsights, possibleDuplicateOfLead } = detail;
+  const { lead, timeline, linkedEstimate, conversation, upcomingFollowUps, aiInsights, possibleDuplicateOfLead, pendingAppointment } = detail;
 
   const contactInfo: Array<[string, string]> = [
     ["Lead ID", lead.leadId],
@@ -51,8 +51,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const futureFollowUps = upcomingFollowUps.filter((f) => ACTIONABLE_FOLLOWUP_STATUSES.includes(f.status));
 
-  const pendingAppointmentLabel = lead.pendingAppointmentDateTime
-    ? formatZonedDateTime(zonedDateTimeToUtc(lead.pendingAppointmentDateTime, getEffectiveTimezone(business)), getEffectiveTimezone(business))
+  const pendingAppointmentLabel = pendingAppointment
+    ? formatZonedDateTime(new Date(pendingAppointment.scheduledStart), getEffectiveTimezone(business))
     : null;
 
   return (
@@ -66,7 +66,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       </Link>
 
       {possibleDuplicateOfLead && <PossibleDuplicateBanner leadId={lead.id} original={possibleDuplicateOfLead} />}
-      {pendingAppointmentLabel && <PendingAppointmentBanner leadId={lead.id} label={pendingAppointmentLabel} />}
+      {pendingAppointment && pendingAppointmentLabel && (
+        <PendingAppointmentBanner appointmentId={pendingAppointment.id} leadId={lead.id} label={pendingAppointmentLabel} />
+      )}
 
       <PageHeader
         title={lead.name}

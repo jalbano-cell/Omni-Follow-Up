@@ -1,6 +1,6 @@
-# OmniFollowUp Public API (v1)
+# Omni Follow Up Public API (v1)
 
-A versioned REST API for integrating external systems (form builders, other CRMs, phone systems, custom scripts) with OmniFollowUp. Every route lives under `/api/v1/` and is a thin adapter over the same service layer the app itself uses — see `lib/apiAuth.ts` for the shared auth/response helpers.
+A versioned REST API for integrating external systems (form builders, other CRMs, phone systems, custom scripts) with Omni Follow Up. Every route lives under `/api/v1/` and is a thin adapter over the same service layer the app itself uses — see `lib/apiAuth.ts` for the shared auth/response helpers.
 
 ## Authentication
 

@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { createBusinessForAgency, getBusinessByEmail, updateBusiness } from "@/services/business";
+import { createBusinessForAgency, getBusinessByEmail, updateBusiness, getAllActiveBusinesses } from "@/services/business";
 import { createOwnerClaim, getTeamMemberByEmail, TeamMemberEmailInUseError } from "@/services/userService";
 import { buildOnboardingWelcomeEmail } from "@/services/emailTemplates/onboardingWelcome";
 import { sendEmail } from "@/services/gmail";
+import { runDailyGmailLeadCaptureJob } from "@/services/gmailLeadCapture";
 import { decrypt } from "@/lib/crypto";
 import { requireAdmin } from "@/lib/session";
 import { logAction } from "@/lib/logger";
@@ -71,7 +72,7 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
     getTeamMemberByEmail(ownerEmail),
   ]);
   if (existingBusiness || existingMember) {
-    return { error: "That email is already associated with an OmniFollowUp account." };
+    return { error: "That email is already associated with an Omni Follow Up account." };
   }
 
   const business = await createBusinessForAgency({ businessName, ownerName, ownerEmail, plan });
@@ -184,4 +185,32 @@ export async function updateWorkspaceEntitlementAction(workspaceId: string, form
   logAction("admin.workspace-entitlement-updated", { businessId: workspaceId, plan, status });
 
   revalidatePath("/admin");
+}
+
+/**
+ * Manual trigger for tuning the lead classifier's prompt (services/leadClassification.ts)
+ * without waiting for the daily cron (app/api/follow-ups/generate/route.ts,
+ * gated to 8am local per business) to come back around. Reuses the exact
+ * same job the cron calls — services/gmailLeadCapture.ts's
+ * runDailyGmailLeadCaptureJob — for every active business, right now.
+ *
+ * Note this also runs the pre-existing, unrelated Gmail lead-capture step
+ * alongside classification: any qualifying new message still becomes a Lead,
+ * exactly as it would on the next scheduled cron run — this button just
+ * doesn't wait for that. Classification itself never gates or blocks that,
+ * on this run or any other (see the doc comment on classifyAndLogMessage).
+ */
+export async function runLeadClassificationNowAction(): Promise<{ error?: string; summary?: string }> {
+  await requireAdmin();
+
+  const businesses = await getAllActiveBusinesses();
+  const appHost = (await headers()).get("host") ?? "localhost:3000";
+  const logs = await runDailyGmailLeadCaptureJob(businesses, appHost);
+
+  const scanned = logs.reduce((sum, l) => sum + l.messagesScanned, 0);
+  const created = logs.reduce((sum, l) => sum + l.leadsCreated, 0);
+  logAction("admin.lead-classification-run", { businesses: businesses.length, scanned, created });
+
+  revalidatePath("/admin/classifications");
+  return { summary: `Scanned ${scanned} message(s) across ${businesses.length} business(es) — ${created} new lead(s) created.` };
 }

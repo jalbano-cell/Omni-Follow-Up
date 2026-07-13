@@ -65,4 +65,42 @@ export const env = {
   get adminWorkspaceId(): string | undefined {
     return process.env.ADMIN_WORKSPACE_ID || undefined;
   },
+  /**
+   * Anthropic API key for the inbound-email lead classifier
+   * (services/leadClassification.ts, Claude Haiku). Optional, unlike
+   * authSecret/googleClientId/etc: a missing key must not break the daily
+   * cron or Gmail lead capture, which don't depend on classification —
+   * services/anthropic.ts logs and skips instead of throwing when this is unset.
+   */
+  get anthropicApiKey(): string | undefined {
+    return process.env.ANTHROPIC_API_KEY || undefined;
+  },
+  /**
+   * Microsoft identity platform (Entra) OAuth client for the second mailbox
+   * provider (services/microsoftOAuth.ts) — mirrors googleClientId/Secret's
+   * role, but optional: unlike Google, Microsoft isn't required for the app
+   * to run. app/api/oauth/microsoft/start returns a clear error if these
+   * aren't set rather than the app failing to boot.
+   */
+  get microsoftClientId(): string | undefined {
+    return process.env.MICROSOFT_CLIENT_ID || undefined;
+  },
+  get microsoftClientSecret(): string | undefined {
+    return process.env.MICROSOFT_CLIENT_SECRET || undefined;
+  },
+  /** Azure AD tenant to authorize against — "common" (the default) accepts both personal Microsoft accounts and work/school accounts through the same app registration; see config/microsoft.ts. */
+  get microsoftTenant(): string {
+    return process.env.MICROSOFT_TENANT || "common";
+  },
+  /**
+   * Optional explicit override for the OAuth redirect_uri — if unset, the
+   * Microsoft OAuth routes derive it from the incoming request's own host
+   * (new URL("/api/oauth/microsoft/callback", request.url)), same as
+   * Google's flow does. Set this if your Azure AD app registration needs an
+   * exact, single registered redirect URI rather than accepting whichever
+   * host the request came in on.
+   */
+  get microsoftRedirectUri(): string | undefined {
+    return process.env.MICROSOFT_REDIRECT_URI || undefined;
+  },
 };

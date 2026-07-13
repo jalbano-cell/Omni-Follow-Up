@@ -85,4 +85,9 @@ describe("oauth state tokens", () => {
     const token = await createOAuthStateToken({ businessId: "biz-1", returnTo: "/settings" });
     expect(await verifyOAuthStateToken(token)).toEqual({ businessId: "biz-1", returnTo: "/settings" });
   });
+
+  it("round-trips a PKCE codeVerifier (Microsoft's flow)", async () => {
+    const token = await createOAuthStateToken({ businessId: "biz-1", returnTo: "/settings", codeVerifier: "verifier-abc123" });
+    expect(await verifyOAuthStateToken(token)).toEqual({ businessId: "biz-1", returnTo: "/settings", codeVerifier: "verifier-abc123" });
+  });
 });

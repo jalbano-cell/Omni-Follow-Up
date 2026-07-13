@@ -29,7 +29,7 @@ export default async function OnboardingGmailPage({
           <div>
             <h2 className="font-heading text-base font-semibold text-foreground">Connect your Google account</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              This is the only setup OmniFollowUp needs. Once connected, we start watching your inbox for new
+              This is the only setup Omni Follow Up needs. Once connected, we start watching your inbox for new
               customer inquiries and automatically create leads from them — no website changes, no API keys.
               We can also send approved follow-ups from your own address and add Calendar reminders. Nothing
               sends automatically — you approve every follow-up before it goes out.

@@ -7,10 +7,12 @@ import { todayIso } from "@/lib/date";
 import type { Database } from "@/types/supabase";
 import type {
   ActivityLogEntry,
+  Appointment,
   Estimate,
   FollowUp,
   Lead,
   NewActivityLogEntryInput,
+  NewAppointmentInput,
   NewEstimateInput,
   NewFollowUpInput,
   NewLeadInput,
@@ -18,6 +20,7 @@ import type {
   NewReplyInput,
   Notification,
   Reply,
+  UpdateAppointmentInput,
   UpdateEstimateInput,
   UpdateFollowUpInput,
   UpdateLeadInput,
@@ -38,6 +41,7 @@ type ReplyRow = Database["public"]["Tables"]["replies"]["Row"];
 type LeadRow = Database["public"]["Tables"]["leads"]["Row"];
 type ActivityLogRow = Database["public"]["Tables"]["activity_logs"]["Row"];
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
+type AppointmentRow = Database["public"]["Tables"]["appointments"]["Row"];
 
 function toEstimate(row: EstimateRow): Estimate {
   return {
@@ -123,8 +127,6 @@ function toLead(row: LeadRow): Lead {
     aiResponseUrgencyReason: row.ai_response_urgency_reason,
     aiGeneratedAt: row.ai_generated_at,
     aiStatus: row.ai_status as Lead["aiStatus"],
-    pendingAppointmentDateTime: row.pending_appointment_date_time,
-    pendingAppointmentDurationMinutes: row.pending_appointment_duration_minutes,
     gmailMessageId: row.gmail_message_id,
     gmailThreadId: row.gmail_thread_id,
     possibleDuplicateOfLeadId: row.possible_duplicate_of_lead_id,
@@ -150,6 +152,33 @@ function toNotification(row: NotificationRow): Notification {
     type: row.type,
     message: row.message,
     isRead: row.is_read,
+    createdAt: row.created_at,
+  };
+}
+
+function toAppointment(row: AppointmentRow): Appointment {
+  return {
+    id: row.id,
+    businessId: row.workspace_id,
+    leadId: row.lead_id,
+    estimateId: row.estimate_id,
+    customerName: row.customer_name,
+    customerEmail: row.customer_email,
+    customerPhone: row.customer_phone,
+    serviceType: row.service_type,
+    status: row.status as Appointment["status"],
+    requestedAt: row.requested_at,
+    scheduledStart: row.scheduled_start,
+    scheduledEnd: row.scheduled_end,
+    approvedAt: row.approved_at,
+    completedAt: row.completed_at,
+    googleCalendarEventId: row.google_calendar_event_id,
+    price: row.price,
+    location: row.location,
+    prepInstructions: row.prep_instructions,
+    sourceMessage: row.source_message,
+    reviewRequestSentAt: row.review_request_sent_at,
+    rebookReminderSentAt: row.rebook_reminder_sent_at,
     createdAt: row.created_at,
   };
 }
@@ -442,9 +471,6 @@ export async function updateLead(businessId: string, id: string, input: UpdateLe
   if (input.aiResponseUrgencyReason !== undefined) fields.ai_response_urgency_reason = input.aiResponseUrgencyReason;
   if (input.aiGeneratedAt !== undefined) fields.ai_generated_at = input.aiGeneratedAt;
   if (input.aiStatus !== undefined) fields.ai_status = input.aiStatus;
-  if (input.pendingAppointmentDateTime !== undefined) fields.pending_appointment_date_time = input.pendingAppointmentDateTime;
-  if (input.pendingAppointmentDurationMinutes !== undefined)
-    fields.pending_appointment_duration_minutes = input.pendingAppointmentDurationMinutes;
   if (input.possibleDuplicateOfLeadId !== undefined) fields.possible_duplicate_of_lead_id = input.possibleDuplicateOfLeadId;
 
   const row = await updateRow("leads", id, fields, { workspace_id: businessId });
@@ -518,4 +544,88 @@ export async function markAllNotificationsRead(businessId: string): Promise<numb
   const unread = (await getNotifications(businessId)).filter((n) => !n.isRead);
   await Promise.all(unread.map((n) => updateRow("notifications", n.id, { is_read: true }, { workspace_id: businessId })));
   return unread.length;
+}
+
+// ---------------------------------------------------------------------------
+// Appointments
+// ---------------------------------------------------------------------------
+
+export async function getAppointments(businessId: string): Promise<Appointment[]> {
+  const rows = await selectWhere("appointments", { workspace_id: businessId }, { orderBy: "scheduled_start", ascending: false });
+  return rows.map(toAppointment);
+}
+
+/** Direct-id lookup — ownership verified against the fetched row, same rationale as getEstimate. */
+export async function getAppointment(businessId: string, id: string): Promise<Appointment | null> {
+  const row = await selectById("appointments", id);
+  if (!row || row.workspace_id !== businessId) return null;
+  return toAppointment(row);
+}
+
+export async function getAppointmentsForLead(businessId: string, leadId: string): Promise<Appointment[]> {
+  const rows = await selectWhere("appointments", { workspace_id: businessId, lead_id: leadId });
+  return rows.map(toAppointment);
+}
+
+/**
+ * Every future (not yet started), still-live appointment for this contact —
+ * used by services/appointmentLifecycle.ts's rebook-reminder job to avoid
+ * nagging a customer who's already back on the calendar. Filters in
+ * application code (case-insensitive email match, status/time window) rather
+ * than in the query since selectWhere only supports equality matches.
+ */
+export async function getFutureAppointmentsForContact(
+  businessId: string,
+  email: string,
+  excludeId?: string
+): Promise<Appointment[]> {
+  const all = await getAppointments(businessId);
+  const now = new Date().toISOString();
+  const normalizedEmail = email.trim().toLowerCase();
+  return all.filter(
+    (a) =>
+      a.id !== excludeId &&
+      a.customerEmail.trim().toLowerCase() === normalizedEmail &&
+      (a.status === "requested" || a.status === "approved") &&
+      a.scheduledStart > now
+  );
+}
+
+export async function createAppointment(businessId: string, input: NewAppointmentInput): Promise<Appointment> {
+  const row = await insertRow("appointments", {
+    workspace_id: businessId,
+    lead_id: input.leadId ?? null,
+    estimate_id: input.estimateId ?? null,
+    customer_name: input.customerName,
+    customer_email: input.customerEmail,
+    customer_phone: input.customerPhone ?? "",
+    service_type: input.serviceType,
+    scheduled_start: input.scheduledStart,
+    scheduled_end: input.scheduledEnd,
+    source_message: input.sourceMessage ?? "",
+  });
+  return toAppointment(row);
+}
+
+export async function updateAppointment(businessId: string, id: string, input: UpdateAppointmentInput): Promise<Appointment> {
+  const existing = await getAppointment(businessId, id);
+  if (!existing) {
+    throw new Error("Appointment not found for this business.");
+  }
+
+  const fields: Database["public"]["Tables"]["appointments"]["Update"] = {};
+  if (input.status !== undefined) fields.status = input.status;
+  if (input.approvedAt !== undefined) fields.approved_at = input.approvedAt;
+  if (input.completedAt !== undefined) fields.completed_at = input.completedAt;
+  if (input.googleCalendarEventId !== undefined) fields.google_calendar_event_id = input.googleCalendarEventId;
+  if (input.price !== undefined) fields.price = input.price;
+  if (input.location !== undefined) fields.location = input.location;
+  if (input.prepInstructions !== undefined) fields.prep_instructions = input.prepInstructions;
+  if (input.scheduledStart !== undefined) fields.scheduled_start = input.scheduledStart;
+  if (input.scheduledEnd !== undefined) fields.scheduled_end = input.scheduledEnd;
+  if (input.reviewRequestSentAt !== undefined) fields.review_request_sent_at = input.reviewRequestSentAt;
+  if (input.rebookReminderSentAt !== undefined) fields.rebook_reminder_sent_at = input.rebookReminderSentAt;
+
+  const row = await updateRow("appointments", id, fields, { workspace_id: businessId });
+  return toAppointment(row);
 }
