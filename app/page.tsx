@@ -8,6 +8,7 @@ import {
   BarChart3,
   Inbox,
   CalendarClock,
+  CalendarCheck,
   PieChart,
   Activity,
   MessageSquarePlus,
@@ -24,14 +25,16 @@ import { Button } from "@/components/ui/button";
 import { getDashboardStats, getUpcomingFollowUps, getRecentActivity, getFollowUpFunnel } from "@/services/analytics";
 import { getFollowUpQueue } from "@/services/followupEngine";
 import { getReplyInbox } from "@/services/replyMatcher";
-import { getEstimates, getLeads } from "@/services/db";
-import { formatCurrency, formatDate } from "@/lib/date";
+import { getEstimates, getLeads, getAppointments } from "@/services/db";
+import { getEffectiveTimezone } from "@/services/business";
+import { formatCurrency, formatDate, formatZonedDateTime } from "@/lib/date";
 import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { id: businessId } = await requireOnboardedBusiness();
+  const business = await requireOnboardedBusiness();
+  const businessId = business.id;
 
   let stats;
   let followUpQueue;
@@ -41,9 +44,10 @@ export default async function DashboardPage() {
   let funnel;
   let recentActivity;
   let newLeads;
+  let pendingAppointments;
 
   try {
-    [stats, followUpQueue, recentEstimates, unreadReplies, upcomingFollowUps, funnel, recentActivity, newLeads] =
+    [stats, followUpQueue, recentEstimates, unreadReplies, upcomingFollowUps, funnel, recentActivity, newLeads, pendingAppointments] =
       await Promise.all([
         getDashboardStats(businessId),
         getFollowUpQueue(businessId),
@@ -53,6 +57,7 @@ export default async function DashboardPage() {
         getFollowUpFunnel(businessId),
         getRecentActivity(businessId, 8),
         getLeads(businessId).then((leads) => leads.filter((l) => l.status === "New Inquiry")),
+        getAppointments(businessId).then((appointments) => appointments.filter((a) => a.status === "requested")),
       ]);
   } catch (error) {
     return (
@@ -76,20 +81,39 @@ export default async function DashboardPage() {
         }
       />
 
-      {newLeads.length > 0 && (
-        <Link
-          href="/leads"
-          className="mb-6 flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 transition-colors hover:bg-warning/15"
-        >
-          <MessageSquarePlus className="size-4.5 shrink-0 text-warning" strokeWidth={2} />
-          <p className="text-sm text-foreground">
-            <span className="font-medium">
-              {newLeads.length} new {newLeads.length === 1 ? "lead" : "leads"}
-            </span>{" "}
-            waiting for review.
-          </p>
-          <ArrowRight className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
-        </Link>
+      {(newLeads.length > 0 || pendingAppointments.length > 0) && (
+        <div className="mb-6 flex flex-col gap-3">
+          {newLeads.length > 0 && (
+            <Link
+              href="/leads"
+              className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 transition-colors hover:bg-warning/15"
+            >
+              <MessageSquarePlus className="size-4.5 shrink-0 text-warning" strokeWidth={2} />
+              <p className="text-sm text-foreground">
+                <span className="font-medium">
+                  {newLeads.length} new {newLeads.length === 1 ? "lead" : "leads"}
+                </span>{" "}
+                waiting for review.
+              </p>
+              <ArrowRight className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
+          {pendingAppointments.length > 0 && (
+            <Link
+              href="/appointments"
+              className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 transition-colors hover:bg-warning/15"
+            >
+              <CalendarCheck className="size-4.5 shrink-0 text-warning" strokeWidth={2} />
+              <p className="text-sm text-foreground">
+                <span className="font-medium">
+                  {pendingAppointments.length} appointment{pendingAppointments.length === 1 ? "" : "s"}
+                </span>{" "}
+                waiting for approval.
+              </p>
+              <ArrowRight className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -225,6 +249,45 @@ export default async function DashboardPage() {
                       <LeadStatusBadge status={lead.status} />
                       <LeadRowActions lead={lead} />
                     </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card className="py-5">
+          <CardHeader className="flex flex-row items-center justify-between px-5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarCheck className="size-4 text-muted-foreground" />
+              Pending appointment requests
+            </CardTitle>
+            <Button variant="ghost" size="sm" render={<Link href="/appointments" />}>
+              View all <ArrowRight className="size-3.5" />
+            </Button>
+          </CardHeader>
+          <CardContent className="px-5">
+            {pendingAppointments.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No appointment requests waiting — they show up here as customers book through your website.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {pendingAppointments.slice(0, 5).map((appointment) => (
+                  <li key={appointment.id} className="flex items-center justify-between py-3">
+                    <Link href="/appointments" className="min-w-0 hover:opacity-80">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {appointment.customerName}
+                        {appointment.serviceType && (
+                          <span className="font-normal text-muted-foreground"> · {appointment.serviceType}</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatZonedDateTime(new Date(appointment.scheduledStart), getEffectiveTimezone(business))}
+                      </p>
+                    </Link>
                   </li>
                 ))}
               </ul>
