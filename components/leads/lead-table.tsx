@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,15 @@ import type { Lead, LeadStatus } from "@/types";
 const STATUS_FILTERS: Array<LeadStatus | "All"> = ["All", ...LEAD_STATUSES];
 const SOURCE_FILTERS: Array<LeadSource | "All"> = ["All", ...LEAD_SOURCES];
 
-export function LeadTable({ leads, estimatesEnabled = true }: { leads: Lead[]; estimatesEnabled?: boolean }) {
+export function LeadTable({ leads: leadsProp, estimatesEnabled = true }: { leads: Lead[]; estimatesEnabled?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "All">("New Inquiry");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "All">("All");
+  // Local copy so an archive can update this list's rendering the instant the
+  // server confirms it, rather than waiting for the parent Server Component
+  // to re-fetch and re-render (see lead-row-actions.tsx's onArchived doc
+  // comment for why that round-trip alone reads as "the button is broken").
+  const [leads, setLeads] = useState(leadsProp);
+  useEffect(() => setLeads(leadsProp), [leadsProp]);
 
   const filtered = useMemo(
     () =>
@@ -122,7 +128,13 @@ export function LeadTable({ leads, estimatesEnabled = true }: { leads: Lead[]; e
                     <LeadStatusBadge status={lead.status} />
                   </TableCell>
                   <TableCell>
-                    <LeadRowActions lead={lead} estimatesEnabled={estimatesEnabled} />
+                    <LeadRowActions
+                      lead={lead}
+                      estimatesEnabled={estimatesEnabled}
+                      onArchived={() =>
+                        setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status: "Archived" } : l)))
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))}

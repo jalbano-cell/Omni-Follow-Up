@@ -13,18 +13,33 @@ export function LeadRowActions({
   lead,
   showView = true,
   estimatesEnabled = true,
+  onArchived,
 }: {
   lead: Lead;
   showView?: boolean;
   /** Hides "Convert to Estimate" for a workspace the agency has restricted to productMode "appointments_only" — see lib/session.ts's requireEstimatesEnabled. */
   estimatesEnabled?: boolean;
+  /**
+   * Called immediately after a successful archive, before the server's own
+   * revalidatePath-driven refresh lands — lets a list (lead-table.tsx, the
+   * Dashboard's New Leads card) update its own rendered rows right away
+   * instead of waiting on a full round-trip, so a slow network doesn't read
+   * as "the button doesn't work" and invite a flurry of repeat clicks on
+   * other rows.
+   */
+  onArchived?: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
   function archive() {
     startTransition(async () => {
-      await archiveLeadAction(lead.id);
-      toast.success("Lead archived");
+      try {
+        await archiveLeadAction(lead.id);
+        onArchived?.();
+        toast.success("Lead archived");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to archive lead");
+      }
     });
   }
 

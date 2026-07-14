@@ -17,8 +17,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/estimates/status-badge";
-import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
-import { LeadRowActions } from "@/components/leads/lead-row-actions";
+import { NewLeadsCard } from "@/components/dashboard/new-leads-card";
 import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -244,45 +243,7 @@ export default async function DashboardPage() {
       )}
 
       <div className="mt-6">
-        <Card className="py-5">
-          <CardHeader className="flex flex-row items-center justify-between px-5">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MessageSquarePlus className="size-4 text-muted-foreground" />
-              New Leads
-            </CardTitle>
-            <Button variant="ghost" size="sm" render={<Link href="/leads" />}>
-              View all <ArrowRight className="size-3.5" />
-            </Button>
-          </CardHeader>
-          <CardContent className="px-5">
-            {newLeads.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No new leads. Once your website&apos;s contact form submits one, it&apos;ll show up here within
-                seconds.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {newLeads.slice(0, 5).map((lead) => (
-                  <li key={lead.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Link href={`/leads/${lead.id}`} className="min-w-0 hover:opacity-80">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {lead.name}
-                        {lead.company && <span className="font-normal text-muted-foreground"> · {lead.company}</span>}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {lead.requestedService || "General inquiry"} · {formatDate(lead.createdTime)}
-                      </p>
-                    </Link>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <LeadStatusBadge status={lead.status} />
-                      <LeadRowActions lead={lead} estimatesEnabled={showEstimates} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <NewLeadsCard leads={newLeads} estimatesEnabled={showEstimates} />
       </div>
 
       {showAppointments && (
