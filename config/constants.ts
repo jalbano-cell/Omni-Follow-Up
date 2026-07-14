@@ -40,6 +40,12 @@ export const DEFAULT_WORKING_HOURS_END = 17;
 /** Hours before an approved appointment's scheduledStart its pre-appointment reminder drafts, when a business hasn't set its own. See services/business.ts's getEffectiveReminderHoursBefore. */
 export const DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE = 24;
 
+/** Accent color used in every automated email's HTML rendering (services/emailTemplates/emailLayout.ts), when a business hasn't set its own. Approximates app/globals.css's --primary as a hex value — oklch() isn't supported in email HTML. See services/business.ts's getEffectiveEmailAccentColor. */
+export const DEFAULT_EMAIL_ACCENT_COLOR = "#4338CA";
+
+/** A leading "#" plus exactly 6 hex digits — the format every browser's native `<input type="color">` emits and the only shape this app accepts for `email_accent_color`. */
+export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
 /** Curated timezone options for the Settings/onboarding picker — the North American markets this product targets. */
 export const TIMEZONE_OPTIONS = [
   { value: "America/Toronto", label: "Eastern Time (Toronto)" },

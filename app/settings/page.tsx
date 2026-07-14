@@ -41,6 +41,7 @@ import {
   getEffectiveNotifyOnNewLead,
   getEffectiveNotifyOnReply,
   getEffectiveGmailLeadMonitoring,
+  getEffectiveEmailAccentColor,
 } from "@/services/business";
 import { listEmailTemplates } from "@/services/emailTemplateService";
 import { getTeamMembersForBusiness } from "@/services/userService";
@@ -53,6 +54,7 @@ import {
   updateCalendarIdAction,
   updateScheduleAction,
   updateEmailSignatureAction,
+  updateEmailBrandingAction,
   updateAppointmentLifecycleAction,
   updateNotificationPreferencesAction,
   updateGmailLeadMonitoringAction,
@@ -206,6 +208,23 @@ export default async function SettingsPage({
                 rows={4}
               />
               <SubmitButton>Save signature</SubmitButton>
+            </form>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="mb-3 text-sm font-semibold text-foreground">Email accent color</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Used as the header color and link color in every automated email you send — the lead acknowledgment,
+              appointment emails, and your own new-inquiry notification.
+            </p>
+            <form action={updateEmailBrandingAction} className="flex items-center gap-3">
+              <input
+                type="color"
+                name="emailAccentColor"
+                defaultValue={getEffectiveEmailAccentColor(business)}
+                className="h-9 w-14 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-1"
+              />
+              <SubmitButton>Save color</SubmitButton>
             </form>
           </div>
         </SettingsSection>

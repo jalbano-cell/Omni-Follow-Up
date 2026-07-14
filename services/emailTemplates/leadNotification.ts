@@ -1,4 +1,5 @@
-import { escapeHtml, renderEmailShell, ACCENT_COLOR, TEXT_COLOR, MUTED_COLOR, BORDER_COLOR } from "@/services/emailTemplates/emailLayout";
+import { escapeHtml, renderEmailShell, TEXT_COLOR, MUTED_COLOR, BORDER_COLOR } from "@/services/emailTemplates/emailLayout";
+import { getEffectiveEmailAccentColor } from "@/services/business";
 import { buildAbsoluteUrl } from "@/lib/url";
 import type { Business, Lead } from "@/types";
 
@@ -46,11 +47,12 @@ export function buildLeadNotificationEmail(business: Business, lead: Lead, appHo
     .join("");
 
   const leadUrl = buildAbsoluteUrl(appHost, `/leads/${lead.id}`);
+  const accentColor = getEffectiveEmailAccentColor(business);
 
   const html = renderEmailShell(
     business.businessName,
     `
-    <p style="margin:0 0 4px;font-size:13px;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;color:${ACCENT_COLOR};">New website inquiry</p>
+    <p style="margin:0 0 4px;font-size:13px;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;color:${accentColor};">New website inquiry</p>
     <p style="margin:0 0 20px;font-size:20px;font-weight:600;color:${TEXT_COLOR};">${escapeHtml(lead.name)}</p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
@@ -68,12 +70,13 @@ export function buildLeadNotificationEmail(business: Business, lead: Lead, appHo
 
     <table role="presentation" cellpadding="0" cellspacing="0">
       <tr>
-        <td style="border-radius:8px;background-color:${ACCENT_COLOR};">
+        <td style="border-radius:8px;background-color:${accentColor};">
           <a href="${leadUrl}" style="display:inline-block;padding:10px 20px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">View lead &rarr;</a>
         </td>
       </tr>
     </table>
-    `
+    `,
+    accentColor
   );
 
   return { subject: "New Website Inquiry", body, html };

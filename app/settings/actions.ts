@@ -7,7 +7,7 @@ import { upsertEmailTemplate, resetEmailTemplate } from "@/services/emailTemplat
 import { inviteTeamMember, removeTeamMember, TeamMemberLimitExceededError, TeamMemberEmailInUseError } from "@/services/userService";
 import { requireOwner } from "@/lib/session";
 import { logAction } from "@/lib/logger";
-import { SERVICE_TYPES, TIMEZONE_OPTIONS } from "@/config/constants";
+import { SERVICE_TYPES, TIMEZONE_OPTIONS, HEX_COLOR_PATTERN } from "@/config/constants";
 import type { EmailTemplateKey } from "@/types";
 
 /** Every Settings action is owner-only (lib/session.ts's requireOwner) — Server Actions are directly callable independent of which page rendered the form, so the page-level redirect in app/settings/page.tsx isn't sufficient on its own. */
@@ -71,6 +71,19 @@ export async function updateEmailSignatureAction(formData: FormData) {
 
   await updateBusiness(businessId, { emailSignature: emailSignature || null });
   logAction("settings.signature-update", { businessId });
+  revalidatePath("/settings");
+}
+
+export async function updateEmailBrandingAction(formData: FormData) {
+  const businessId = await getCurrentBusinessId();
+  const emailAccentColor = String(formData.get("emailAccentColor") ?? "").trim();
+
+  if (emailAccentColor && !HEX_COLOR_PATTERN.test(emailAccentColor)) {
+    throw new Error("Accent color must be a hex value like #4338CA.");
+  }
+
+  await updateBusiness(businessId, { emailAccentColor: emailAccentColor || null });
+  logAction("settings.email-branding-update", { businessId });
   revalidatePath("/settings");
 }
 

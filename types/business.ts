@@ -76,6 +76,8 @@ export interface Business {
   status: WorkspaceStatus;
   /** Agency-assigned product surface restriction. Defaults to "both" — see WorkspaceProductMode. */
   productMode: WorkspaceProductMode;
+  /** Hex color (e.g. "#4338CA") used as the accent in every automated email's HTML rendering (services/emailTemplates/emailLayout.ts); null = DEFAULT_EMAIL_ACCENT_COLOR. See getEffectiveEmailAccentColor. */
+  emailAccentColor: string | null;
 }
 
 export type NewBusinessInput = Pick<Business, "businessName" | "ownerName" | "ownerEmail" | "passwordHash">;

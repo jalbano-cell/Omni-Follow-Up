@@ -16,7 +16,7 @@ import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/s
 import { renderEmailHtml } from "@/services/emailTemplates/emailLayout";
 import { buildLeadNotificationEmail } from "@/services/emailTemplates/leadNotification";
 import { createAppointmentFromLead } from "@/services/appointmentService";
-import { getEffectiveNotifyOnNewLead } from "@/services/business";
+import { getEffectiveNotifyOnNewLead, getEffectiveEmailAccentColor } from "@/services/business";
 import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
@@ -128,7 +128,7 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead, appHo
       to: lead.email,
       subject: content.subject,
       body: content.body,
-      htmlBody: renderEmailHtml(business.businessName, content.body),
+      htmlBody: renderEmailHtml(business.businessName, content.body, getEffectiveEmailAccentColor(business)),
     });
     await logLeadActivity(
       business.id,

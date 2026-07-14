@@ -816,6 +816,7 @@ export type Database = {
           business_name: string
           calendar_id: string | null
           created_at: string
+          email_accent_color: string | null
           email_signature: string | null
           follow_up_cadence_followup1_days: number | null
           follow_up_cadence_followup2_days: number | null
@@ -857,6 +858,7 @@ export type Database = {
           business_name: string
           calendar_id?: string | null
           created_at?: string
+          email_accent_color?: string | null
           email_signature?: string | null
           follow_up_cadence_followup1_days?: number | null
           follow_up_cadence_followup2_days?: number | null
@@ -898,6 +900,7 @@ export type Database = {
           business_name?: string
           calendar_id?: string | null
           created_at?: string
+          email_accent_color?: string | null
           email_signature?: string | null
           follow_up_cadence_followup1_days?: number | null
           follow_up_cadence_followup2_days?: number | null

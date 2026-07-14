@@ -1,5 +1,5 @@
 import { getAppointments, updateAppointment, getFutureAppointmentsForContact } from "@/services/db";
-import { getEffectiveRebookIntervalDays, getEffectiveReminderHoursBefore, getEffectiveTimezone } from "@/services/business";
+import { getEffectiveRebookIntervalDays, getEffectiveReminderHoursBefore, getEffectiveTimezone, getEffectiveEmailAccentColor } from "@/services/business";
 import { isContactSuppressed } from "@/services/suppression";
 import { sendEmail } from "@/services/gmail";
 import { createUnsubscribeToken } from "@/lib/auth";
@@ -184,7 +184,7 @@ export async function runAppointmentReviewRequestJob(businesses: Business[], app
                 to: appointment.customerEmail,
                 subject: content.subject,
                 body: content.body,
-                htmlBody: renderEmailHtml(business.businessName, content.body),
+                htmlBody: renderEmailHtml(business.businessName, content.body, getEffectiveEmailAccentColor(business)),
               });
             } catch (error) {
               logAction("appointment-lifecycle.review-request-send-failed", {
@@ -242,7 +242,7 @@ export async function runAppointmentRebookReminderJob(businesses: Business[], ap
                 to: appointment.customerEmail,
                 subject: content.subject,
                 body: content.body,
-                htmlBody: renderEmailHtml(business.businessName, content.body),
+                htmlBody: renderEmailHtml(business.businessName, content.body, getEffectiveEmailAccentColor(business)),
               });
             } catch (error) {
               logAction("appointment-lifecycle.rebook-reminder-send-failed", {

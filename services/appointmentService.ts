@@ -1,6 +1,6 @@
 import { listBusyIntervals, createEvent, deleteEvent } from "@/services/calendar";
 import { refreshAccessToken } from "@/services/googleOAuth";
-import { getBusinessById, getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours } from "@/services/business";
+import { getBusinessById, getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours, getEffectiveEmailAccentColor } from "@/services/business";
 import { parseRequestedAppointment } from "@/services/automation/appointmentParser";
 import { createAppointment, updateAppointment, getAppointment, getFutureAppointmentsForContact, createNotification } from "@/services/db";
 import { logLeadActivity } from "@/services/activityService";
@@ -160,7 +160,7 @@ export async function createAppointmentFromLead(business: Business, lead: Lead, 
           to: lead.email,
           subject: content.subject,
           body: content.body,
-          htmlBody: renderEmailHtml(business.businessName, content.body),
+          htmlBody: renderEmailHtml(business.businessName, content.body, getEffectiveEmailAccentColor(business)),
         });
       }
 
@@ -292,7 +292,7 @@ export async function approveAppointment(
       to: appointment.customerEmail,
       subject: content.subject,
       body: content.body,
-      htmlBody: renderEmailHtml(business.businessName, content.body),
+      htmlBody: renderEmailHtml(business.businessName, content.body, getEffectiveEmailAccentColor(business)),
     });
   } catch (error) {
     logAction("appointment.confirmation-send-failed", {
@@ -444,7 +444,7 @@ export async function sendReminder(businessId: string, id: string, appHost: stri
         to: appointment.customerEmail,
         subject: APPOINTMENT_REMINDER_SUBJECT,
         body,
-        htmlBody: renderEmailHtml(business.businessName, body),
+        htmlBody: renderEmailHtml(business.businessName, body, getEffectiveEmailAccentColor(business)),
       });
       const updated = await updateAppointment(businessId, id, { reminderStatus: "sent", reminderSentAt: new Date().toISOString() });
       logAction("appointment.reminder-send.success", { businessId, appointmentId: id, attempt });

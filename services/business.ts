@@ -7,6 +7,7 @@ import {
   DEFAULT_FOLLOW_UP_CADENCE_DAYS,
   DEFAULT_WORKING_HOURS_END,
   DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE,
+  DEFAULT_EMAIL_ACCENT_COLOR,
 } from "@/config/constants";
 import { generateApiKey } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
@@ -60,6 +61,7 @@ function toBusiness(row: WorkspaceRow): Business {
     rebookIntervalDays: row.rebook_interval_days ?? null,
     rebookIntervalOverrides: (row.rebook_interval_overrides as Record<string, number | null>) ?? {},
     appointmentReminderHoursBefore: row.appointment_reminder_hours_before ?? null,
+    emailAccentColor: row.email_accent_color ?? null,
   };
 }
 
@@ -170,6 +172,7 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.rebookIntervalDays !== undefined) fields.rebook_interval_days = input.rebookIntervalDays;
   if (input.rebookIntervalOverrides !== undefined) fields.rebook_interval_overrides = input.rebookIntervalOverrides;
   if (input.appointmentReminderHoursBefore !== undefined) fields.appointment_reminder_hours_before = input.appointmentReminderHoursBefore;
+  if (input.emailAccentColor !== undefined) fields.email_accent_color = input.emailAccentColor;
 
   const row = await updateRow("workspaces", id, fields);
   return toBusiness(row);
@@ -370,6 +373,11 @@ export function getEffectiveRebookIntervalDays(
 /** Hours before an approved appointment's scheduledStart its pre-appointment reminder drafts — falls back to DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE when unset. See services/appointmentLifecycle.ts's runAppointmentReminderDraftJob. */
 export function getEffectiveReminderHoursBefore(business: Pick<Business, "appointmentReminderHoursBefore">): number {
   return business.appointmentReminderHoursBefore ?? DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE;
+}
+
+/** Hex accent color for this business's automated emails (services/emailTemplates/emailLayout.ts) — falls back to DEFAULT_EMAIL_ACCENT_COLOR when unset. */
+export function getEffectiveEmailAccentColor(business: Pick<Business, "emailAccentColor">): string {
+  return business.emailAccentColor ?? DEFAULT_EMAIL_ACCENT_COLOR;
 }
 
 /** Whether the owner-notification email fires for a new lead — on by default. */
