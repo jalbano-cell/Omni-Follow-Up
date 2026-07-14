@@ -26,8 +26,8 @@ export function TeamCard({
   ownerName: string;
   ownerEmail: string;
   members: TeamMember[];
-  /** Null means unlimited (config/constants.ts's PLAN_MAX_USERS). */
-  maxUsers: number | null;
+  /** Flat seat cap for every workspace — config/constants.ts's MAX_TEAM_SEATS. */
+  maxUsers: number;
   inviteBaseUrl: string;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -35,7 +35,7 @@ export function TeamCard({
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
 
   const seatsUsed = 1 + members.length;
-  const atCap = maxUsers !== null && seatsUsed >= maxUsers;
+  const atCap = seatsUsed >= maxUsers;
 
   function invite(formData: FormData) {
     startTransition(async () => {
@@ -63,11 +63,8 @@ export function TeamCard({
       <CardHeader className="px-0">
         <CardTitle className="text-base">Team</CardTitle>
         <CardDescription>
-          {maxUsers === null
-            ? `${seatsUsed} seat${seatsUsed === 1 ? "" : "s"} used (unlimited).`
-            : `${seatsUsed} of ${maxUsers} seat${maxUsers === 1 ? "" : "s"} used.`}{" "}
-          Invited members share full access to estimates, leads, follow-ups, replies, and analytics — Settings
-          (this page) stays owner-only.
+          {`${seatsUsed} of ${maxUsers} seat${maxUsers === 1 ? "" : "s"} used.`} Invited members share full access to
+          estimates, leads, follow-ups, replies, and analytics — Settings (this page) stays owner-only.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-0">
@@ -125,7 +122,7 @@ export function TeamCard({
           <Label className="text-xs">Invite a team member</Label>
           {atCap ? (
             <p className="text-xs text-muted-foreground">
-              You&apos;ve used every seat on your plan. Upgrade above to invite more.
+              You&apos;ve used all {maxUsers} seats for this workspace. Contact your account team to add more.
             </p>
           ) : (
             <div className="flex flex-col gap-2 sm:flex-row">

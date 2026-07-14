@@ -11,9 +11,8 @@ import { decrypt } from "@/lib/crypto";
 import { requireAdmin } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 import { PRODUCT_MODE_OPTIONS } from "@/config/constants";
-import type { WorkspacePlan, WorkspaceStatus, WorkspaceProductMode } from "@/types";
+import type { WorkspaceStatus, WorkspaceProductMode } from "@/types";
 
-const PLAN_VALUES: WorkspacePlan[] = ["grow", "transform"];
 const STATUS_VALUES: WorkspaceStatus[] = ["active", "inactive", "suspended"];
 const PRODUCT_MODE_VALUES: WorkspaceProductMode[] = PRODUCT_MODE_OPTIONS;
 
@@ -51,7 +50,6 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
   const businessName = String(formData.get("businessName") ?? "").trim();
   const ownerName = String(formData.get("ownerName") ?? "").trim();
   const ownerEmail = String(formData.get("ownerEmail") ?? "").trim().toLowerCase();
-  const plan = String(formData.get("plan") ?? "") as WorkspacePlan;
   const productMode = String(formData.get("productMode") ?? "both") as WorkspaceProductMode;
 
   if (!businessName || !ownerName || !ownerEmail) {
@@ -59,9 +57,6 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {
     return { error: "Enter a valid owner email address." };
-  }
-  if (!PLAN_VALUES.includes(plan)) {
-    return { error: "Invalid plan selection." };
   }
   if (!PRODUCT_MODE_VALUES.includes(productMode)) {
     return { error: "Invalid product mode selection." };
@@ -81,7 +76,7 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
     return { error: "That email is already associated with an Omni Follow Up account." };
   }
 
-  const business = await createBusinessForAgency({ businessName, ownerName, ownerEmail, plan, productMode });
+  const business = await createBusinessForAgency({ businessName, ownerName, ownerEmail, productMode });
 
   let claim;
   try {
@@ -93,7 +88,7 @@ export async function provisionNewWorkspaceAction(formData: FormData): Promise<{
     throw error;
   }
 
-  logAction("admin.workspace-provisioned", { businessId: business.id, plan, productMode });
+  logAction("admin.workspace-provisioned", { businessId: business.id, productMode });
 
   const baseUrl = await getAdminBaseUrl();
   const claimUrl = `${baseUrl}/invite/${claim.inviteToken}`;
@@ -164,32 +159,31 @@ export async function sendOnboardingWelcomeEmailAction(formData: FormData): Prom
 }
 
 /**
- * Activates (or adjusts the plan/status of) an already-existing, already-
- * self-signed-up workspace — no invite needed here, since it already has a
- * real owner login; flipping status to 'active' is enough to unlock it the
- * next time that owner logs in. Targeted by workspaceId (from the /admin
+ * Activates (or adjusts the status/product mode of) an already-existing,
+ * already-self-signed-up workspace — no invite needed here, since it already
+ * has a real owner login; flipping status to 'active' is enough to unlock it
+ * the next time that owner logs in. Targeted by workspaceId (from the /admin
  * workspace list, not an ambient "current business") — this operates on an
  * explicit target workspace, distinct from the admin's own session.
  *
  * Returns void, not an error object — unlike provisionNewWorkspaceAction,
  * this is bound directly as a plain <form action> (see app/admin/page.tsx),
- * which requires a void-returning action; the plan/status <select>s already
- * constrain input to valid values, so the thrown error below is only
+ * which requires a void-returning action; the status/productMode <select>s
+ * already constrain input to valid values, so the thrown error below is only
  * reachable via direct tampering, not normal use.
  */
 export async function updateWorkspaceEntitlementAction(workspaceId: string, formData: FormData): Promise<void> {
   await requireAdmin();
 
-  const plan = String(formData.get("plan") ?? "") as WorkspacePlan;
   const status = String(formData.get("status") ?? "") as WorkspaceStatus;
   const productMode = String(formData.get("productMode") ?? "") as WorkspaceProductMode;
 
-  if (!PLAN_VALUES.includes(plan) || !STATUS_VALUES.includes(status) || !PRODUCT_MODE_VALUES.includes(productMode)) {
-    throw new Error("Invalid plan, status, or product mode selection.");
+  if (!STATUS_VALUES.includes(status) || !PRODUCT_MODE_VALUES.includes(productMode)) {
+    throw new Error("Invalid status or product mode selection.");
   }
 
-  await updateBusiness(workspaceId, { plan, status, productMode });
-  logAction("admin.workspace-entitlement-updated", { businessId: workspaceId, plan, status, productMode });
+  await updateBusiness(workspaceId, { status, productMode });
+  logAction("admin.workspace-entitlement-updated", { businessId: workspaceId, status, productMode });
 
   revalidatePath("/admin");
 }

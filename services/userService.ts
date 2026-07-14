@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { getSupabase, insertRow, updateRow, selectWhere, selectById, deleteRow } from "@/lib/supabase";
 import { getBusinessByEmail, getBusinessById, updateBusiness } from "@/services/business";
-import { PLAN_MAX_USERS } from "@/config/constants";
+import { MAX_TEAM_SEATS } from "@/config/constants";
 import type { Database } from "@/types/supabase";
 import type { Business, TeamMember } from "@/types";
 
@@ -63,7 +63,7 @@ export async function getTeamMemberByInviteToken(token: string): Promise<TeamMem
 
 export class TeamMemberLimitExceededError extends Error {
   constructor(public readonly maxUsers: number) {
-    super(`This plan allows up to ${maxUsers} user${maxUsers === 1 ? "" : "s"}.`);
+    super(`This workspace allows up to ${maxUsers} user${maxUsers === 1 ? "" : "s"}.`);
     this.name = "TeamMemberLimitExceededError";
   }
 }
@@ -79,12 +79,12 @@ export class TeamMemberEmailInUseError extends Error {
  * Creates a pending invite row with a signed token (services/business.ts's
  * generateApiKey precedent — a random opaque secret, not a JWT, since it's a
  * one-time-use link with its own DB-backed expiry/revocation rather than a
- * stateless claim). Throws TeamMemberLimitExceededError if the agency-assigned
- * plan's seat cap (config/constants.ts's PLAN_MAX_USERS — the owner plus every
- * invited-or-accepted row counts, so a still-pending invite already occupies a
- * seat) is already met; a null cap (e.g. "transform") means unlimited. Counts
- * pending invites too, not just accepted ones — otherwise a business could
- * send unlimited invites and blow past the cap the instant they're all
+ * stateless claim). Throws TeamMemberLimitExceededError once the flat seat
+ * cap (config/constants.ts's MAX_TEAM_SEATS — the owner plus every
+ * invited-or-accepted row counts, so a still-pending invite already occupies
+ * a seat) is already met — the same cap for every workspace, no plan tiers.
+ * Counts pending invites too, not just accepted ones — otherwise a business
+ * could send unlimited invites and blow past the cap the instant they're all
  * accepted at once.
  */
 export async function inviteTeamMember(
@@ -95,11 +95,10 @@ export async function inviteTeamMember(
   if (!business) {
     throw new Error(`Business not found: ${businessId}`);
   }
-  const maxUsers = PLAN_MAX_USERS[business.plan];
   const existingMembers = await getTeamMembersForBusiness(businessId);
   const seatsUsed = 1 + existingMembers.length; // +1 for the workspace owner, who has no `users` row
-  if (maxUsers !== null && seatsUsed >= maxUsers) {
-    throw new TeamMemberLimitExceededError(maxUsers);
+  if (seatsUsed >= MAX_TEAM_SEATS) {
+    throw new TeamMemberLimitExceededError(MAX_TEAM_SEATS);
   }
 
   // An email can only ever be one kind of account (owner or member) — reject

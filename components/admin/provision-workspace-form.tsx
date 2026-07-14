@@ -11,10 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/estimates/submit-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { provisionNewWorkspaceAction, sendOnboardingWelcomeEmailAction } from "@/app/admin/actions";
-import { PLAN_LABELS, PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
-import type { WorkspacePlan } from "@/types";
-
-const PLAN_OPTIONS: WorkspacePlan[] = ["grow", "transform"];
+import { PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
 
 async function copyToClipboard(value: string, label: string) {
   await navigator.clipboard.writeText(value);
@@ -94,21 +91,6 @@ export function ProvisionWorkspaceForm() {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="ownerEmail">Owner email</Label>
             <Input id="ownerEmail" name="ownerEmail" type="email" required />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="plan">Plan</Label>
-            <Select name="plan" defaultValue="grow" required>
-              <SelectTrigger id="plan" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PLAN_OPTIONS.map((plan) => (
-                  <SelectItem key={plan} value={plan}>
-                    {PLAN_LABELS[plan]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="productMode">Product mode</Label>

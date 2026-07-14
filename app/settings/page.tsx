@@ -2,7 +2,6 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import {
   Building2,
-  CreditCard,
   Mail,
   Inbox,
   Repeat,
@@ -21,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LeadSourcesCard } from "@/components/settings/lead-sources-card";
 import { EmailTemplatesCard } from "@/components/settings/email-templates-card";
-import { PlanCard } from "@/components/settings/plan-card";
 import { TeamCard } from "@/components/settings/team-card";
 import { SettingsAccordion } from "@/components/settings/settings-accordion";
 import { SettingsSection } from "@/components/settings/settings-section";
@@ -60,7 +58,7 @@ import {
   updateGmailLeadMonitoringAction,
 } from "@/app/settings/actions";
 import { requireOwner, getCurrentSession } from "@/lib/session";
-import { SERVICE_TYPES, TIMEZONE_OPTIONS, PLAN_MAX_USERS } from "@/config/constants";
+import { SERVICE_TYPES, TIMEZONE_OPTIONS, MAX_TEAM_SEATS } from "@/config/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -229,16 +227,12 @@ export default async function SettingsPage({
           </div>
         </SettingsSection>
 
-        <SettingsSection value="plan" icon={CreditCard} title="Plan" description="Your account's plan and status">
-          <PlanCard plan={business.plan} status={business.status} />
-        </SettingsSection>
-
         <SettingsSection value="team" icon={Users} title="Team" description="Invite teammates to share this workspace">
           <TeamCard
             ownerName={business.ownerName}
             ownerEmail={business.ownerEmail}
             members={teamMembers}
-            maxUsers={PLAN_MAX_USERS[business.plan]}
+            maxUsers={MAX_TEAM_SEATS}
             inviteBaseUrl={inviteBaseUrl}
           />
         </SettingsSection>

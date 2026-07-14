@@ -13,7 +13,7 @@ import { generateApiKey } from "@/lib/crypto";
 import { hashPassword } from "@/lib/password";
 import { upsertMailboxConnection, deleteMailboxConnection } from "@/services/mailboxConnections";
 import { logAction } from "@/lib/logger";
-import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspacePlan, WorkspaceStatus, WorkspaceProductMode } from "@/types";
+import type { Business, NewBusinessInput, UpdateBusinessInput, WorkspaceStatus, WorkspaceProductMode } from "@/types";
 
 type WorkspaceRow = Database["public"]["Tables"]["workspaces"]["Row"];
 
@@ -53,7 +53,6 @@ function toBusiness(row: WorkspaceRow): Business {
     sessionTokenVersion: row.session_token_version ?? 0,
     gmailWatchHistoryId: row.gmail_watch_history_id ?? null,
     gmailWatchExpiration: row.gmail_watch_expiration ?? null,
-    plan: row.plan as WorkspacePlan,
     status: row.status as WorkspaceStatus,
     productMode: (row.product_mode as WorkspaceProductMode) ?? "both",
     googleReviewUrl: row.google_review_url ?? null,
@@ -99,12 +98,12 @@ export async function createBusiness(input: NewBusinessInput): Promise<Business>
 
 /**
  * Agency-provisioned workspace (app/admin/actions.ts's provisionNewWorkspaceAction)
- * — same shape as createBusiness, but plan/status are set explicitly (status
- * 'active' immediately, since the agency is provisioning this after an
- * external invoice) instead of relying on the schema defaults ('grow'/'inactive')
- * meant for self-serve signups. There's no real password yet — the client
- * hasn't claimed the workspace — so password_hash gets an unguessable random
- * value nobody will ever type correctly (same "unusable placeholder" idea as
+ * — same shape as createBusiness, but status is set explicitly ('active'
+ * immediately, since the agency is provisioning this after an external
+ * invoice) instead of relying on the schema default ('inactive') meant for
+ * self-serve signups. There's no real password yet — the client hasn't
+ * claimed the workspace — so password_hash gets an unguessable random value
+ * nobody will ever type correctly (same "unusable placeholder" idea as
  * app/login/actions.ts's DUMMY_HASH_PROMISE), which
  * services/userService.ts's claimWorkspaceOwnership overwrites for real once
  * the client accepts their claim invite.
@@ -113,7 +112,6 @@ export async function createBusinessForAgency(input: {
   businessName: string;
   ownerName: string;
   ownerEmail: string;
-  plan: WorkspacePlan;
   productMode?: WorkspaceProductMode;
 }): Promise<Business> {
   const now = new Date().toISOString();
@@ -125,7 +123,6 @@ export async function createBusinessForAgency(input: {
     password_hash: placeholderPasswordHash,
     intake_api_key: generateApiKey(),
     intake_api_key_created_at: now,
-    plan: input.plan,
     status: "active",
     product_mode: input.productMode ?? "both",
   });
@@ -164,7 +161,6 @@ export async function updateBusiness(id: string, input: UpdateBusinessInput): Pr
   if (input.sessionTokenVersion !== undefined) fields.session_token_version = input.sessionTokenVersion;
   if (input.gmailWatchHistoryId !== undefined) fields.gmail_watch_history_id = input.gmailWatchHistoryId;
   if (input.gmailWatchExpiration !== undefined) fields.gmail_watch_expiration = input.gmailWatchExpiration;
-  if (input.plan !== undefined) fields.plan = input.plan;
   if (input.status !== undefined) fields.status = input.status;
   if (input.productMode !== undefined) fields.product_mode = input.productMode;
   if (input.googleReviewUrl !== undefined) fields.google_review_url = input.googleReviewUrl;

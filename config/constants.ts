@@ -4,20 +4,11 @@ import type {
   EstimateStatus,
   FollowUpStatus,
   LeadStatus,
-  WorkspacePlan,
   WorkspaceProductMode,
 } from "@/types";
 
-/** Seat cap (owner + team members, services/userService.ts) per agency-assigned plan tier. Null means no cap. */
-export const PLAN_MAX_USERS: Record<WorkspacePlan, number | null> = {
-  grow: 1,
-  transform: null,
-};
-
-export const PLAN_LABELS: Record<WorkspacePlan, string> = {
-  grow: "Grow",
-  transform: "Transform",
-};
+/** Flat seat cap (owner + team members, services/userService.ts) — every workspace gets the same limit; there's no plan tiering. */
+export const MAX_TEAM_SEATS = 3;
 
 /** Agency-set per /admin — which product surface(s) a workspace can use. See lib/session.ts's requireEstimatesEnabled/requireAppointmentsEnabled. */
 export const PRODUCT_MODE_OPTIONS: WorkspaceProductMode[] = ["both", "estimates_only", "appointments_only"];

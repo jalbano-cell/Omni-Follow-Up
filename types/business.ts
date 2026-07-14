@@ -1,6 +1,3 @@
-/** Seat cap tier — config/constants.ts's PLAN_MAX_USERS maps this to a number (or null for unlimited). Agency-assigned, not self-serve. */
-export type WorkspacePlan = "grow" | "transform";
-
 /** The actual access gate — 'active' means full access everywhere; anything else is a full app lockout to /account-paused (lib/session.ts's requireOnboardedBusiness). Set directly by the agency, not by Billing. */
 export type WorkspaceStatus = "active" | "inactive" | "suspended";
 
@@ -70,8 +67,6 @@ export interface Business {
   gmailWatchHistoryId: string | null;
   /** When the current watch registration expires (~7 days from creation); services/gmailWatchSync.ts renews it before then. */
   gmailWatchExpiration: string | null;
-  /** Agency-assigned seat-cap tier. Defaults to "grow" for a new signup — see WorkspacePlan. */
-  plan: WorkspacePlan;
   /** Agency-assigned access gate. Defaults to "inactive" for a new signup until provisioned — see WorkspaceStatus. */
   status: WorkspaceStatus;
   /** Agency-assigned product surface restriction. Defaults to "both" — see WorkspaceProductMode. */

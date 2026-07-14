@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Users, CheckCircle2, CreditCard } from "lucide-react";
+import { Building2, Users, CheckCircle2, MailWarning } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAllActiveBusinesses } from "@/services/business";
 import { updateWorkspaceEntitlementAction } from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/session";
-import { PLAN_LABELS, PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
-import type { WorkspacePlan, WorkspaceStatus } from "@/types";
+import { PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
+import type { WorkspaceStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-const PLAN_OPTIONS: WorkspacePlan[] = ["grow", "transform"];
 const STATUS_OPTIONS: WorkspaceStatus[] = ["active", "inactive", "suspended"];
 
 const STATUS_BADGE_VARIANT: Record<WorkspaceStatus, "success" | "warning" | "destructive"> = {
@@ -42,7 +41,7 @@ export default async function AdminPage() {
 
   const activeCount = businesses.filter((b) => b.status === "active").length;
   const needsAttentionCount = businesses.length - activeCount;
-  const transformCount = businesses.filter((b) => b.plan === "transform").length;
+  const needsGoogleSetupCount = businesses.filter((b) => !b.googleRefreshTokenEnc).length;
 
   return (
     <>
@@ -68,7 +67,12 @@ export default async function AdminPage() {
           tone="success"
           hint={needsAttentionCount > 0 ? `${needsAttentionCount} need attention` : undefined}
         />
-        <StatCard label="On Transform plan" value={String(transformCount)} icon={CreditCard} />
+        <StatCard
+          label="Needs Google setup"
+          value={String(needsGoogleSetupCount)}
+          icon={MailWarning}
+          tone={needsGoogleSetupCount > 0 ? "warning" : "default"}
+        />
       </div>
 
       <div className="mt-6 overflow-hidden rounded-lg border border-border">
@@ -102,7 +106,6 @@ export default async function AdminPage() {
                     <p className="truncate text-xs text-muted-foreground">{business.ownerEmail}</p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <Badge variant={STATUS_BADGE_VARIANT[business.status]}>{STATUS_LABEL[business.status]}</Badge>
-                      <Badge variant="secondary">{PLAN_LABELS[business.plan]}</Badge>
                       <Badge variant="outline">{PRODUCT_MODE_LABELS[business.productMode]}</Badge>
                     </div>
                   </div>
@@ -112,21 +115,6 @@ export default async function AdminPage() {
                   action={updateWorkspaceEntitlementAction.bind(null, business.id)}
                   className="flex shrink-0 flex-wrap items-end gap-2 sm:flex-nowrap"
                 >
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-[10px] text-muted-foreground">Plan</Label>
-                    <Select name="plan" defaultValue={business.plan}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PLAN_OPTIONS.map((plan) => (
-                          <SelectItem key={plan} value={plan}>
-                            {PLAN_LABELS[plan]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="flex flex-col gap-1">
                     <Label className="text-[10px] text-muted-foreground">Status</Label>
                     <Select name="status" defaultValue={business.status}>
