@@ -23,11 +23,14 @@ export function LeadSourcesCard({
   webhookEndpointUrl,
   gmailConnected,
   monitorGmailInbox,
+  estimatesEnabled = true,
 }: {
   intakeApiKeyPresent: boolean;
   webhookEndpointUrl: string;
   gmailConnected: boolean;
   monitorGmailInbox: boolean;
+  /** False for a workspace the agency has restricted to productMode "appointments_only" — Gmail inbox scanning is unavailable there regardless of monitorGmailInbox, see services/gmailLeadCapture.ts. */
+  estimatesEnabled?: boolean;
 }) {
   const rows: LeadSourceRow[] = [
     {
@@ -37,8 +40,14 @@ export function LeadSourcesCard({
     },
     {
       label: "Gmail",
-      active: gmailConnected && monitorGmailInbox,
-      detail: !gmailConnected ? "Connect Google above to activate" : monitorGmailInbox ? "Primary source — monitoring enabled" : "Monitoring disabled — enable under Google connection",
+      active: estimatesEnabled && gmailConnected && monitorGmailInbox,
+      detail: !estimatesEnabled
+        ? "Disabled for appointments-only workspaces"
+        : !gmailConnected
+          ? "Connect Google above to activate"
+          : monitorGmailInbox
+            ? "Primary source — monitoring enabled"
+            : "Monitoring disabled — enable under Google connection",
     },
     { label: "Manual Entry", active: true, detail: "Always available — Leads → New Lead" },
     { label: "CSV Import", active: true, detail: "Always available — Leads → Import CSV" },

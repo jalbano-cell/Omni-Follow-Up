@@ -40,6 +40,16 @@ const LOOKBACK_QUERY = "in:inbox -in:chats -in:sent newer_than:3d";
  * break lead capture and vice versa.
  */
 export async function captureLeadsFromGmailForBusiness(business: Business, appHost: string): Promise<GmailCaptureResult> {
+  // An appointments_only workspace (services/business.ts's Business.productMode,
+  // agency-set via /admin) only ever accepts leads/bookings through the
+  // website form intake (POST /api/intake) — it never scans the connected
+  // Gmail inbox for new inquiries, regardless of the monitorGmailInbox
+  // setting below. Guarded here (not just at the cron route's business-list
+  // filter) so every caller — the daily cron and the admin's manual "run
+  // classification now" button — is covered.
+  if (business.productMode === "appointments_only") {
+    return { messagesScanned: 0, created: 0, errors: [] };
+  }
   if (!business.googleRefreshTokenEnc || !getEffectiveGmailLeadMonitoring(business)) {
     return { messagesScanned: 0, created: 0, errors: [] };
   }

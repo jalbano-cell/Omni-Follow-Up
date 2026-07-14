@@ -288,6 +288,7 @@ export default async function SettingsPage({
             </div>
           </form>
 
+          {estimatesEnabled && (
           <form action={updateGmailLeadMonitoringAction} className="border-t border-border pt-4">
             <label className="flex items-start gap-2.5 rounded-lg border border-border px-4 py-3 text-sm">
               <input
@@ -311,6 +312,13 @@ export default async function SettingsPage({
               <SubmitButton>Save</SubmitButton>
             </div>
           </form>
+          )}
+          {!estimatesEnabled && (
+            <p className="border-t border-border pt-4 text-xs text-muted-foreground">
+              This workspace only accepts leads and bookings through the website form — Gmail inbox scanning is
+              unavailable for appointments-only workspaces.
+            </p>
+          )}
         </SettingsSection>
 
         {estimatesEnabled && (
@@ -380,6 +388,7 @@ export default async function SettingsPage({
             webhookEndpointUrl={webhookEndpointUrl}
             gmailConnected={googleConnected}
             monitorGmailInbox={monitorGmailInbox}
+            estimatesEnabled={estimatesEnabled}
           />
         </SettingsSection>
 
