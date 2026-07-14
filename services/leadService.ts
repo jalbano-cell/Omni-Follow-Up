@@ -13,6 +13,8 @@ import {
 import { logLeadActivity, getLeadTimeline } from "@/services/activityService";
 import { analyzeLead } from "@/services/automation/leadClassifier";
 import { buildAcknowledgmentEmail, type AcknowledgmentBookingOutcome } from "@/services/emailBuilder";
+import { renderEmailHtml } from "@/services/emailTemplates/emailLayout";
+import { buildLeadNotificationEmail } from "@/services/emailTemplates/leadNotification";
 import { createAppointmentFromLead } from "@/services/appointmentService";
 import { getEffectiveNotifyOnNewLead } from "@/services/business";
 import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
@@ -38,7 +40,7 @@ function generateLeadId(): string {
 }
 
 /** Best-effort notification to the business's own inbox — never blocks lead creation from succeeding. Skipped entirely if the owner has turned it off (Settings > Notification Preferences). */
-async function sendLeadNotificationEmail(business: Business, lead: Lead): Promise<void> {
+async function sendLeadNotificationEmail(business: Business, lead: Lead, appHost: string): Promise<void> {
   if (!getEffectiveNotifyOnNewLead(business)) {
     return;
   }
@@ -47,29 +49,16 @@ async function sendLeadNotificationEmail(business: Business, lead: Lead): Promis
     return;
   }
 
-  const lines = [
-    `New website inquiry for ${business.businessName}`,
-    "",
-    `Lead ID: ${lead.leadId}`,
-    `Name: ${lead.name}`,
-    `Email: ${lead.email}`,
-    lead.phone && `Phone: ${lead.phone}`,
-    lead.company && `Company: ${lead.company}`,
-    `Requested service: ${lead.requestedService || "Not specified"}`,
-    "",
-    "Message:",
-    lead.message,
-    "",
-    `Submitted: ${new Date(lead.createdTime).toLocaleString("en-US", { timeZone: "America/Toronto" })}`,
-  ].filter((line): line is string => Boolean(line));
+  const email = buildLeadNotificationEmail(business, lead, appHost);
 
   try {
     await sendEmail({
       refreshToken: decrypt(business.googleRefreshTokenEnc),
       fromEmail: business.googleConnectedEmail,
       to: business.ownerEmail,
-      subject: "New Website Inquiry",
-      body: lines.join("\n"),
+      subject: email.subject,
+      body: email.body,
+      htmlBody: email.html,
     });
   } catch (error) {
     logAction("lead.notify-email-failed", {
@@ -139,6 +128,7 @@ async function sendLeadAcknowledgmentEmail(business: Business, lead: Lead, appHo
       to: lead.email,
       subject: content.subject,
       body: content.body,
+      htmlBody: renderEmailHtml(business.businessName, content.body),
     });
     await logLeadActivity(
       business.id,
@@ -250,7 +240,7 @@ export async function createLeadFromSubmission(business: Business, input: NewLea
     }
   }
 
-  await sendLeadNotificationEmail(business, lead);
+  await sendLeadNotificationEmail(business, lead, appHost);
   await analyzeLead(business.id, lead);
   await sendLeadAcknowledgmentEmail(business, lead, appHost);
 

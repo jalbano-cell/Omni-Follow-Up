@@ -371,7 +371,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="px-5">
             {recentActivity.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No activity yet.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">No activity in the last 24 hours.</p>
             ) : (
               <ul className="divide-y divide-border">
                 {recentActivity.map((item) => (

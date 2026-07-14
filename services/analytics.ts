@@ -232,7 +232,11 @@ export async function getRecentActivity(businessId: string, limit = 8): Promise<
     });
   }
 
-  return items.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  return items
+    .filter((item) => item.timestamp >= cutoff)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .slice(0, limit);
 }
 
 export interface ReplyMetrics {

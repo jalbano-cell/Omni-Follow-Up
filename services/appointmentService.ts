@@ -12,6 +12,7 @@ import { buildComplianceFooter } from "@/services/emailTemplates/complianceFoote
 import { buildAppointmentRequestedContent } from "@/services/emailTemplates/appointmentRequested";
 import { buildAppointmentConfirmedContent } from "@/services/emailTemplates/appointmentConfirmed";
 import { APPOINTMENT_REMINDER_SUBJECT } from "@/services/emailTemplates/appointmentReminder";
+import { renderEmailHtml } from "@/services/emailTemplates/emailLayout";
 import { decrypt } from "@/lib/crypto";
 import { zonedDateTimeToUtc, formatZonedDateTime } from "@/lib/date";
 import { logAction } from "@/lib/logger";
@@ -159,6 +160,7 @@ export async function createAppointmentFromLead(business: Business, lead: Lead, 
           to: lead.email,
           subject: content.subject,
           body: content.body,
+          htmlBody: renderEmailHtml(business.businessName, content.body),
         });
       }
 
@@ -290,6 +292,7 @@ export async function approveAppointment(
       to: appointment.customerEmail,
       subject: content.subject,
       body: content.body,
+      htmlBody: renderEmailHtml(business.businessName, content.body),
     });
   } catch (error) {
     logAction("appointment.confirmation-send-failed", {
@@ -441,6 +444,7 @@ export async function sendReminder(businessId: string, id: string, appHost: stri
         to: appointment.customerEmail,
         subject: APPOINTMENT_REMINDER_SUBJECT,
         body,
+        htmlBody: renderEmailHtml(business.businessName, body),
       });
       const updated = await updateAppointment(businessId, id, { reminderStatus: "sent", reminderSentAt: new Date().toISOString() });
       logAction("appointment.reminder-send.success", { businessId, appointmentId: id, attempt });

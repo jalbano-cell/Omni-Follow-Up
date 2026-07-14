@@ -8,6 +8,7 @@ import { buildComplianceFooter } from "@/services/emailTemplates/complianceFoote
 import { buildAppointmentReviewRequestContent } from "@/services/emailTemplates/appointmentReviewRequest";
 import { buildAppointmentRebookReminderContent } from "@/services/emailTemplates/appointmentRebookReminder";
 import { buildAppointmentReminderBody } from "@/services/emailTemplates/appointmentReminder";
+import { renderEmailHtml } from "@/services/emailTemplates/emailLayout";
 import { decrypt } from "@/lib/crypto";
 import { formatZonedDateTime } from "@/lib/date";
 import { logAction } from "@/lib/logger";
@@ -183,6 +184,7 @@ export async function runAppointmentReviewRequestJob(businesses: Business[], app
                 to: appointment.customerEmail,
                 subject: content.subject,
                 body: content.body,
+                htmlBody: renderEmailHtml(business.businessName, content.body),
               });
             } catch (error) {
               logAction("appointment-lifecycle.review-request-send-failed", {
@@ -240,6 +242,7 @@ export async function runAppointmentRebookReminderJob(businesses: Business[], ap
                 to: appointment.customerEmail,
                 subject: content.subject,
                 body: content.body,
+                htmlBody: renderEmailHtml(business.businessName, content.body),
               });
             } catch (error) {
               logAction("appointment-lifecycle.rebook-reminder-send-failed", {
