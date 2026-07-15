@@ -179,8 +179,6 @@ function toAppointment(row: AppointmentRow): Appointment {
     sourceMessage: row.source_message,
     reviewRequestSentAt: row.review_request_sent_at,
     rebookReminderSentAt: row.rebook_reminder_sent_at,
-    reminderMessage: row.reminder_message,
-    reminderStatus: row.reminder_status as Appointment["reminderStatus"],
     reminderSentAt: row.reminder_sent_at,
     createdAt: row.created_at,
   };
@@ -628,8 +626,6 @@ export async function updateAppointment(businessId: string, id: string, input: U
   if (input.scheduledEnd !== undefined) fields.scheduled_end = input.scheduledEnd;
   if (input.reviewRequestSentAt !== undefined) fields.review_request_sent_at = input.reviewRequestSentAt;
   if (input.rebookReminderSentAt !== undefined) fields.rebook_reminder_sent_at = input.rebookReminderSentAt;
-  if (input.reminderMessage !== undefined) fields.reminder_message = input.reminderMessage;
-  if (input.reminderStatus !== undefined) fields.reminder_status = input.reminderStatus;
   if (input.reminderSentAt !== undefined) fields.reminder_sent_at = input.reminderSentAt;
 
   const row = await updateRow("appointments", id, fields, { workspace_id: businessId });

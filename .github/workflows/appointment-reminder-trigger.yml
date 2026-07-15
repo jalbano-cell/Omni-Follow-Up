@@ -1,0 +1,29 @@
+name: Hourly appointment reminder trigger
+
+# Vercel's Hobby-plan cron only invokes /api/follow-ups/generate once a day
+# per business (see CLAUDE.md's cron-schedule note), which isn't frequent
+# enough for the pre-appointment reminder job's short window (default 3h
+# before scheduledStart — services/appointmentLifecycle.ts's
+# runAppointmentReminderJob). This workflow hits the same endpoint hourly,
+# in addition to Vercel's own daily cron, so that job actually gets checked
+# often enough to catch most appointments. Every other job on that route is
+# unaffected by the extra calls — they're still gated to each business's
+# once-daily 8am-local window internally.
+#
+# Requires a repository secret named CRON_SECRET, matching the CRON_SECRET
+# environment variable already set on the Vercel project — add it via this
+# repo's Settings > Secrets and variables > Actions > New repository secret.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/follow-ups/generate
+        run: |
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://omniautofollowup.vercel.app/api/follow-ups/generate"

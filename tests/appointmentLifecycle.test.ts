@@ -3,7 +3,7 @@ import {
   isEligibleForCompletion,
   isEligibleForReviewRequest,
   isEligibleForRebookReminder,
-  isEligibleForReminderDraft,
+  isEligibleForReminder,
 } from "@/services/appointmentLifecycle";
 import { getEffectiveRebookIntervalDays } from "@/services/business";
 
@@ -125,32 +125,31 @@ describe("getEffectiveRebookIntervalDays", () => {
   });
 });
 
-describe("isEligibleForReminderDraft", () => {
-  const approvedTomorrow2pm = {
+describe("isEligibleForReminder", () => {
+  const approvedIn2Hours = {
     status: "approved" as const,
-    scheduledStart: new Date(NOW.getTime() + 20 * 60 * 60 * 1000).toISOString(),
-    reminderStatus: null,
+    scheduledStart: new Date(NOW.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+    reminderSentAt: null,
   };
 
-  it("drafts once the appointment enters the reminder window", () => {
-    expect(isEligibleForReminderDraft(approvedTomorrow2pm, NOW, 24)).toBe(true);
+  it("sends once the appointment enters the reminder window", () => {
+    expect(isEligibleForReminder(approvedIn2Hours, NOW, 3)).toBe(true);
   });
 
-  it("does not draft before the reminder window is reached", () => {
-    expect(isEligibleForReminderDraft(approvedTomorrow2pm, NOW, 1)).toBe(false);
+  it("does not send before the reminder window is reached", () => {
+    expect(isEligibleForReminder(approvedIn2Hours, NOW, 1)).toBe(false);
   });
 
-  it("never re-drafts once a reminder already exists (any non-null status)", () => {
-    expect(isEligibleForReminderDraft({ ...approvedTomorrow2pm, reminderStatus: "pending" }, NOW, 24)).toBe(false);
-    expect(isEligibleForReminderDraft({ ...approvedTomorrow2pm, reminderStatus: "sent" }, NOW, 24)).toBe(false);
+  it("never re-sends once a reminder has already gone out", () => {
+    expect(isEligibleForReminder({ ...approvedIn2Hours, reminderSentAt: "2026-07-15T10:00:00Z" }, NOW, 3)).toBe(false);
   });
 
-  it("does not draft for a requested (not yet approved) appointment", () => {
-    expect(isEligibleForReminderDraft({ ...approvedTomorrow2pm, status: "requested" }, NOW, 24)).toBe(false);
+  it("does not send for a requested (not yet approved) appointment", () => {
+    expect(isEligibleForReminder({ ...approvedIn2Hours, status: "requested" }, NOW, 3)).toBe(false);
   });
 
-  it("does not draft once the appointment has already started", () => {
-    const alreadyStarted = { ...approvedTomorrow2pm, scheduledStart: new Date(NOW.getTime() - 60 * 1000).toISOString() };
-    expect(isEligibleForReminderDraft(alreadyStarted, NOW, 24)).toBe(false);
+  it("does not send once the appointment has already started", () => {
+    const alreadyStarted = { ...approvedIn2Hours, scheduledStart: new Date(NOW.getTime() - 60 * 1000).toISOString() };
+    expect(isEligibleForReminder(alreadyStarted, NOW, 3)).toBe(false);
   });
 });

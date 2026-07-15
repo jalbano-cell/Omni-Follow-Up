@@ -11,7 +11,6 @@ import { buildAbsoluteUrl } from "@/lib/url";
 import { buildComplianceFooter } from "@/services/emailTemplates/complianceFooter";
 import { buildAppointmentRequestedContent } from "@/services/emailTemplates/appointmentRequested";
 import { buildAppointmentConfirmedContent } from "@/services/emailTemplates/appointmentConfirmed";
-import { APPOINTMENT_REMINDER_SUBJECT } from "@/services/emailTemplates/appointmentReminder";
 import { renderEmailHtml } from "@/services/emailTemplates/emailLayout";
 import { decrypt } from "@/lib/crypto";
 import { zonedDateTimeToUtc, formatZonedDateTime } from "@/lib/date";
@@ -358,106 +357,6 @@ export async function dismissRequestedAppointment(businessId: string, id: string
     await logLeadActivity(businessId, appointment.leadId, "lead.appointment_dismissed", "Appointment request dismissed.");
   }
   return { ok: true, appointment: updated };
-}
-
-export type ReminderActionResult = { ok: true; appointment: Appointment } | { ok: false; error: string };
-
-/**
- * The pre-appointment reminder's own approve/edit/skip/send lifecycle —
- * distinct from and not auto-sent like the review-request/rebook-reminder
- * jobs in services/appointmentLifecycle.ts (see that file's
- * runAppointmentReminderDraftJob, which only ever sets reminderStatus to
- * 'pending'). Mirrors services/followupSender.ts's Approve/Edit/Skip/Send
- * shape for the Estimate Follow-up Queue, scoped to Appointments instead.
- */
-export function canActOnReminder(appointment: Pick<Appointment, "reminderStatus">): boolean {
-  return appointment.reminderStatus === "pending" || appointment.reminderStatus === "approved" || appointment.reminderStatus === "failed";
-}
-
-export async function approveReminder(businessId: string, id: string): Promise<ReminderActionResult> {
-  const appointment = await getAppointment(businessId, id);
-  if (!appointment) {
-    return { ok: false, error: "Appointment not found." };
-  }
-  if (appointment.reminderStatus !== "pending") {
-    return { ok: false, error: `Reminder must be drafted before approving (currently ${appointment.reminderStatus ?? "not drafted"}).` };
-  }
-  const updated = await updateAppointment(businessId, id, { reminderStatus: "approved" });
-  return { ok: true, appointment: updated };
-}
-
-export async function editReminderMessage(businessId: string, id: string, message: string): Promise<ReminderActionResult> {
-  const appointment = await getAppointment(businessId, id);
-  if (!appointment) {
-    return { ok: false, error: "Appointment not found." };
-  }
-  const updated = await updateAppointment(businessId, id, { reminderMessage: message });
-  return { ok: true, appointment: updated };
-}
-
-export async function skipReminder(businessId: string, id: string): Promise<ReminderActionResult> {
-  const appointment = await getAppointment(businessId, id);
-  if (!appointment) {
-    return { ok: false, error: "Appointment not found." };
-  }
-  const updated = await updateAppointment(businessId, id, { reminderStatus: "skipped" });
-  return { ok: true, appointment: updated };
-}
-
-const REMINDER_SEND_MAX_ATTEMPTS = 2; // one send + one retry, same as services/followupSender.ts
-
-/**
- * The only path that actually emails the reminder — requires it to already
- * be 'approved' (or 'failed', for a retry). Not suppression-gated, same
- * precedent as the appointment confirmation email: a human is explicitly
- * choosing to send about a specific already-approved booking, not an
- * automated broadcast. Still gets the CASL compliance footer + a fresh
- * unsubscribe token.
- */
-export async function sendReminder(businessId: string, id: string, appHost: string): Promise<ReminderActionResult> {
-  const [appointment, business] = await Promise.all([getAppointment(businessId, id), getBusinessById(businessId)]);
-  if (!appointment) {
-    return { ok: false, error: "Appointment not found." };
-  }
-  if (appointment.reminderStatus !== "approved" && appointment.reminderStatus !== "failed") {
-    return { ok: false, error: `Reminder must be Approved before sending (currently ${appointment.reminderStatus ?? "not drafted"}).` };
-  }
-  if (!appointment.reminderMessage) {
-    return { ok: false, error: "No reminder message to send." };
-  }
-  if (!business) {
-    return { ok: false, error: "Business not found." };
-  }
-  if (!business.googleRefreshTokenEnc || !business.googleConnectedEmail) {
-    return { ok: false, error: "Google isn't connected for this business." };
-  }
-
-  const footer = await buildUnsubscribeFooter(business, appHost, appointment.customerEmail);
-  const body = `${appointment.reminderMessage}\n\n${footer}`;
-
-  let lastError = "Unknown error";
-  for (let attempt = 1; attempt <= REMINDER_SEND_MAX_ATTEMPTS; attempt++) {
-    try {
-      await sendEmail({
-        refreshToken: decrypt(business.googleRefreshTokenEnc),
-        fromEmail: business.googleConnectedEmail,
-        to: appointment.customerEmail,
-        subject: APPOINTMENT_REMINDER_SUBJECT,
-        body,
-        htmlBody: renderEmailHtml(business.businessName, body, getEffectiveEmailAccentColor(business)),
-      });
-      const updated = await updateAppointment(businessId, id, { reminderStatus: "sent", reminderSentAt: new Date().toISOString() });
-      logAction("appointment.reminder-send.success", { businessId, appointmentId: id, attempt });
-      return { ok: true, appointment: updated };
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : "Unknown error";
-      logAction("appointment.reminder-send.attempt-failed", { businessId, appointmentId: id, attempt, error: lastError });
-    }
-  }
-
-  await updateAppointment(businessId, id, { reminderStatus: "failed" });
-  logAction("appointment.reminder-send.failed", { businessId, appointmentId: id, error: lastError });
-  return { ok: false, error: lastError };
 }
 
 /** Re-exported for services/appointmentLifecycle.ts's rebook-reminder eligibility check. */

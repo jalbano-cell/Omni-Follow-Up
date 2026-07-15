@@ -1,8 +1,5 @@
 export type AppointmentStatus = "requested" | "approved" | "completed" | "no_show" | "cancelled";
 
-/** Null until services/appointmentLifecycle.ts's runAppointmentReminderDraftJob drafts one; then the approve/edit/skip/send lifecycle, mirroring (but separate from) the Estimate Follow-up Queue's FollowUpStatus. */
-export type AppointmentReminderStatus = "pending" | "approved" | "sent" | "skipped" | "failed";
-
 /**
  * A booked (or requested) service appointment — decoupled from Estimates on
  * purpose (see CLAUDE.md's Appointments section): it optionally links to the
@@ -40,9 +37,7 @@ export interface Appointment {
   reviewRequestSentAt: string | null;
   /** Idempotency guard for services/appointmentLifecycle.ts's rebook-reminder job — set on send attempt regardless of outcome. */
   rebookReminderSentAt: string | null;
-  /** The pre-appointment reminder's drafted body — a genuinely different concern from reviewRequestSentAt/rebookReminderSentAt above (those are auto-sent; this one requires owner approval, like the Estimate Follow-up Queue). Null until services/appointmentLifecycle.ts's runAppointmentReminderDraftJob drafts one. */
-  reminderMessage: string | null;
-  reminderStatus: AppointmentReminderStatus | null;
+  /** Idempotency guard for services/appointmentLifecycle.ts's reminder job — set on send attempt regardless of outcome, same shape as reviewRequestSentAt/rebookReminderSentAt above. */
   reminderSentAt: string | null;
   createdAt: string;
 }
@@ -67,8 +62,6 @@ export type UpdateAppointmentInput = Partial<
     | "scheduledEnd"
     | "reviewRequestSentAt"
     | "rebookReminderSentAt"
-    | "reminderMessage"
-    | "reminderStatus"
     | "reminderSentAt"
   >
 >;

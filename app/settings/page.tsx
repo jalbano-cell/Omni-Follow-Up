@@ -459,7 +459,7 @@ export default async function SettingsPage({
           title="Email Templates"
           description="Customize customer email templates"
         >
-          <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} />
+          <EmailTemplatesCard templates={emailTemplates} businessName={business.businessName} estimatesEnabled={estimatesEnabled} />
         </SettingsSection>
 
         <SettingsSection
@@ -550,11 +550,11 @@ export default async function SettingsPage({
                 type="number"
                 min={1}
                 defaultValue={business.appointmentReminderHoursBefore ?? ""}
-                placeholder="e.g. 24"
+                placeholder="e.g. 3"
               />
               <p className="text-xs text-muted-foreground">
-                Drafts a reminder for you to approve this many hours before an approved appointment — left blank,
-                defaults to 24 hours. Nothing sends until you approve it on the Appointments page.
+                Automatically emails the customer this many hours before an approved appointment — left blank,
+                defaults to 3 hours. Sends on its own; there&apos;s nothing to approve.
               </p>
             </div>
 

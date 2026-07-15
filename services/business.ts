@@ -366,7 +366,7 @@ export function getEffectiveRebookIntervalDays(
   return business.rebookIntervalDays ?? null;
 }
 
-/** Hours before an approved appointment's scheduledStart its pre-appointment reminder drafts — falls back to DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE when unset. See services/appointmentLifecycle.ts's runAppointmentReminderDraftJob. */
+/** Hours before an approved appointment's scheduledStart its pre-appointment reminder auto-sends — falls back to DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE when unset. See services/appointmentLifecycle.ts's runAppointmentReminderJob. */
 export function getEffectiveReminderHoursBefore(business: Pick<Business, "appointmentReminderHoursBefore">): number {
   return business.appointmentReminderHoursBefore ?? DEFAULT_APPOINTMENT_REMINDER_HOURS_BEFORE;
 }

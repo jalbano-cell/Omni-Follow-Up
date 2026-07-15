@@ -7,7 +7,7 @@ import {
   runAppointmentCompletionJob,
   runAppointmentReviewRequestJob,
   runAppointmentRebookReminderJob,
-  runAppointmentReminderDraftJob,
+  runAppointmentReminderJob,
 } from "@/services/appointmentLifecycle";
 import { getAllActiveBusinesses, getEffectiveTimezone } from "@/services/business";
 import { safeCompare } from "@/lib/timingSafe";
@@ -41,19 +41,23 @@ function isTargetLocalHour(timezone: string): boolean {
 }
 
 /**
- * Called by the Vercel Cron Job configured in vercel.json, once per UTC hour
- * that covers some business's 8am local time. Detects due follow-ups, drafts
- * messages, and queues them as Pending — never sends anything. Also syncs
- * incoming Gmail replies for every connected business (see
- * services/replyMatcher.ts) and, for businesses that opted in, scans their
- * Gmail inbox for new customer inquiries and creates Leads from them (see
- * services/gmailLeadCapture.ts) — both piggybacked onto this same invocation
- * rather than their own cron schedule; the "Check for new replies" button
- * covers anything more immediate. Every run is logged, only for the
- * businesses actually processed this invocation.
+ * Called by the Vercel Cron Job configured in vercel.json (once per UTC hour
+ * that covers some business's 8am local time) **and**, for the reminder job
+ * specifically, by a more-frequent external trigger (see this file's note
+ * below and services/appointmentLifecycle.ts's runAppointmentReminderJob's
+ * doc comment for why). Detects due follow-ups, drafts messages, and queues
+ * them as Pending — never sends anything. Also syncs incoming Gmail replies
+ * for every connected business (see services/replyMatcher.ts) and, for
+ * businesses that opted in, scans their Gmail inbox for new customer
+ * inquiries and creates Leads from them (see services/gmailLeadCapture.ts)
+ * — both piggybacked onto this same invocation rather than their own cron
+ * schedule; the "Check for new replies" button covers anything more
+ * immediate. Every run is logged, only for the businesses actually
+ * processed this invocation.
  *
  * If CRON_SECRET is set, requests must carry `Authorization: Bearer <CRON_SECRET>`,
- * which Vercel automatically attaches to its own cron invocations.
+ * which Vercel automatically attaches to its own cron invocations (and any
+ * external trigger must attach the same way).
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -71,6 +75,11 @@ export async function GET(request: Request) {
 
   const allBusinesses = await getAllActiveBusinesses();
 
+  // Same host every appointment-lifecycle email uses to build its unsubscribe
+  // link (lib/url.ts) — this route's own host, since the cron job has no
+  // per-recipient request to derive one from otherwise.
+  const appHost = new URL(request.url).host;
+
   // Gmail watch renewal isn't tied to a business's 8am local slot (a
   // registration just needs renewing before it expires, whenever this route
   // happens to run), so it checks every active business on every invocation
@@ -78,40 +87,48 @@ export async function GET(request: Request) {
   // 8am-gated jobs below even if a renewal call fails.
   await runGmailWatchRenewalJob(allBusinesses);
 
+  // Unlike every other job in this route, the reminder job runs on EVERY
+  // invocation, not just once/day at a business's 8am local — its whole
+  // point is a short window (default 3h) before scheduledStart, which only
+  // works if this route is actually invoked more often than daily (see
+  // runAppointmentReminderJob's doc comment). It's still cheap/idempotent to
+  // call from the once/day Vercel cron alone if no more-frequent trigger is
+  // configured — it just won't catch most appointments in that case.
+  const appointmentsBusinesses = allBusinesses.filter((b) => b.productMode !== "estimates_only");
+  const appointmentReminderLogs = await runAppointmentReminderJob(appointmentsBusinesses, appHost);
+
   const dueBusinesses: Business[] = allBusinesses.filter((business) =>
     isTargetLocalHour(getEffectiveTimezone(business))
   );
 
   if (dueBusinesses.length === 0) {
-    return NextResponse.json({ skipped: true, reason: "no business at 8am local this hour" });
+    return NextResponse.json({
+      skipped: true,
+      reason: "no business at 8am local this hour",
+      appointmentReminder: appointmentReminderLogs,
+    });
   }
-
-  // Same host every appointment-lifecycle email uses to build its unsubscribe
-  // link (lib/url.ts) — this route's own host, since the cron job has no
-  // per-recipient request to derive one from otherwise.
-  const appHost = new URL(request.url).host;
 
   // Skip jobs for whichever surface an admin-set productMode has disabled for
   // a business (services/business.ts's Business.productMode) — Leads/Gmail
   // watch renewal are universal and run for everyone (see CLAUDE.md's
   // Appointments section).
   const estimatesBusinesses = dueBusinesses.filter((b) => b.productMode !== "appointments_only");
-  const appointmentsBusinesses = dueBusinesses.filter((b) => b.productMode !== "estimates_only");
+  const dueAppointmentsBusinesses = dueBusinesses.filter((b) => b.productMode !== "estimates_only");
 
   try {
     const followUpLogs = await runDailyFollowUpJob(estimatesBusinesses);
     const replySyncLogs = await runDailyReplySyncJob(estimatesBusinesses);
     const gmailCaptureLogs = await runDailyGmailLeadCaptureJob(dueBusinesses, appHost);
-    const appointmentCompletionLogs = await runAppointmentCompletionJob(appointmentsBusinesses);
-    const appointmentReminderDraftLogs = await runAppointmentReminderDraftJob(appointmentsBusinesses);
-    const appointmentReviewRequestLogs = await runAppointmentReviewRequestJob(appointmentsBusinesses, appHost);
-    const appointmentRebookReminderLogs = await runAppointmentRebookReminderJob(appointmentsBusinesses, appHost);
+    const appointmentCompletionLogs = await runAppointmentCompletionJob(dueAppointmentsBusinesses);
+    const appointmentReviewRequestLogs = await runAppointmentReviewRequestJob(dueAppointmentsBusinesses, appHost);
+    const appointmentRebookReminderLogs = await runAppointmentRebookReminderJob(dueAppointmentsBusinesses, appHost);
     return NextResponse.json({
       followUps: followUpLogs,
       replySync: replySyncLogs,
       gmailLeadCapture: gmailCaptureLogs,
       appointmentCompletion: appointmentCompletionLogs,
-      appointmentReminderDraft: appointmentReminderDraftLogs,
+      appointmentReminder: appointmentReminderLogs,
       appointmentReviewRequest: appointmentReviewRequestLogs,
       appointmentRebookReminder: appointmentRebookReminderLogs,
     });

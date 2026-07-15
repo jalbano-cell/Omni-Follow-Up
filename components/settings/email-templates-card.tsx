@@ -138,20 +138,36 @@ function TemplateItem({ template, businessName }: { template: EmailTemplate; bus
 export function EmailTemplatesCard({
   templates,
   businessName,
+  estimatesEnabled = true,
 }: {
   templates: EmailTemplate[];
   businessName: string;
+  /**
+   * Hides followup_1/followup_2/final_followup entirely for a workspace the
+   * agency has restricted to productMode "appointments_only" — those
+   * templates back the Estimate Follow-up Queue (services/followupSender.ts),
+   * which such a workspace can never reach or send through
+   * (lib/session.ts's requireEstimatesEnabled gates every Follow-up page and
+   * Server Action), so editing them would just be dead configuration. The
+   * acknowledgment template stays editable regardless — it's the
+   * instant lead-received email, sent for every product mode.
+   */
+  estimatesEnabled?: boolean;
 }) {
+  const visibleTemplates = estimatesEnabled ? templates : templates.filter((t) => t.key === "acknowledgment");
+
   return (
     <>
       <CardHeader className="px-0">
         <CardTitle className="text-base">Email templates</CardTitle>
         <CardDescription>
-          Customize the acknowledgment and follow-up emails sent to customers. Preview before saving.
+          {estimatesEnabled
+            ? "Customize the acknowledgment and follow-up emails sent to customers. Preview before saving."
+            : "Customize the acknowledgment email sent to customers. Preview before saving."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 px-0">
-        {templates.map((template) => (
+        {visibleTemplates.map((template) => (
           <TemplateItem key={template.key} template={template} businessName={businessName} />
         ))}
       </CardContent>
