@@ -91,6 +91,12 @@ export default async function DashboardPage() {
     );
   }
 
+  // For LeadRowActions' "Approve booking" action (via components/dashboard/new-leads-card.tsx) — reuses the pendingAppointments already fetched above rather than a second query.
+  const pendingAppointmentsByLeadId: Record<string, string> = {};
+  for (const appointment of pendingAppointments) {
+    if (appointment.leadId) pendingAppointmentsByLeadId[appointment.leadId] = appointment.id;
+  }
+
   return (
     <>
       <PageHeader
@@ -243,7 +249,7 @@ export default async function DashboardPage() {
       )}
 
       <div className="mt-6">
-        <NewLeadsCard leads={newLeads} estimatesEnabled={showEstimates} />
+        <NewLeadsCard leads={newLeads} estimatesEnabled={showEstimates} pendingAppointmentsByLeadId={pendingAppointmentsByLeadId} />
       </div>
 
       {showAppointments && (

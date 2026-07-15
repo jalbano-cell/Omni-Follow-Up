@@ -5,7 +5,7 @@ import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { LeadTable } from "@/components/leads/lead-table";
 import { ImportCsvDialog } from "@/components/leads/import-csv-dialog";
 import { Button } from "@/components/ui/button";
-import { getLeads } from "@/services/db";
+import { getLeads, getAppointments } from "@/services/db";
 import { requireOnboardedBusiness } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +13,20 @@ export const dynamic = "force-dynamic";
 export default async function LeadsPage() {
   const business = await requireOnboardedBusiness();
   const businessId = business.id;
+  const appointmentsEnabled = business.productMode !== "estimates_only";
 
   let leads;
+  const pendingAppointmentsByLeadId: Record<string, string> = {};
   try {
     leads = await getLeads(businessId);
+    if (appointmentsEnabled) {
+      const appointments = await getAppointments(businessId);
+      for (const appointment of appointments) {
+        if (appointment.status === "requested" && appointment.leadId) {
+          pendingAppointmentsByLeadId[appointment.leadId] = appointment.id;
+        }
+      }
+    }
   } catch (error) {
     return (
       <>
@@ -41,7 +51,11 @@ export default async function LeadsPage() {
           </div>
         }
       />
-      <LeadTable leads={leads} estimatesEnabled={business.productMode !== "appointments_only"} />
+      <LeadTable
+        leads={leads}
+        estimatesEnabled={business.productMode !== "appointments_only"}
+        pendingAppointmentsByLeadId={pendingAppointmentsByLeadId}
+      />
     </>
   );
 }

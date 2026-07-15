@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import {
   archiveLead,
-  assignLead,
   addInternalNote,
   dismissAiInsights,
   restoreAiInsights,
@@ -33,14 +32,6 @@ export async function archiveLeadAction(id: string) {
   await archiveLead(businessId, id);
   logAction("lead.archive", { leadId: id });
   revalidatePath("/");
-  revalidatePath("/leads");
-  revalidatePath(`/leads/${id}`);
-}
-
-export async function assignLeadAction(id: string, assignedTo: string) {
-  const businessId = await getCurrentBusinessId();
-  await assignLead(businessId, id, assignedTo.trim());
-  logAction("lead.assign", { leadId: id, assignedTo });
   revalidatePath("/leads");
   revalidatePath(`/leads/${id}`);
 }

@@ -260,12 +260,6 @@ export async function revertLeadConversion(businessId: string, id: string): Prom
   return lead;
 }
 
-/** No team/user roster exists yet, so this is a free-text field, not an assignment to a real account. */
-export async function assignLead(businessId: string, id: string, assignedTo: string): Promise<Lead> {
-  const lead = await updateLead(businessId, id, { assignedTo });
-  await logLeadActivity(businessId, id, "lead.assigned", `Assigned to ${assignedTo || "Unassigned"}.`);
-  return lead;
-}
 
 /** Prepends a timestamped line rather than overwriting — internalNotes is a running log, not a single field. */
 export async function addInternalNote(businessId: string, id: string, note: string): Promise<Lead> {

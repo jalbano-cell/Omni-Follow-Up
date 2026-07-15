@@ -18,9 +18,21 @@ import type { Lead } from "@/types";
  * own Server Component re-fetches (revalidatePath's round-trip), which read
  * as "the button doesn't work" and invited repeat clicks on other rows.
  */
-export function NewLeadsCard({ leads: leadsProp, estimatesEnabled }: { leads: Lead[]; estimatesEnabled: boolean }) {
+export function NewLeadsCard({
+  leads: leadsProp,
+  estimatesEnabled,
+  pendingAppointmentsByLeadId = {},
+}: {
+  leads: Lead[];
+  estimatesEnabled: boolean;
+  /** Maps leadId -> its still-`requested` Appointment id, if any — see lead-row-actions.tsx's pendingAppointmentId. */
+  pendingAppointmentsByLeadId?: Record<string, string>;
+}) {
   const [leads, setLeads] = useState(leadsProp);
   useEffect(() => setLeads(leadsProp), [leadsProp]);
+
+  const [pendingAppointments, setPendingAppointments] = useState(pendingAppointmentsByLeadId);
+  useEffect(() => setPendingAppointments(pendingAppointmentsByLeadId), [pendingAppointmentsByLeadId]);
 
   const visible = leads.filter((l) => l.status === "New Inquiry").slice(0, 5);
 
@@ -58,8 +70,16 @@ export function NewLeadsCard({ leads: leadsProp, estimatesEnabled }: { leads: Le
                   <LeadRowActions
                     lead={lead}
                     estimatesEnabled={estimatesEnabled}
+                    pendingAppointmentId={pendingAppointments[lead.id]}
                     onArchived={() =>
                       setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status: "Archived" } : l)))
+                    }
+                    onAppointmentApproved={() =>
+                      setPendingAppointments((prev) => {
+                        const next = { ...prev };
+                        delete next[lead.id];
+                        return next;
+                      })
                     }
                   />
                 </div>

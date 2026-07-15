@@ -14,7 +14,16 @@ import type { Lead, LeadStatus } from "@/types";
 const STATUS_FILTERS: Array<LeadStatus | "All"> = ["All", ...LEAD_STATUSES];
 const SOURCE_FILTERS: Array<LeadSource | "All"> = ["All", ...LEAD_SOURCES];
 
-export function LeadTable({ leads: leadsProp, estimatesEnabled = true }: { leads: Lead[]; estimatesEnabled?: boolean }) {
+export function LeadTable({
+  leads: leadsProp,
+  estimatesEnabled = true,
+  pendingAppointmentsByLeadId = {},
+}: {
+  leads: Lead[];
+  estimatesEnabled?: boolean;
+  /** Maps leadId -> its still-`requested` Appointment id, if any — see lead-row-actions.tsx's pendingAppointmentId. */
+  pendingAppointmentsByLeadId?: Record<string, string>;
+}) {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "All">("New Inquiry");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "All">("All");
   // Local copy so an archive can update this list's rendering the instant the
@@ -23,6 +32,9 @@ export function LeadTable({ leads: leadsProp, estimatesEnabled = true }: { leads
   // comment for why that round-trip alone reads as "the button is broken").
   const [leads, setLeads] = useState(leadsProp);
   useEffect(() => setLeads(leadsProp), [leadsProp]);
+
+  const [pendingAppointments, setPendingAppointments] = useState(pendingAppointmentsByLeadId);
+  useEffect(() => setPendingAppointments(pendingAppointmentsByLeadId), [pendingAppointmentsByLeadId]);
 
   const filtered = useMemo(
     () =>
@@ -131,8 +143,16 @@ export function LeadTable({ leads: leadsProp, estimatesEnabled = true }: { leads
                     <LeadRowActions
                       lead={lead}
                       estimatesEnabled={estimatesEnabled}
+                      pendingAppointmentId={pendingAppointments[lead.id]}
                       onArchived={() =>
                         setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status: "Archived" } : l)))
+                      }
+                      onAppointmentApproved={() =>
+                        setPendingAppointments((prev) => {
+                          const next = { ...prev };
+                          delete next[lead.id];
+                          return next;
+                        })
                       }
                     />
                   </TableCell>
