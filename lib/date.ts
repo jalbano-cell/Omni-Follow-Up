@@ -77,3 +77,21 @@ export function formatZonedDateTime(instant: Date, timeZone: string): string {
     minute: "2-digit",
   });
 }
+
+/** Time-only label for a UTC instant in a given timezone, e.g. "2:00 PM" — for compact display (calendar chips) where the full date is already implied by context. */
+export function formatZonedTime(instant: Date, timeZone: string): string {
+  return instant.toLocaleTimeString("en-US", { timeZone, hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * "YYYY-MM-DD" the given UTC instant falls on within an IANA timezone — the
+ * "en-CA" locale is a convenient built-in shortcut for this exact format
+ * (same trick services/appointmentService.ts's buildCandidateSlots already
+ * uses). Used to bucket appointments onto calendar day cells correctly
+ * across timezones, since a naive instant.toISOString().slice(0,10) would
+ * use UTC and misplace evening appointments onto the wrong day for
+ * timezones behind UTC.
+ */
+export function zonedDateKey(instant: Date, timeZone: string): string {
+  return instant.toLocaleDateString("en-CA", { timeZone });
+}
