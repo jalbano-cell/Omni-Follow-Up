@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/estimates/submit-button";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAllActiveBusinesses } from "@/services/business";
+import { getAllBusinesses } from "@/services/business";
 import { updateWorkspaceEntitlementAction } from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/session";
 import { PRODUCT_MODE_LABELS, PRODUCT_MODE_OPTIONS } from "@/config/constants";
@@ -31,13 +31,13 @@ const STATUS_LABEL: Record<WorkspaceStatus, string> = {
 
 /**
  * Agency-only workspace provisioning (lib/session.ts's requireAdmin — gated
- * to the one workspace named in ADMIN_WORKSPACE_ID). getAllActiveBusinesses
+ * to the one workspace named in ADMIN_WORKSPACE_ID). getAllBusinesses
  * despite its cron-oriented name returns every workspace with no filter,
  * which is exactly what's needed here.
  */
 export default async function AdminPage() {
   await requireAdmin();
-  const businesses = await getAllActiveBusinesses();
+  const businesses = await getAllBusinesses();
 
   const activeCount = businesses.filter((b) => b.status === "active").length;
   const needsAttentionCount = businesses.length - activeCount;

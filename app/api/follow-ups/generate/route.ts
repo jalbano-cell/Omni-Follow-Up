@@ -9,7 +9,7 @@ import {
   runAppointmentRebookReminderJob,
   runAppointmentReminderJob,
 } from "@/services/appointmentLifecycle";
-import { getAllActiveBusinesses, getEffectiveTimezone } from "@/services/business";
+import { getAllBusinesses, getEffectiveTimezone, hasActiveEntitlement } from "@/services/business";
 import { safeCompare } from "@/lib/timingSafe";
 import { getBearerToken } from "@/lib/apiAuth";
 import type { Business } from "@/types";
@@ -73,7 +73,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const allBusinesses = await getAllActiveBusinesses();
+  // Only workspaces the agency has actually activated get any background
+  // automation. A non-'active' status is a full lockout (see the entitlement
+  // model in lib/session.ts / README) — without this filter the interactive
+  // app locks a suspended workspace out, but the cron still drafted follow-ups
+  // and sent appointment/reply/lead emails on its behalf.
+  const allBusinesses = (await getAllBusinesses()).filter(hasActiveEntitlement);
 
   // Same host every appointment-lifecycle email uses to build its unsubscribe
   // link (lib/url.ts) — this route's own host, since the cron job has no

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClassifyNowButton } from "@/components/admin/classify-now-button";
 import { getAllLeadClassifications } from "@/services/leadClassification";
-import { getAllActiveBusinesses } from "@/services/business";
+import { getAllBusinesses } from "@/services/business";
 import { requireAdmin } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export default async function LeadClassificationsPage() {
   await requireAdmin();
 
-  const [classifications, businesses] = await Promise.all([getAllLeadClassifications(), getAllActiveBusinesses()]);
+  const [classifications, businesses] = await Promise.all([getAllLeadClassifications(), getAllBusinesses()]);
   const businessNameById = new Map(businesses.map((b) => [b.id, b.businessName]));
 
   return (

@@ -1,5 +1,5 @@
 import { createFollowUp, getDueFollowUps, getEstimates, getFollowUps } from "@/services/db";
-import { getAllActiveBusinesses, getBusinessById } from "@/services/business";
+import { getAllBusinesses, getBusinessById, hasActiveEntitlement } from "@/services/business";
 import { ensureReminderForDraft } from "@/services/calendarReminders";
 import { listEmailTemplates, renderTemplate, templateKeyForEstimateStage } from "@/services/emailTemplateService";
 import { daysSince, formatCurrency, todayIso } from "@/lib/date";
@@ -97,7 +97,9 @@ export async function generateDueFollowUps(businessId: string): Promise<FollowUp
  * for the separate, human-approval-gated send path).
  */
 export async function runDailyFollowUpJob(businesses?: Business[]): Promise<DailyRunLog[]> {
-  businesses ??= await getAllActiveBusinesses();
+  // Cron passes an already-entitlement-filtered list; this fallback (direct
+  // calls) filters too so a locked-out workspace never gets automation.
+  businesses ??= (await getAllBusinesses()).filter(hasActiveEntitlement);
   const logs: DailyRunLog[] = [];
 
   for (const business of businesses) {

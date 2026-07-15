@@ -308,8 +308,15 @@ export async function completeOnboarding(id: string): Promise<Business> {
   return updateBusiness(id, { onboardingCompletedAt: new Date().toISOString() });
 }
 
-/** Every business, for the per-tenant cron loop (follow-up drafting). */
-export async function getAllActiveBusinesses(): Promise<Business[]> {
+/**
+ * Every workspace, regardless of status — used by /admin (which must see
+ * inactive/suspended workspaces to manage them) and, after filtering through
+ * hasActiveEntitlement, by the cron loop. NOT pre-filtered by status: the name
+ * used to imply "active" and it never actually filtered, which let the cron
+ * run automation for locked-out workspaces (see the entitlement filter at the
+ * cron's single entry point in app/api/follow-ups/generate/route.ts).
+ */
+export async function getAllBusinesses(): Promise<Business[]> {
   const { data, error } = await getSupabase().from("workspaces").select();
   if (error) throw new Error(`Supabase select on "workspaces" failed: ${error.message}`);
   return (data ?? []).map((row) => toBusiness(row as WorkspaceRow));

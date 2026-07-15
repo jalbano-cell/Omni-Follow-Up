@@ -1,7 +1,7 @@
 import type { Lead, NewLeadInput } from "@/types";
 
 /** A repeat customer contacting the business again next month is a new inquiry, not a duplicate of an old one — only flag within this window of the earlier lead's creation. */
-const DUPLICATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+export const DUPLICATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");

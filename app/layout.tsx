@@ -3,7 +3,7 @@ import { Space_Grotesk, Inter } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
-import { getNotifications, getUnreadNotificationCount } from "@/services/db";
+import { getNotifications } from "@/services/db";
 import { getBusinessById } from "@/services/business";
 import { getOptionalSession } from "@/lib/session";
 import type { WorkspaceProductMode } from "@/types";
@@ -37,10 +37,11 @@ async function NotificationBellSlot() {
   if (!session) return null;
 
   try {
-    const [unreadCount, allNotifications] = await Promise.all([
-      getUnreadNotificationCount(session.businessId),
-      getNotifications(session.businessId),
-    ]);
+    // One read, not two: unreadCount is derived from the same list the bell
+    // already loads (this used to fire getUnreadNotificationCount and
+    // getNotifications in parallel — two full-table reads per page render).
+    const allNotifications = await getNotifications(session.businessId);
+    const unreadCount = allNotifications.reduce((n, notification) => n + (notification.isRead ? 0 : 1), 0);
     return <NotificationBell notifications={allNotifications.slice(0, 8)} unreadCount={unreadCount} />;
   } catch {
     return null;

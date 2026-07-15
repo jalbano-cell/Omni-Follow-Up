@@ -5,7 +5,7 @@ import {
   getEstimate,
   getFollowUpsForEstimate,
   getLead,
-  getLeads,
+  getRecentNewInquiryLeads,
   getRepliesForEstimate,
   updateLead,
   createNotification,
@@ -17,7 +17,7 @@ import { renderEmailHtml } from "@/services/emailTemplates/emailLayout";
 import { buildLeadNotificationEmail } from "@/services/emailTemplates/leadNotification";
 import { createAppointmentFromLead } from "@/services/appointmentService";
 import { getEffectiveNotifyOnNewLead, getEffectiveEmailAccentColor } from "@/services/business";
-import { findPossibleDuplicateLead } from "@/services/duplicateLeadDetection";
+import { findPossibleDuplicateLead, DUPLICATE_WINDOW_MS } from "@/services/duplicateLeadDetection";
 import { sendEmail } from "@/services/gmail";
 import { decrypt } from "@/lib/crypto";
 import { logAction } from "@/lib/logger";
@@ -196,8 +196,11 @@ export async function dismissDuplicateLead(businessId: string, id: string): Prom
  */
 export async function createLeadFromSubmission(business: Business, input: NewLeadInput, appHost: string): Promise<Lead> {
   const leadId = generateLeadId();
-  // Snapshot existing leads before this one is created — a duplicate check must never match the new lead against itself.
-  const existingLeads = await getLeads(business.id);
+  // Snapshot the duplicate-check candidates before this one is created (so it
+  // can't match itself) — bounded to recent still-open leads, the only ones
+  // findPossibleDuplicateLead can match against, rather than the whole table.
+  const dupWindowStart = new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString();
+  const existingLeads = await getRecentNewInquiryLeads(business.id, dupWindowStart);
   let lead = await createLead(business.id, leadId, input);
 
   await logLeadActivity(business.id, lead.id, "lead.created", "New website inquiry received.");
@@ -281,11 +284,6 @@ export async function markLeadConverted(businessId: string, id: string, estimate
   const lead = await updateLead(businessId, id, { status: "Converted", convertedEstimateId: estimateId });
   await logLeadActivity(businessId, id, "lead.converted", "Lead converted to an estimate.");
   return lead;
-}
-
-export async function getNewLeadCount(businessId: string): Promise<number> {
-  const leads = await getLeads(businessId);
-  return leads.filter((l) => l.status === "New Inquiry").length;
 }
 
 export interface LeadAiInsights {

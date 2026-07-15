@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { insertRow, updateRow, deleteRow, selectById, selectWhere } from "@/lib/supabase";
+import { insertRow, updateRow, deleteRow, selectById, selectWhere, getSupabase } from "@/lib/supabase";
 import { deleteAttachmentsForEstimate } from "@/services/estimateAttachmentService";
 import { OPEN_ESTIMATE_STATUSES, DEFAULT_LEAD_SOURCE } from "@/config/constants";
 import { env } from "@/lib/env";
@@ -403,17 +403,31 @@ export async function getLeads(businessId: string): Promise<Lead[]> {
   return rows.map(toLead);
 }
 
+/**
+ * The bounded candidate set for duplicate detection (services/duplicateLeadDetection.ts):
+ * only still-"New Inquiry" leads created on or after `sinceIso`. Duplicate
+ * checking runs on every inbound submission, so loading the workspace's entire
+ * leads table each time (getLeads) scaled linearly with total lead history;
+ * this filters in Postgres to the small window the matcher can actually match
+ * against. Ordered newest-first to preserve which duplicate getLeads surfaced.
+ */
+export async function getRecentNewInquiryLeads(businessId: string, sinceIso: string): Promise<Lead[]> {
+  const { data, error } = await getSupabase()
+    .from("leads")
+    .select()
+    .eq("workspace_id", businessId)
+    .eq("status", "New Inquiry")
+    .gte("created_at", sinceIso)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`Supabase select on "leads" failed: ${error.message}`);
+  return (data ?? []).map((row) => toLead(row as LeadRow));
+}
+
 /** Direct-id lookup — ownership verified against the fetched row, same rationale as getEstimate. */
 export async function getLead(businessId: string, id: string): Promise<Lead | null> {
   const row = await selectById("leads", id);
   if (!row || row.workspace_id !== businessId) return null;
   return toLead(row);
-}
-
-/** Count of unreviewed leads — the live signal behind the dashboard's notification banner and sidebar badge. */
-export async function getNewLeadCount(businessId: string): Promise<number> {
-  const leads = await getLeads(businessId);
-  return leads.filter((l) => l.status === "New Inquiry").length;
 }
 
 /**
@@ -509,11 +523,6 @@ export async function createActivityLogEntry(businessId: string, input: NewActiv
 export async function getNotifications(businessId: string): Promise<Notification[]> {
   const rows = await selectWhere("notifications", { workspace_id: businessId }, { orderBy: "created_at", ascending: false });
   return rows.map(toNotification);
-}
-
-export async function getUnreadNotificationCount(businessId: string): Promise<number> {
-  const notifications = await getNotifications(businessId);
-  return notifications.filter((n) => !n.isRead).length;
 }
 
 export async function createNotification(businessId: string, input: NewNotificationInput): Promise<Notification> {

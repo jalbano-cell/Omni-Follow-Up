@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { createBusinessForAgency, getBusinessByEmail, updateBusiness, getAllActiveBusinesses } from "@/services/business";
+import { createBusinessForAgency, getBusinessByEmail, updateBusiness, getAllBusinesses } from "@/services/business";
 import { createOwnerClaim, getTeamMemberByEmail, TeamMemberEmailInUseError } from "@/services/userService";
 import { buildOnboardingWelcomeEmail } from "@/services/emailTemplates/onboardingWelcome";
 import { sendEmail } from "@/services/gmail";
@@ -204,7 +204,7 @@ export async function updateWorkspaceEntitlementAction(workspaceId: string, form
 export async function runLeadClassificationNowAction(): Promise<{ error?: string; summary?: string }> {
   await requireAdmin();
 
-  const businesses = await getAllActiveBusinesses();
+  const businesses = await getAllBusinesses();
   const appHost = (await headers()).get("host") ?? "localhost:3000";
   const logs = await runDailyGmailLeadCaptureJob(businesses, appHost);
 
