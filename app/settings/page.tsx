@@ -146,7 +146,7 @@ export default async function SettingsPage({
                 <Label htmlFor="timezone" className="text-xs">
                   Timezone
                 </Label>
-                <Select name="timezone" defaultValue={timezone} required>
+                <Select name="timezone" defaultValue={timezone} required items={TIMEZONE_OPTIONS}>
                   <SelectTrigger id="timezone" className="w-full">
                     <SelectValue />
                   </SelectTrigger>

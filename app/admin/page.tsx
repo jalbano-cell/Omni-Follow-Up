@@ -117,7 +117,7 @@ export default async function AdminPage() {
                 >
                   <div className="flex flex-col gap-1">
                     <Label className="text-[10px] text-muted-foreground">Status</Label>
-                    <Select name="status" defaultValue={business.status}>
+                    <Select name="status" defaultValue={business.status} items={STATUS_LABEL}>
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
@@ -132,7 +132,7 @@ export default async function AdminPage() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label className="text-[10px] text-muted-foreground">Product mode</Label>
-                    <Select name="productMode" defaultValue={business.productMode}>
+                    <Select name="productMode" defaultValue={business.productMode} items={PRODUCT_MODE_LABELS}>
                       <SelectTrigger className="w-40">
                         <SelectValue />
                       </SelectTrigger>

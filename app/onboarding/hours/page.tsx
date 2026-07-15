@@ -45,7 +45,7 @@ export default async function OnboardingHoursPage() {
           <form action={saveHoursAction} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="timezone">Time zone</Label>
-              <Select name="timezone" defaultValue={timezone} required>
+              <Select name="timezone" defaultValue={timezone} required items={TIMEZONE_OPTIONS}>
                 <SelectTrigger id="timezone" className="w-full">
                   <SelectValue />
                 </SelectTrigger>

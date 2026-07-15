@@ -94,7 +94,7 @@ export function ProvisionWorkspaceForm() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="productMode">Product mode</Label>
-            <Select name="productMode" defaultValue="both" required>
+            <Select name="productMode" defaultValue="both" required items={PRODUCT_MODE_LABELS}>
               <SelectTrigger id="productMode" className="w-full">
                 <SelectValue />
               </SelectTrigger>
