@@ -18,6 +18,7 @@ import { DatabaseErrorState } from "@/components/layout/database-error-state";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { NewLeadsCard } from "@/components/dashboard/new-leads-card";
+import { PendingAppointmentsCard } from "@/components/dashboard/pending-appointments-card";
 import { FunnelChart } from "@/components/analytics/funnel-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,9 @@ export default async function DashboardPage() {
   for (const appointment of pendingAppointments) {
     if (appointment.leadId) pendingAppointmentsByLeadId[appointment.leadId] = appointment.id;
   }
+  const appointmentScheduledLabels = Object.fromEntries(
+    pendingAppointments.map((a) => [a.id, formatZonedDateTime(new Date(a.scheduledStart), getEffectiveTimezone(business))])
+  );
 
   return (
     <>
@@ -254,42 +258,7 @@ export default async function DashboardPage() {
 
       {showAppointments && (
       <div className="mt-6">
-        <Card className="py-5">
-          <CardHeader className="flex flex-row items-center justify-between px-5">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarCheck className="size-4 text-muted-foreground" />
-              Pending appointment requests
-            </CardTitle>
-            <Button variant="ghost" size="sm" render={<Link href="/appointments" />}>
-              View all <ArrowRight className="size-3.5" />
-            </Button>
-          </CardHeader>
-          <CardContent className="px-5">
-            {pendingAppointments.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No appointment requests waiting — they show up here as customers book through your website.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {pendingAppointments.slice(0, 5).map((appointment) => (
-                  <li key={appointment.id} className="flex items-center justify-between py-3">
-                    <Link href="/appointments" className="min-w-0 hover:opacity-80">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {appointment.customerName}
-                        {appointment.serviceType && (
-                          <span className="font-normal text-muted-foreground"> · {appointment.serviceType}</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatZonedDateTime(new Date(appointment.scheduledStart), getEffectiveTimezone(business))}
-                      </p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <PendingAppointmentsCard appointments={pendingAppointments} scheduledLabels={appointmentScheduledLabels} />
       </div>
       )}
 

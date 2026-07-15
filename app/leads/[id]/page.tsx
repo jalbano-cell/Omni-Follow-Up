@@ -143,7 +143,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         </Card>
       </div>
 
-      {appointmentsEnabled && (
+      {appointmentsEnabled && !pendingAppointment && (
         <Card className="mt-6 py-5">
           <CardHeader className="px-5">
             <CardTitle className="text-base">Appointment</CardTitle>

@@ -497,7 +497,7 @@ export default async function SettingsPage({
           value="appointment-preferences"
           icon={CalendarClock}
           title="Appointment Lifecycle"
-          description="Review requests, rebook reminders, and CASL compliance"
+          description="Review requests, rebook and pre-appointment reminders, and CASL compliance"
         >
           <p className="text-sm text-muted-foreground">
             Every requested appointment always waits for your approval on the{" "}

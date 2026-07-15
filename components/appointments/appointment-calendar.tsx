@@ -39,7 +39,7 @@ const STATUS_DOT_CLASS: Record<AppointmentStatus, string> = {
  * Clicking a day (or its "+N more" overflow) selects it via onSelectDate —
  * the parent (components/appointments/appointments-view.tsx) uses that to
  * filter the existing AppointmentList below, reusing AppointmentCard's full
- * actions (approve/no-show/cancel/reminder) rather than duplicating them here.
+ * actions (approve/no-show/cancel) rather than duplicating them here.
  */
 export function AppointmentCalendar({
   appointments,
