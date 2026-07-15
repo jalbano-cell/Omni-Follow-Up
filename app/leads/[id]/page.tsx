@@ -10,6 +10,8 @@ import { LeadNotes } from "@/components/leads/lead-notes";
 import { AiInsightsCard } from "@/components/leads/ai-insights-card";
 import { PendingAppointmentBanner } from "@/components/leads/pending-appointment-banner";
 import { PossibleDuplicateBanner } from "@/components/leads/possible-duplicate-banner";
+import { ScheduleAppointmentDialog } from "@/components/leads/schedule-appointment-dialog";
+import { AppointmentStatusBadge } from "@/components/appointments/appointment-status-badge";
 import { StatusBadge } from "@/components/estimates/status-badge";
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { ReplyHistoryItem } from "@/components/replies/reply-history-item";
@@ -36,7 +38,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   }
 
   if (!detail) notFound();
-  const { lead, timeline, linkedEstimate, conversation, upcomingFollowUps, aiInsights, possibleDuplicateOfLead, pendingAppointment } = detail;
+  const {
+    lead,
+    timeline,
+    linkedEstimate,
+    conversation,
+    upcomingFollowUps,
+    aiInsights,
+    possibleDuplicateOfLead,
+    pendingAppointment,
+    activeAppointment,
+  } = detail;
 
   const contactInfo: Array<[string, string]> = [
     ["Lead ID", lead.leadId],
@@ -55,6 +67,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     ? formatZonedDateTime(new Date(pendingAppointment.scheduledStart), getEffectiveTimezone(business))
     : null;
   const estimatesEnabled = business.productMode !== "appointments_only";
+  const appointmentsEnabled = business.productMode !== "estimates_only";
 
   return (
     <>
@@ -129,6 +142,36 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </CardContent>
         </Card>
       </div>
+
+      {appointmentsEnabled && (
+        <Card className="mt-6 py-5">
+          <CardHeader className="px-5">
+            <CardTitle className="text-base">Appointment</CardTitle>
+          </CardHeader>
+          <CardContent className="px-5">
+            {activeAppointment ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AppointmentStatusBadge status={activeAppointment.status} />
+                  <span className="text-sm font-medium text-foreground">
+                    {formatZonedDateTime(new Date(activeAppointment.scheduledStart), getEffectiveTimezone(business))}
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" render={<Link href="/appointments" />}>
+                  View in Appointments
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  No appointment scheduled — {lead.name} didn&apos;t request a specific time.
+                </p>
+                <ScheduleAppointmentDialog leadId={lead.id} customerName={lead.name} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-6 py-5">
         <CardHeader className="px-5">

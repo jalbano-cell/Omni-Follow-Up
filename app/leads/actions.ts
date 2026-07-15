@@ -16,9 +16,15 @@ import {
   type UpdateAiInsightsInput,
   type MergeDuplicateResult,
 } from "@/services/leadService";
-import { approveAppointment, dismissRequestedAppointment, type ApproveAppointmentResult } from "@/services/appointmentService";
-import { getBusinessById } from "@/services/business";
+import {
+  approveAppointment,
+  dismissRequestedAppointment,
+  scheduleAppointment,
+  type ApproveAppointmentResult,
+} from "@/services/appointmentService";
+import { getBusinessById, getEffectiveTimezone } from "@/services/business";
 import { parseCsv, csvRowsToLeads } from "@/lib/csv";
+import { zonedDateTimeToUtc } from "@/lib/date";
 import { getCurrentBusinessId, requireAppointmentsEnabled } from "@/lib/session";
 import { logAction } from "@/lib/logger";
 
@@ -184,6 +190,65 @@ export async function dismissLeadAppointmentAction(appointmentId: string, leadId
   logAction("appointment.dismiss", { appointmentId });
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/appointments");
+}
+
+export interface ScheduleLeadAppointmentInput {
+  /** "YYYY-MM-DD", in the business's own local calendar — not yet converted to UTC. */
+  date: string;
+  /** "HH:mm", 24-hour, same local timezone as `date`. */
+  time: string;
+  durationMinutes: number;
+  price?: number | null;
+  location?: string | null;
+  prepInstructions?: string | null;
+}
+
+/**
+ * For a lead whose message didn't request a specific time (services/appointmentService.ts's
+ * createAppointmentFromLead returned `{ type: "none" }`, so no Appointment
+ * row exists to approve) — lets the owner pick one from the Lead Details
+ * page instead. `date`/`time` arrive as the business's own local wall-clock
+ * values and are converted here (never client-side) using its effective
+ * timezone, same precedent as every other timezone-sensitive input in this
+ * app (see services/appointmentService.ts's buildCandidateSlots).
+ */
+export async function scheduleLeadAppointmentAction(
+  leadId: string,
+  input: ScheduleLeadAppointmentInput
+): Promise<ApproveAppointmentResult> {
+  const business = await requireAppointmentsEnabled();
+
+  if (!input.date || !input.time) {
+    return { ok: false, error: "Date and time are required." };
+  }
+
+  const timezone = getEffectiveTimezone(business);
+  const scheduledStart = zonedDateTimeToUtc(`${input.date}T${input.time}:00`, timezone);
+  const durationMinutes = input.durationMinutes > 0 ? input.durationMinutes : 60;
+  const scheduledEnd = new Date(scheduledStart.getTime() + durationMinutes * 60_000);
+  const appHost = await resolveAppHost();
+
+  const result = await scheduleAppointment(
+    business.id,
+    leadId,
+    {
+      scheduledStart: scheduledStart.toISOString(),
+      scheduledEnd: scheduledEnd.toISOString(),
+      price: input.price,
+      location: input.location,
+      prepInstructions: input.prepInstructions,
+    },
+    appHost
+  );
+  logAction("appointment.schedule", { leadId, ok: result.ok });
+  if (result.ok) {
+    revalidatePath(`/leads/${leadId}`);
+    revalidatePath("/appointments");
+    revalidatePath("/");
+  } else {
+    revalidatePath(`/leads/${leadId}`);
+  }
+  return result;
 }
 
 export async function mergeDuplicateLeadAction(id: string): Promise<MergeDuplicateResult> {

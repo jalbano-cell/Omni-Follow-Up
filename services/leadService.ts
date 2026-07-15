@@ -379,6 +379,8 @@ export interface LeadDetail {
   possibleDuplicateOfLead: Lead | null;
   /** This lead's still-`requested` Appointment, if any (services/appointmentService.ts) — surfaced as the Lead Details page's approve/dismiss banner. Null once approved/cancelled, or if nothing was ever requested. */
   pendingAppointment: Appointment | null;
+  /** This lead's `requested` or `approved` Appointment, if any — whichever one is still "live." Null once completed/cancelled/no_show, or if none was ever created (e.g. the customer's message didn't specify a time). Lets the Lead Details page offer "Schedule appointment" only when there's genuinely nothing active to conflict with. */
+  activeAppointment: Appointment | null;
 }
 
 /** Everything the Lead Details page needs, joined in one call. */
@@ -408,6 +410,7 @@ export async function getLeadDetail(businessId: string, id: string): Promise<Lea
     upcomingFollowUps,
     aiInsights: toAiInsights(lead),
     pendingAppointment: leadAppointments.find((a) => a.status === "requested") ?? null,
+    activeAppointment: leadAppointments.find((a) => a.status === "requested" || a.status === "approved") ?? null,
     possibleDuplicateOfLead,
   };
 }

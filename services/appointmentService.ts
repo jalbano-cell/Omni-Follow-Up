@@ -2,7 +2,7 @@ import { listBusyIntervals, createEvent, deleteEvent } from "@/services/calendar
 import { refreshAccessToken } from "@/services/googleOAuth";
 import { getBusinessById, getEffectiveCalendarId, getEffectiveTimezone, getEffectiveWorkingHours, getEffectiveEmailAccentColor } from "@/services/business";
 import { parseRequestedAppointment } from "@/services/automation/appointmentParser";
-import { createAppointment, updateAppointment, getAppointment, getFutureAppointmentsForContact, createNotification } from "@/services/db";
+import { createAppointment, updateAppointment, getAppointment, getAppointmentsForLead, getFutureAppointmentsForContact, createNotification, getLead } from "@/services/db";
 import { logLeadActivity } from "@/services/activityService";
 import { sendEmail } from "@/services/gmail";
 import { isContactSuppressed } from "@/services/suppression";
@@ -357,6 +357,60 @@ export async function dismissRequestedAppointment(businessId: string, id: string
     await logLeadActivity(businessId, appointment.leadId, "lead.appointment_dismissed", "Appointment request dismissed.");
   }
   return { ok: true, appointment: updated };
+}
+
+export interface ScheduleAppointmentInput {
+  scheduledStart: string;
+  scheduledEnd: string;
+  price?: number | null;
+  location?: string | null;
+  prepInstructions?: string | null;
+}
+
+/**
+ * For a lead whose message didn't specify (or parse) a requested time —
+ * services/leadService.ts's sendLeadAcknowledgmentEmail falls through to
+ * `{ type: "none" }` in that case, so no Appointment row ever gets created
+ * for the owner to approve. This lets the owner pick a time themselves and
+ * immediately runs it through the exact same `approveAppointment` path a
+ * customer-requested booking would (Calendar event created first, the
+ * confirmation email sent mentioning whatever time was actually set) —
+ * there's no separate "requested" review step, since the owner supplying
+ * the time in the first place already is the approval.
+ */
+export async function scheduleAppointment(
+  businessId: string,
+  leadId: string,
+  input: ScheduleAppointmentInput,
+  appHost: string
+): Promise<ApproveAppointmentResult> {
+  const lead = await getLead(businessId, leadId);
+  if (!lead) {
+    return { ok: false, error: "Lead not found." };
+  }
+
+  const existing = await getAppointmentsForLead(businessId, leadId);
+  if (existing.some((a) => a.status === "requested" || a.status === "approved")) {
+    return { ok: false, error: "This lead already has an active appointment." };
+  }
+
+  const created = await createAppointment(businessId, {
+    leadId: lead.id,
+    customerName: lead.name,
+    customerEmail: lead.email,
+    customerPhone: lead.phone,
+    serviceType: lead.requestedService,
+    scheduledStart: input.scheduledStart,
+    scheduledEnd: input.scheduledEnd,
+    sourceMessage: lead.message,
+  });
+
+  return approveAppointment(
+    businessId,
+    created.id,
+    { price: input.price, location: input.location, prepInstructions: input.prepInstructions },
+    appHost
+  );
 }
 
 /** Re-exported for services/appointmentLifecycle.ts's rebook-reminder eligibility check. */
