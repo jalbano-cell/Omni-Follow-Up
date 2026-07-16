@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { SupportWidget } from "@/components/support/support-widget";
 import { Toaster } from "@/components/ui/sonner";
 import { getNotifications } from "@/services/db";
-import { getBusinessById } from "@/services/business";
+import { getBusinessById, hasActiveEntitlement } from "@/services/business";
 import { getOptionalSession } from "@/lib/session";
 import type { WorkspaceProductMode } from "@/types";
 import "./globals.css";
@@ -65,6 +66,25 @@ async function getNavProductMode(): Promise<WorkspaceProductMode | null> {
   }
 }
 
+/**
+ * The "Ask Omni" support widget floats over the app for a logged-in, onboarded,
+ * active workspace only — not on login/signup (no session), the onboarding
+ * wizard, the account-paused lockout, or the public customer/invite pages
+ * (which never have a session). Same "degrade to null on any error" posture as
+ * the notification slot above.
+ */
+async function SupportWidgetSlot() {
+  const session = await getOptionalSession();
+  if (!session) return null;
+  try {
+    const business = await getBusinessById(session.businessId);
+    if (!business || !hasActiveEntitlement(business) || !business.onboardingCompletedAt) return null;
+    return <SupportWidget />;
+  } catch {
+    return null;
+  }
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -87,6 +107,7 @@ export default async function RootLayout({
         <AppShell productMode={productMode} notificationBell={<NotificationBellSlot />}>
           {children}
         </AppShell>
+        <SupportWidgetSlot />
         <Toaster theme="dark" />
       </body>
     </html>
