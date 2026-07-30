@@ -122,7 +122,7 @@ Every interface decision must serve one of three goals:
 - `Verdigris` · `Patina` · `Malachite`
 
 ### Brand-Inspired
-- `Linear Blue` · `Vercel Black` · `Billing Purple` · `Framer Green`
+- `Linear Blue` · `Vercel Black` · `Stripe Purple` · `Framer Green`
 - `Apple Silver` · `Notion Cream` · `Raycast Orange` · `Figma Purple`
 - `Loom Red` · `Supabase Green` · `PlanetScale Blue` · `Railway Purple`
 
@@ -336,7 +336,7 @@ Before any interface is considered complete, ask:
 
 1. Does this look like a premium agency designed it?
 2. Would this impress a paying client?
-3. Does it stand beside Linear, Billing, Vercel, or Framer?
+3. Does it stand beside Linear, Stripe, Vercel, or Framer?
 4. Does it feel handcrafted rather than generated?
 
 If the answer to any of these is **no** — keep refining.
