@@ -1,7 +1,7 @@
 -- ---------------------------------------------------------------------------
 -- Agency-provisioned entitlement
 -- ---------------------------------------------------------------------------
--- Access is no longer driven by a Billing subscription the customer starts —
+-- Access is no longer driven by an external subscription the customer starts —
 -- the agency invoices clients externally and provisions access directly by
 -- setting these two columns. `plan` decides the seat cap (config/constants.ts's
 -- PLAN_MAX_USERS); `status` is the actual gate — 'active' means full access
@@ -27,8 +27,8 @@ set status = 'active',
       else 'grow'
     end;
 
--- Billing is fully removed as an access gatekeeper — dropping the tables it
--- owned. Historical Billing customer/subscription IDs remain visible in the
--- Billing Dashboard itself if ever needed; they aren't preserved here.
+-- External billing is fully removed as an access gatekeeper — dropping the
+-- tables it owned. Historical customer/subscription IDs remain visible in the
+-- billing provider's own dashboard if ever needed; they aren't preserved here.
 drop table if exists subscriptions;
 drop table if exists plans;

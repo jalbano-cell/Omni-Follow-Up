@@ -1,7 +1,8 @@
 -- Phase 8 of the V1.0 roadmap: subscription/plan scaffolding, no live billing.
--- Billing fields are placeholder columns only — nothing in the app calls
--- Billing's API yet. A workspace with no subscriptions row is implicitly on
--- the 'free' plan (see services/subscriptionService.ts's getEffectivePlan).
+-- The external-billing fields are placeholder columns only — nothing in the app
+-- calls a payment processor's API yet. A workspace with no subscriptions row is
+-- implicitly on the 'free' plan (see services/subscriptionService.ts's
+-- getEffectivePlan).
 create table if not exists plans (
   id text primary key,
   name text not null,

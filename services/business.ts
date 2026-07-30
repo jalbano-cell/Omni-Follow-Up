@@ -400,7 +400,7 @@ export function getEffectiveGmailLeadMonitoring(business: Pick<Business, "monito
 
 /**
  * The one access gate for the whole app — agency-assigned (Settings, not
- * self-serve), not derived from Billing. `status !== 'active'` (a brand-new
+ * self-serve), not derived from a payment processor. `status !== 'active'` (a brand-new
  * signup defaults to 'inactive' until provisioned, or an agency can flip a
  * workspace to 'suspended') means a full lockout via
  * lib/session.ts's requireOnboardedBusiness, not just losing individual

@@ -44,7 +44,7 @@ export function unauthorized(): NextResponse {
  * Gates the "read/manage your existing data" side of the public API — GET
  * /api/v1/leads, PATCH /api/v1/leads/:id, GET+POST /api/v1/estimates —
  * behind the workspace's agency-assigned entitlement (services/business.ts's
- * hasActiveEntitlement; no longer a Billing-plan feature flag). Returns a
+ * hasActiveEntitlement; no longer a billing-plan feature flag). Returns a
  * ready-to-return 403 NextResponse if the workspace isn't active, or null if
  * the route should proceed. Deliberately NOT applied to POST /api/v1/leads or
  * /api/v1/webhooks/leads (identical handler, see handleLeadIntakeRequest) —

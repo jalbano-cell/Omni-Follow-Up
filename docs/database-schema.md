@@ -52,4 +52,4 @@ Decision log for the inbound-email lead classifier (`services/leadClassification
 
 Started on Airtable, migrated to Supabase (dual-write, then full cutover — `airtable_record_id` columns since dropped). All V1.0-roadmap tables/columns above were added across Phases 1, 2 (reused an already-existing but previously-unwired `estimates.lead_id`), 4, 6, and 7. Every session's businessId/leadId/etc. are Supabase-generated UUIDs.
 
-A `plans`/`subscriptions` table pair briefly existed (Phase 8) backing Billing-gated Free/Pro billing — migration `0015_workspace_entitlements.sql` dropped both when billing became agency-provisioned instead (see CLAUDE.md's "Access & entitlement" section). If you see either referenced in old commit messages, that's what it was.
+A `plans`/`subscriptions` table pair briefly existed (Phase 8) backing subscription-gated Free/Pro billing — migration `0015_workspace_entitlements.sql` dropped both when billing became agency-provisioned instead (see CLAUDE.md's "Access & entitlement" section). If you see either referenced in old commit messages, that's what it was.

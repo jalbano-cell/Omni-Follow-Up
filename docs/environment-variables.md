@@ -19,7 +19,7 @@ Reference for every environment variable this app reads. `.env.example` is the s
 
 ## No longer used
 
-`AIRTABLE_API_KEY`/`AIRTABLE_BASE_ID` (retired when the app fully migrated to Supabase), `GEMINI_API_KEY` (retired when AI Lead Intelligence was replaced with a deterministic rule engine — see `CLAUDE.md`'s "No AI/LLM dependency" note), and `BILLING_SECRET_KEY`/`BILLING_WEBHOOK_SECRET` (retired when billing became agency-provisioned instead of Billing-gated — see `CLAUDE.md`'s "Access & entitlement" section, migration `0015_workspace_entitlements.sql`) — if you see any of these referenced in old commit messages or docs, they're historical.
+`AIRTABLE_API_KEY`/`AIRTABLE_BASE_ID` (retired when the app fully migrated to Supabase), `GEMINI_API_KEY` (retired when AI Lead Intelligence was replaced with a deterministic rule engine — see `CLAUDE.md`'s "No AI/LLM dependency" note), and the payment-processor billing keys (retired when billing became agency-provisioned instead of subscription-gated — see `CLAUDE.md`'s "Access & entitlement" section, migration `0015_workspace_entitlements.sql`) — if you see any of these referenced in old commit messages or docs, they're historical.
 
 ## Where these are read
 

@@ -1,4 +1,4 @@
-/** The actual access gate — 'active' means full access everywhere; anything else is a full app lockout to /account-paused (lib/session.ts's requireOnboardedBusiness). Set directly by the agency, not by Billing. */
+/** The actual access gate — 'active' means full access everywhere; anything else is a full app lockout to /account-paused (lib/session.ts's requireOnboardedBusiness). Set directly by the agency, not by a payment processor. */
 export type WorkspaceStatus = "active" | "inactive" | "suspended";
 
 /** Which product surface(s) this workspace can use — agency-set via /admin, same model as plan/status. Leads are never gated by this (see CLAUDE.md's Appointments section). */
